@@ -1016,6 +1016,59 @@ func (p *PreOrderHandler) GetPreOrderPricePercentage(c *gin.Context) {
 
 	c.JSON(http.StatusOK, responses.SuccessResponse("Preorder price breakdown retrieved successfully", ptr.Int(http.StatusOK), breakdowns))
 }
+ 
+// MovePreOrderToAwaitingPickup godoc
+//
+//	@Summary		Move preorder to AWAITING_PICKUP (Staff)
+//	@Description	Move a preorder from PRE_ORDERED status to AWAITING_PICKUP status. This is typically used for self-pickup orders when the product is ready for customer pickup.
+//	@Tags			Preorders.States
+//	@Accept			json
+//	@Produce		json
+//	@Param			preOrderID	path		string	true	"PreOrder ID (UUID)"
+//	@Success		200			{object}	responses.APIResponse
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/preorders/staff/{preOrderID}/awaiting-pickup [post]
+func (p *PreOrderHandler) MovePreOrderToAwaitingPickup(c *gin.Context) {
+	// --- Path ID ---
+	preOrderID, err := parseUUIDParam(c, "preOrderID")
+	if err != nil {
+		return
+	}
+
+	// --- User ---
+	updatedBy, err := extractUserID(c)
+	if err != nil {
+		msg := "unauthorized: " + err.Error()
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse(msg, http.StatusUnauthorized))
+		return
+	}
+
+	// --- Begin transaction ---
+	ctx := c.Request.Context()
+	uow := p.unitOfWork.Begin(ctx)
+	defer func() {
+		if uow.InTransaction() {
+			_ = uow.Rollback()
+		}
+	}()
+
+	// Perform state transfer using stateTransferService
+	// The FSM will validate that the preorder is in PRE_ORDERED status before allowing transition
+	targetStatus := enum.PreOrderStatusAwaitingPickup
+	if err := p.stateTransferService.MovePreOrderToState(ctx, preOrderID, targetStatus, updatedBy, nil, nil); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to move preorder to awaiting pickup: "+err.Error(), http.StatusBadRequest))
+		_ = uow.Rollback()
+		return
+	}
+
+	_ = uow.Commit()
+	resp := responses.SuccessResponse("PreOrder moved to AWAITING_PICKUP successfully", ptr.Int(http.StatusOK), nil)
+	c.JSON(http.StatusOK, resp)
+}
+
 
 func NewPreOrderHandler(preOrderService iservice.PreOrderService, uow irepository.UnitOfWork, stateSvc iservice.StateTransferService, fileSvc iservice.FileService, ghnProxy iproxies.GHNProxy) *PreOrderHandler {
 	return &PreOrderHandler{
