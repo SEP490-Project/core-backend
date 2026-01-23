@@ -183,7 +183,9 @@ func NewApplicationRegistry(
 
 	contentScheduleService := service.NewContentScheduleService(
 		databaseRegistry,
+		infrastructureRegistry,
 		contentPublishingService,
+		stateTransferService,
 		infrastructureRegistry.AsynqClient,
 		&configs.Asynq,
 	)

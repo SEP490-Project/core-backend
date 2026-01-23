@@ -943,6 +943,10 @@ func (t stateTransferService) MoveContentToState(ctx context.Context, uow irepos
 	}
 
 	// 6. Side-effects:
+	if err := t.handleContentSideEffects(ctx, uow, content, currentState, contentCtx, targetState, updatedBy); err != nil {
+		zap.L().Error("Failed to handle content side-effects", zap.Error(err))
+		return err
+	}
 
 	zap.L().Info("Content state transition successful",
 		zap.String("content_id", contentID.String()),
