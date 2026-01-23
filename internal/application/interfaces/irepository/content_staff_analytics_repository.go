@@ -66,8 +66,8 @@ type ContentStaffAnalyticsRepository interface {
 
 	// Channel Details Queries
 
-	// GetChannelMappedMetrics returns LATEST kpi_metrics values aggregated for a channel
-	// Uses DISTINCT ON to get latest value per content_channel before summing
+	// GetChannelMappedMetrics returns DELTA kpi_metrics values aggregated for a channel
+	// Delta = (last value in period) - (first value in period) for each metric type
 	GetChannelMappedMetrics(ctx context.Context, channelID uuid.UUID, startDate, endDate time.Time) (map[string]float64, error)
 
 	// GetChannelFollowers returns the followers count for a channel at a specific time (or latest before)

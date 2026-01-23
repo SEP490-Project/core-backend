@@ -379,3 +379,234 @@ func (s *SalesStaffAnalyticsService) getPreviousPeriod(from, to time.Time) (time
 	prevFrom := prevTo.Add(-duration)
 	return prevFrom, prevTo
 }
+
+// =============================================================================
+// REVENUE DETAIL SERVICE IMPLEMENTATIONS
+// =============================================================================
+
+// parseRevenueOrdersFilter parses and validates the RevenueOrdersFilter
+func (s *SalesStaffAnalyticsService) parseRevenueOrdersFilter(ctx context.Context, req *requests.RevenueOrdersFilter) (from, to time.Time, page, limit int, search, sortBy, sortOrder string, err error) {
+	// Parse dates
+	now := time.Now()
+	if req.FromDateStr != nil && *req.FromDateStr != "" {
+		parsedFrom, parseErr := time.Parse("2006-01-02", *req.FromDateStr)
+		if parseErr != nil {
+			err = parseErr
+			return
+		}
+		from = startOfDay(parsedFrom)
+	} else {
+		// Default: from beginning of time
+		from = time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC)
+	}
+
+	if req.ToDateStr != nil && *req.ToDateStr != "" {
+		parsedTo, parseErr := time.Parse("2006-01-02", *req.ToDateStr)
+		if parseErr != nil {
+			err = parseErr
+			return
+		}
+		to = endOfDay(parsedTo)
+	} else {
+		// Default: end of today
+		to = endOfDay(now)
+	}
+
+	// Pagination defaults
+	page = req.Page
+	if page < 1 {
+		page = 1
+	}
+	limit = req.Limit
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	// Search and sorting
+	search = req.Search
+	sortBy = req.SortBy
+	if sortBy == "" {
+		sortBy = "created_at"
+	}
+	sortOrder = req.SortOrder
+	if sortOrder == "" {
+		sortOrder = "desc"
+	}
+
+	return
+}
+
+// buildPagination creates a Pagination response from query results
+func (s *SalesStaffAnalyticsService) buildPagination(page, limit int, total int64) *responses.Pagination {
+	totalPages := int(total) / limit
+	if int(total)%limit != 0 {
+		totalPages++
+	}
+
+	return &responses.Pagination{
+		Page:       page,
+		Limit:      limit,
+		Total:      total,
+		TotalPages: totalPages,
+		HasNext:    page < totalPages,
+		HasPrev:    page > 1,
+	}
+}
+
+// GetTotalRevenueOrders returns all orders contributing to total revenue
+func (s *SalesStaffAnalyticsService) GetTotalRevenueOrders(ctx context.Context, req *requests.RevenueOrdersFilter) (*responses.RevenueOrdersWithPaymentResponse, *responses.Pagination, error) {
+	from, to, page, limit, search, sortBy, sortOrder, err := s.parseRevenueOrdersFilter(ctx, req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	completedOrders := constant.ValidCompletedOrderStatus
+	completedPreOrders := constant.ValidCompletedPreOrderStatus
+
+	items, total, totalRevenue, err := s.repo.GetTotalRevenueOrders(ctx, from, to, completedOrders, completedPreOrders, page, limit, search, sortBy, sortOrder)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	response := &responses.RevenueOrdersWithPaymentResponse{
+		RevenueType:  "TOTAL",
+		TotalRevenue: totalRevenue,
+		Orders:       items,
+	}
+
+	pagination := s.buildPagination(page, limit, total)
+
+	return response, pagination, nil
+}
+
+// GetStandardRevenueOrders returns STANDARD type orders
+func (s *SalesStaffAnalyticsService) GetStandardRevenueOrders(ctx context.Context, req *requests.RevenueOrdersFilter) (*responses.RevenueOrdersWithPaymentResponse, *responses.Pagination, error) {
+	from, to, page, limit, search, sortBy, sortOrder, err := s.parseRevenueOrdersFilter(ctx, req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	completedOrders := constant.ValidCompletedOrderStatus
+
+	items, total, totalRevenue, err := s.repo.GetStandardRevenueOrders(ctx, from, to, completedOrders, page, limit, search, sortBy, sortOrder)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	response := &responses.RevenueOrdersWithPaymentResponse{
+		RevenueType:  "STANDARD",
+		TotalRevenue: totalRevenue,
+		Orders:       items,
+	}
+
+	pagination := s.buildPagination(page, limit, total)
+
+	return response, pagination, nil
+}
+
+// GetLimitedRevenueOrders returns LIMITED type orders and PreOrders
+func (s *SalesStaffAnalyticsService) GetLimitedRevenueOrders(ctx context.Context, req *requests.RevenueOrdersFilter) (*responses.RevenueOrdersWithPaymentResponse, *responses.Pagination, error) {
+	from, to, page, limit, search, sortBy, sortOrder, err := s.parseRevenueOrdersFilter(ctx, req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	completedOrders := constant.ValidCompletedOrderStatus
+	completedPreOrders := constant.ValidCompletedPreOrderStatus
+
+	items, total, totalRevenue, err := s.repo.GetLimitedRevenueOrders(ctx, from, to, completedOrders, completedPreOrders, page, limit, search, sortBy, sortOrder)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	response := &responses.RevenueOrdersWithPaymentResponse{
+		RevenueType:  "LIMITED",
+		TotalRevenue: totalRevenue,
+		Orders:       items,
+	}
+
+	pagination := s.buildPagination(page, limit, total)
+
+	return response, pagination, nil
+}
+
+// GetStandardNetRevenueOrders returns STANDARD orders with net revenue (total_amount - shipping_fee)
+//func (s *SalesStaffAnalyticsService) GetStandardNetRevenueOrders(ctx context.Context, req *requests.RevenueOrdersFilter) (*responses.RevenueOrdersResponse, *responses.Pagination, error) {
+//	from, to, page, limit, search, sortBy, sortOrder, err := s.parseRevenueOrdersFilter(ctx, req)
+//	if err != nil {
+//		return nil, nil, err
+//	}
+//
+//	completedOrders := constant.ValidCompletedOrderStatus
+//
+//	items, total, totalRevenue, err := s.repo.GetStandardNetRevenueOrders(ctx, from, to, completedOrders, page, limit, search, sortBy, sortOrder)
+//	if err != nil {
+//		return nil, nil, err
+//	}
+//
+//	response := &responses.RevenueOrdersResponse{
+//		RevenueType:  "STANDARD_NET",
+//		TotalRevenue: totalRevenue,
+//		Orders:       items,
+//	}
+//
+//	pagination := s.buildPagination(page, limit, total)
+//
+//	return response, pagination, nil
+//}
+
+// GetLimitedNetRevenueOrders returns LIMITED orders and PreOrders with KOL net revenue calculation
+// KOL Net Revenue = (item_total) * kol_percent / 100 - shipping_fee
+func (s *SalesStaffAnalyticsService) GetLimitedNetRevenueOrders(ctx context.Context, req *requests.RevenueOrdersFilter) (*responses.RevenueOrdersWithPaymentResponse, *responses.Pagination, error) {
+	from, to, page, limit, search, sortBy, sortOrder, err := s.parseRevenueOrdersFilter(ctx, req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	completedOrders := constant.ValidCompletedOrderStatus
+	completedPreOrders := constant.ValidCompletedPreOrderStatus
+
+	items, total, totalRevenue, err := s.repo.GetLimitedNetRevenueOrders(ctx, from, to, completedOrders, completedPreOrders, page, limit, search, sortBy, sortOrder)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	response := &responses.RevenueOrdersWithPaymentResponse{
+		RevenueType:  "LIMITED_NET",
+		TotalRevenue: totalRevenue,
+		Orders:       items,
+	}
+
+	pagination := s.buildPagination(page, limit, total)
+
+	return response, pagination, nil
+}
+
+// GetRefundedOrders returns all refunded orders and preorders with payment transaction information
+func (s *SalesStaffAnalyticsService) GetRefundedOrders(ctx context.Context, req *requests.RevenueOrdersFilter) (*responses.RevenueOrdersWithPaymentResponse, *responses.Pagination, error) {
+	from, to, page, limit, search, sortBy, sortOrder, err := s.parseRevenueOrdersFilter(ctx, req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	refundedOrders := constant.ValidRefundedOrderStatus
+	refundedPreOrders := constant.ValidRefundedPreOrderStatus
+
+	items, total, totalRevenue, err := s.repo.GetRefundedOrders(ctx, from, to, refundedOrders, refundedPreOrders, page, limit, search, sortBy, sortOrder)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	response := &responses.RevenueOrdersWithPaymentResponse{
+		RevenueType:  "REFUNDED",
+		TotalRevenue: totalRevenue,
+		Orders:       items,
+	}
+
+	pagination := s.buildPagination(page, limit, total)
+
+	return response, pagination, nil
+}

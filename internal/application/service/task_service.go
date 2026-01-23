@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"core-backend/config"
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
@@ -13,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -20,8 +22,11 @@ import (
 )
 
 type TaskService struct {
-	taskRepo irepository.TaskRepository
-	userRepo irepository.GenericRepository[model.User]
+	taskRepo            irepository.TaskRepository
+	userRepo            irepository.GenericRepository[model.User]
+	milestoneRepo       irepository.GenericRepository[model.Milestone]
+	notificationService iservice.NotificationService
+	config              *config.AppConfig
 }
 
 // AssignTask implements iservice.TaskService.
@@ -33,6 +38,9 @@ func (t *TaskService) AssignTask(ctx context.Context, uow irepository.UnitOfWork
 	taskRepo := uow.Tasks()
 
 	var task *model.Task
+	var assignee *model.User
+	var assigner *model.User
+
 	// Validate if tasks and users exists
 	validateTaskFunc := func(ctx context.Context) error {
 		var err error
@@ -51,18 +59,30 @@ func (t *TaskService) AssignTask(ctx context.Context, uow irepository.UnitOfWork
 		return nil
 	}
 	validateUserFunc := func(ctx context.Context) error {
-		if exists, err := t.userRepo.ExistsByID(ctx, userID); err != nil {
-			zap.L().Error("TaskService - AssignTask - user not found",
+		var err error
+		assignee, err = t.userRepo.GetByID(ctx, userID, nil)
+		if err != nil {
+			zap.L().Error("TaskService - AssignTask - failed to get user",
 				zap.Error(err))
 			return err
-		} else if !exists {
+		}
+		if assignee == nil {
 			zap.L().Warn("TaskService - AssignTask - user not found",
 				zap.Any("user_id", userID))
 			return errors.New("user not found")
 		}
 		return nil
 	}
-	if err := utils.RunParallel(ctx, 2, validateTaskFunc, validateUserFunc); err != nil {
+	getAssignerFunc := func(ctx context.Context) error {
+		var err error
+		assigner, err = t.userRepo.GetByID(ctx, updatedByID, nil)
+		if err != nil {
+			zap.L().Warn("TaskService - AssignTask - failed to get assigner, continuing",
+				zap.Error(err))
+		}
+		return nil // Don't fail on assigner fetch
+	}
+	if err := utils.RunParallel(ctx, 3, validateTaskFunc, validateUserFunc, getAssignerFunc); err != nil {
 		zap.L().Error("TaskService - AssignTask - validation failed",
 			zap.Error(err))
 		return nil, err
@@ -76,6 +96,11 @@ func (t *TaskService) AssignTask(ctx context.Context, uow irepository.UnitOfWork
 		return nil, err
 	}
 	uow.Commit()
+
+	// Notify the assignee about the new task
+	if assignee != nil {
+		t.notifyUserTaskAssigned(task, assignee, assigner)
+	}
 
 	taskDetail, err := t.taskRepo.GetDetailTask(ctx, taskID)
 	if err != nil {
@@ -356,9 +381,87 @@ Found:
 	return nil
 }
 
-func NewTaskService(taskRepo irepository.TaskRepository, userRepo irepository.GenericRepository[model.User]) iservice.TaskService {
+func NewTaskService(
+	taskRepo irepository.TaskRepository,
+	userRepo irepository.GenericRepository[model.User],
+	milestoneRepo irepository.GenericRepository[model.Milestone],
+	notificationService iservice.NotificationService,
+	config *config.AppConfig,
+) iservice.TaskService {
 	return &TaskService{
-		taskRepo: taskRepo,
-		userRepo: userRepo,
+		taskRepo:            taskRepo,
+		userRepo:            userRepo,
+		milestoneRepo:       milestoneRepo,
+		notificationService: notificationService,
+		config:              config,
 	}
 }
+
+// region: ============== Task Notification Helpers ==============
+
+// notifyUserTaskAssigned sends notification to user when a task is assigned to them
+func (t *TaskService) notifyUserTaskAssigned(task *model.Task, assignee *model.User, assigner *model.User) {
+	go func() {
+		ctx := context.Background()
+
+		// Fetch milestone to get campaign info
+		milestone, err := t.milestoneRepo.GetByID(ctx, task.MilestoneID, []string{"Campaign", "Campaign.Contract", "Campaign.Contract.Brand"})
+		if err != nil {
+			zap.L().Error("Failed to get milestone for task assignment notification",
+				zap.String("task_id", task.ID.String()),
+				zap.Error(err))
+			return
+		}
+
+		campaignName := "Unknown Campaign"
+		brandName := "Unknown Brand"
+		if milestone != nil && milestone.Campaign != nil {
+			campaignName = milestone.Campaign.Name
+			if milestone.Campaign.Contract != nil && milestone.Campaign.Contract.Brand != nil {
+				brandName = milestone.Campaign.Contract.Brand.Name
+			}
+		}
+
+		assignerName := "System"
+		if assigner != nil && assigner.FullName != "" {
+			assignerName = assigner.FullName
+		}
+
+		taskLink := fmt.Sprintf("%s/manage/marketing/tasks/%s", t.config.Server.BaseFrontendURL, task.ID.String())
+		templateData := map[string]any{
+			"TaskName":     task.Name,
+			"CampaignName": campaignName,
+			"BrandName":    brandName,
+			"AssigneeName": assignee.FullName,
+			"AssignerName": assignerName,
+			"DueDate":      utils.FormatLocalTime(&task.Deadline, utils.DateFormat),
+			"TaskLink":     taskLink,
+			"CurrentYear":  time.Now().Year(),
+		}
+
+		req := &requests.PublishNotificationRequest{
+			UserID: assignee.ID,
+			Types:  []enum.NotificationType{enum.NotificationTypeInApp, enum.NotificationTypeEmail},
+			Title:  "New Task Assigned",
+			Body: fmt.Sprintf("You have been assigned task '%s' for campaign '%s'. Due: %s",
+				task.Name, campaignName, utils.FormatLocalTime(&task.Deadline, utils.DateFormat)),
+			Data:              map[string]string{"task_id": task.ID.String()},
+			EmailSubject:      utils.PtrOrNil("New Task Assigned to You"),
+			EmailTemplateName: utils.PtrOrNil("task_assigned"),
+			EmailTemplateData: templateData,
+		}
+
+		if _, err := t.notificationService.CreateAndPublishNotification(ctx, req); err != nil {
+			zap.L().Error("Failed to send task assignment notification",
+				zap.String("task_id", task.ID.String()),
+				zap.String("assignee_id", assignee.ID.String()),
+				zap.Error(err))
+		} else {
+			zap.L().Info("Sent task assignment notification",
+				zap.String("task_id", task.ID.String()),
+				zap.String("assignee_id", assignee.ID.String()))
+		}
+	}()
+}
+
+// endregion

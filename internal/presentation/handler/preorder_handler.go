@@ -253,6 +253,9 @@ func (p *PreOrderHandler) GetStaffAvailablePreOrdersWithPagination(c *gin.Contex
 	provinceID := q.ProvinceID
 	districtID := q.DistrictID
 	wardCode := q.WardCode
+	createdFrom := q.CreatedFrom
+	createdTo := q.CreatedTo
+	brandID := q.BrandID
 
 	// normalize staff status to []string for service
 	var statuses []string
@@ -270,7 +273,7 @@ func (p *PreOrderHandler) GetStaffAvailablePreOrdersWithPagination(c *gin.Contex
 		}
 	}
 
-	preorders, total, err := p.preOrderService.GetStaffAvailablePreOrdersWithPagination(limit, page, search, fullName, phone, provinceID, districtID, wardCode, statuses)
+	preorders, total, err := p.preOrderService.GetStaffAvailablePreOrdersWithPagination(limit, page, search, fullName, phone, provinceID, districtID, wardCode, createdFrom, createdTo, brandID, statuses)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to fetch staff preorders: "+err.Error(), http.StatusInternalServerError))
 		return

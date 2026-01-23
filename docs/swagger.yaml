@@ -1511,12 +1511,14 @@ definitions:
     - CONTRACT_PAYMENT
     - PREORDER
     - CONTRACT_VIOLATION
+    - KOL_VIOLATION_REFUNDING
     type: string
     x-enum-varnames:
     - PaymentTransactionReferenceTypeOrder
     - PaymentTransactionReferenceTypeContractPayment
     - PaymentTransactionReferenceTypePreOrder
     - PaymentTransactionReferenceTypeContractViolation
+    - PaymentTransactionReferenceTypeKOLViolationRefunding
   enum.PlatformType:
     enum:
     - IOS
@@ -1533,6 +1535,7 @@ definitions:
     - CANCELLED
     - REFUND_REQUEST
     - REFUNDED
+    - SHIPPED
     - AWAITING_PICKUP
     - IN_TRANSIT
     - DELIVERED
@@ -1547,6 +1550,7 @@ definitions:
     - PreOrderStatusCancelled
     - PreOrderStatusRefundRequest
     - PreOrderStatusRefunded
+    - PreOrderStatusShipped
     - PreOrderStatusAwaitingPickup
     - PreOrderStatusInTransit
     - PreOrderStatusDelivered
@@ -3177,7 +3181,7 @@ definitions:
     type: object
   requests.CreateTaskCampaignRequest:
     properties:
-      assigned_to:
+      assigned_to_id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       deadline:
@@ -7240,6 +7244,12 @@ definitions:
     properties:
       average_order_value:
         $ref: '#/definitions/responses.AOVMetrics'
+      limited_gross_revenue:
+        description: Limited orders + PreOrders (including shipping)
+        type: number
+      limited_net_revenue:
+        description: Limited orders + PreOrders * KOL percentage (without shipping)
+        type: number
       limited_revenue:
         type: number
       new_customer_count:
@@ -7248,6 +7258,9 @@ definitions:
         type: integer
       revenue_growth:
         description: Compared to previous period
+        type: number
+      standard_net_revenue:
+        description: Standard orders without shipping fee
         type: number
       standard_revenue:
         type: number
@@ -7968,6 +7981,12 @@ definitions:
         type: string
       method:
         example: CREDIT_CARD
+        type: string
+      payer_id:
+        example: d4e5f6a7-b8c9-0a1b-2c3d-4e5f6a7b8c9d
+        type: string
+      received_by_id:
+        example: e5f6a7b8-c9d0-1a2b-3c4d-5e6f7a8b9c0d
         type: string
       reference_id:
         example: a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6
@@ -9147,6 +9166,9 @@ definitions:
     type: object
   responses.SuggestedTask:
     properties:
+      assigned_to_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
       deadline:
         example: "2024-12-31T23:59:59Z"
         type: string
@@ -18905,6 +18927,11 @@ paths:
         in: query
         name: code
         type: string
+      - description: Order type
+        in: query
+        name: orderType
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -20358,6 +20385,30 @@ paths:
         number search.
       parameters:
       - description: |-
+          Brand ID filter
+          in: query
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        example: 550e8400-e29b-41d4-a716-446655440000
+        in: query
+        name: brand_id
+        type: string
+      - description: |-
+          Filter by start date (YYYY-MM-DD)
+          in: query
+          example: "2025-01-01"
+        example: "2025-01-01"
+        in: query
+        name: created_from
+        type: string
+      - description: |-
+          Filter by end date (YYYY-MM-DD)
+          in: query
+          example: "2025-12-31"
+        example: "2025-12-31"
+        in: query
+        name: created_to
+        type: string
+      - description: |-
           GHN district id
           in: query
           example: 10
@@ -21464,6 +21515,7 @@ paths:
           - CANCELLED
           - REFUND_REQUEST
           - REFUNDED
+          - SHIPPED
           - AWAITING_PICKUP
           - IN_TRANSIT
           - DELIVERED
@@ -21820,6 +21872,7 @@ paths:
           - CANCELLED
           - REFUND_REQUEST
           - REFUNDED
+          - SHIPPED
           - AWAITING_PICKUP
           - IN_TRANSIT
           - DELIVERED
@@ -21916,6 +21969,43 @@ paths:
       security:
       - BearerAuth: []
       summary: Staff Censor an PREORDER (move to PRE_ORDERED or REFUNDED)
+      tags:
+      - Preorders.States
+  /api/v1/preorders/staff/{preOrderID}/awaiting-pickup:
+    post:
+      consumes:
+      - application/json
+      description: Move a preorder from PRE_ORDERED status to AWAITING_PICKUP status.
+        This is typically used for self-pickup orders when the product is ready for
+        customer pickup.
+      parameters:
+      - description: PreOrder ID (UUID)
+        in: path
+        name: preOrderID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Move preorder to AWAITING_PICKUP (Staff)
       tags:
       - Preorders.States
   /api/v1/preorders/staff/{preOrderID}/compensation:

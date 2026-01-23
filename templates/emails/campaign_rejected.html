@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>New Contract Created</title>
+    <title>Campaign Rejected</title>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -40,19 +40,39 @@
       .content p {
         margin: 8px 0 10px 0;
       }
-      .contract-details {
+      .rejected-badge {
+        display: inline-block;
+        background-color: #fef2f2;
+        color: #dc2626;
+        padding: 6px 14px;
+        border-radius: 16px;
+        font-size: 12px;
+        margin: 10px 0 14px 0;
+        font-weight: 600;
+        border: 1px solid #fca5a5;
+      }
+      .campaign-details {
         background-color: #f9fafb;
         padding: 14px 16px;
         border-radius: 6px;
         margin: 16px 0 18px 0;
-        border-left: 4px solid #ff9fb2;
+        border-left: 4px solid #dc2626;
         font-size: 13px;
       }
-      .contract-details p {
+      .campaign-details p {
         margin: 4px 0;
       }
-      .contract-details strong {
+      .campaign-details strong {
         color: #111827;
+      }
+      .rejection-reason {
+        background-color: #fef2f2;
+        border: 1px solid #fca5a5;
+        border-radius: 6px;
+        padding: 12px 16px;
+        margin: 16px 0;
+        font-size: 13px;
+        color: #991b1b;
       }
       .button {
         display: inline-block;
@@ -85,34 +105,41 @@
   <body>
     <div class="email-container">
       <div class="header">
-        <h1>📝 New Contract Created</h1>
+        <h1>❌ Campaign Rejected</h1>
       </div>
+
       <div class="content">
-        <p>Hello,</p>
+        <p>Hello {{.StaffName}},</p>
         <p>
-          A new contract has been created for your brand and requires your review. 
-          Please check the details below:
-        </p>
-
-        <div class="contract-details">
-          <p><strong>Contract Number:</strong> {{.ContractNumber}}</p>
-          <p><strong>Title:</strong> {{.Title}}</p>
-          <p><strong>Brand:</strong> {{.BrandName}}</p>
-          <p><strong>Created By:</strong> {{.CreatedByName}}</p>
-          <p><strong>Total Value:</strong> {{.TotalValue}}</p>
-          <p><strong>Start Date:</strong> {{.StartDate}}</p>
-          <p><strong>End Date:</strong> {{.EndDate}}</p>
-        </div>
-
-        <p>
-          Please review the contract and approve to proceed with the deposit payment, 
-          or provide feedback for revisions.
+          Unfortunately, the campaign you created has been rejected by the brand. 
+          Please review the feedback below and make necessary revisions.
         </p>
 
         <div style="text-align: center">
-          <a href="{{.ReviewLink}}" class="button">Review Contract</a>
+          <div class="rejected-badge">✕ CANCELLED</div>
+        </div>
+
+        <div class="campaign-details">
+          <p><strong>Campaign Name:</strong> {{.CampaignName}}</p>
+          <p><strong>Brand:</strong> {{.BrandName}}</p>
+          <p><strong>Rejection Date:</strong> {{.RejectionDate}}</p>
+        </div>
+
+        <div class="rejection-reason">
+          <strong>📝 Rejection Reason:</strong><br />
+          {{.RejectReason}}
+        </div>
+
+        <p>
+          Please review the campaign and make necessary changes based on the feedback. 
+          You may need to create a new campaign or contact the brand for clarification.
+        </p>
+
+        <div style="text-align: center">
+          <a href="{{.CampaignLink}}" class="button">View Campaign</a>
         </div>
       </div>
+
       <div class="footer">
         <p>&copy; {{.CurrentYear}} Your Company. All rights reserved.</p>
         <p>This is an automated message. Please do not reply to this email.</p>
