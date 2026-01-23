@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"core-backend/config"
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
@@ -38,6 +39,10 @@ type CampaignService struct {
 	contentChannelRepo  irepository.ContentChannelsRepository
 	affiliateLinkRepo   irepository.AffiliateLinkRepository
 	kpiMetricsRepo      irepository.KPIMetricsRepository
+	brandRepo           irepository.GenericRepository[model.Brand]
+	userRepo            irepository.GenericRepository[model.User]
+	notificationService iservice.NotificationService
+	config              *config.AppConfig
 	unitOfWork          irepository.UnitOfWork
 }
 
@@ -818,6 +823,12 @@ func (s *CampaignService) CreateCampaignFromContract(
 		s.linkMilestonesToPaymentsAsync(requestID, contractID, createdCampaign.Milestones, payments)
 	}()
 
+	// Notify brand about the new campaign
+	creator, _ := s.userRepo.GetByID(ctx, userID, nil)
+	if contract != nil && creator != nil {
+		s.notifyBrandCampaignCreated(createdCampaign, contract, creator)
+	}
+
 	response := responses.CampaignDetailsResponse{}.ToCampaignDetailsResponse(createdCampaign)
 	zap.L().Info("Successfully created campaign", zap.Any("campaign", response))
 	return response, nil
@@ -1478,6 +1489,8 @@ func (s *CampaignService) extractCoProducingStructure(
 func NewCampaignService(
 	dbReg *gormrepository.DatabaseRegistry,
 	infraReg *infrastructure.InfrastructureRegistry,
+	notificationService iservice.NotificationService,
+	config *config.AppConfig,
 ) iservice.CampaignService {
 	return &CampaignService{
 		campaignRepo:        dbReg.CampaignRepository,
@@ -1488,6 +1501,10 @@ func NewCampaignService(
 		contentChannelRepo:  dbReg.ContentChannelRepository,
 		affiliateLinkRepo:   dbReg.AffiliateLinkRepository,
 		kpiMetricsRepo:      dbReg.KPIMetricsRepository,
+		brandRepo:           dbReg.BrandRepository,
+		userRepo:            dbReg.UserRepository,
+		notificationService: notificationService,
+		config:              config,
 		unitOfWork:          infraReg.UnitOfWork,
 	}
 }
@@ -1574,3 +1591,62 @@ func (s *CampaignService) filterRegularPayments(payments []model.ContractPayment
 	}
 	return regular
 }
+
+// region: ============== Campaign Notification Helpers ==============
+
+// notifyBrandCampaignCreated sends notification to brand when a new campaign is created for their contract
+func (s *CampaignService) notifyBrandCampaignCreated(campaign *model.Campaign, contract *model.Contract, creator *model.User) {
+	go func() {
+		ctx := context.Background()
+
+		// Fetch brand info
+		brand, err := s.brandRepo.GetByID(ctx, contract.BrandID, nil)
+		if err != nil || brand == nil {
+			zap.L().Error("Failed to get brand for campaign notification",
+				zap.String("campaign_id", campaign.ID.String()),
+				zap.String("brand_id", contract.BrandID.String()),
+				zap.Error(err))
+			return
+		}
+
+		reviewLink := fmt.Sprintf("%s/manage/brand/campaigns/%s", s.config.Server.BaseFrontendURL, campaign.ID.String())
+		templateData := map[string]any{
+			"CampaignName":  campaign.Name,
+			"BrandName":     brand.Name,
+			"CreatedByName": creator.FullName,
+			"StartDate":     campaign.StartDate.Format("2006-01-02"),
+			"EndDate":       campaign.EndDate.Format("2006-01-02"),
+			"ReviewLink":    reviewLink,
+			"CurrentYear":   time.Now().Year(),
+		}
+
+		req := &requests.PublishNotificationRequest{
+			UserID:            utils.DerefPtr(brand.UserID, uuid.Nil),
+			Types:             []enum.NotificationType{enum.NotificationTypeInApp, enum.NotificationTypeEmail},
+			Title:             "New Campaign Created for Review",
+			Body:              fmt.Sprintf("A new campaign '%s' has been created for your brand. Please review and approve.", campaign.Name),
+			Data:              map[string]string{"campaign_id": campaign.ID.String()},
+			EmailSubject:      utils.PtrOrNil("New Campaign Created - Review Required"),
+			EmailTemplateName: utils.PtrOrNil("campaign_created"),
+			EmailTemplateData: templateData,
+		}
+
+		// Override email recipient if brand has contact email
+		if brand.ContactEmail != "" {
+			req.CustomReceiver = &brand.ContactEmail
+		}
+
+		if _, err := s.notificationService.CreateAndPublishNotification(ctx, req); err != nil {
+			zap.L().Error("Failed to send campaign created notification to brand",
+				zap.String("campaign_id", campaign.ID.String()),
+				zap.String("brand_id", brand.ID.String()),
+				zap.Error(err))
+		} else {
+			zap.L().Info("Sent campaign created notification to brand",
+				zap.String("campaign_id", campaign.ID.String()),
+				zap.String("brand_id", brand.ID.String()))
+		}
+	}()
+}
+
+// endregion

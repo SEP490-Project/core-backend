@@ -581,11 +581,12 @@ func (t stateTransferService) MoveCampaignToState(
 ) error {
 	//1. Load current task from DB
 	campaignRepo := uow.Campaigns()
-	campaign, err := campaignRepo.GetByID(ctx, campaignID, []string{"Milestones", "Milestones.Campaign", "Milestones.Tasks", "Milestones.Tasks.Product", "Milestones.Tasks.Contents"})
+	campaign, err := campaignRepo.GetByID(ctx, campaignID, []string{"Milestones", "Milestones.Campaign", "Milestones.Tasks", "Milestones.Tasks.Product", "Milestones.Tasks.Contents", "Contract", "Contract.Brand"})
 	if err != nil {
 		zap.L().Error("Failed to load campaign", zap.String("campaign_id", campaignID.String()), zap.Error(err))
 		return errors.New("failed to load campaign: " + err.Error())
 	}
+	oldStatus := campaign.Status
 	campaign.UpdatedByID = &updatedBy
 
 	//2. Load task context
@@ -614,6 +615,21 @@ func (t stateTransferService) MoveCampaignToState(
 	if err := campaignRepo.Update(ctx, campaign); err != nil {
 		zap.L().Error("Failed to persist campaign state", zap.String("campaign_id", campaignID.String()), zap.Error(err))
 		return errors.New("failed to persist campaign state: " + err.Error())
+	}
+
+	//6. Side effects: Notify marketing staff based on state transition
+	if oldStatus == enum.CampaignDraft {
+		brandName := "Unknown Brand"
+		if campaign.Contract != nil && campaign.Contract.Brand != nil {
+			brandName = campaign.Contract.Brand.Name
+		}
+
+		switch targetState {
+		case enum.CampaignRunning:
+			t.notifyStaffCampaignApproved(campaign, brandName)
+		case enum.CampaignCancelled:
+			t.notifyStaffCampaignRejected(campaign, brandName)
+		}
 	}
 
 	return nil
@@ -871,6 +887,17 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, trx irepo
 			zap.String("contract_id", contractID.String()),
 			zap.String("user_id", updatedBy.String()))
 
+		// Notify brand that contract is approved and deposit payment is required
+		if contract.Brand != nil {
+			t.notifyBrandContractApproved(contract, contract.Brand)
+		}
+
+	case enum.ContractStatusActive:
+		// Notify marketing staff that contract has been activated (deposit paid)
+		if contract.Brand != nil {
+			t.notifyStaffContractActivated(contract, contract.Brand)
+		}
+
 	default:
 		zap.L().Debug("There are no side-effects to be applied to the contract after transitioning",
 			zap.String("contract_id", contractID.String()),
@@ -896,6 +923,7 @@ func (t stateTransferService) MoveContentToState(ctx context.Context, uow irepos
 			zap.Error(err))
 		return errors.New("unable to find content: " + err.Error())
 	}
+	oldStatus := content.Status
 
 	// 2. Load content context for FSM
 	currentState, err := contentsm.NewContentState(content.Status)
@@ -950,6 +978,7 @@ func (t stateTransferService) MoveContentToState(ctx context.Context, uow irepos
 
 	zap.L().Info("Content state transition successful",
 		zap.String("content_id", contentID.String()),
+		zap.String("old_state", string(oldStatus)),
 		zap.String("new_state", string(targetState)),
 		zap.String("updated_by", updatedBy.String()))
 
@@ -978,6 +1007,26 @@ func (t *stateTransferService) handleContentSideEffects(
 				zap.String("new_status", string(targetState)))
 		}
 	}
+  
+  	// 6. Side-effects: Send notifications based on state transitions
+	switch targetState {
+	case enum.ContentStatusAwaitStaff:
+		// Content submitted for review - notify all marketing staff
+		t.notifyMarketingStaffContentSubmitted(content)
+
+	case enum.ContentStatusApproved:
+		// Content approved - notify creator
+		t.notifyCreatorContentApproved(content)
+
+	case enum.ContentStatusRejected:
+		// Content rejected - notify creator with reason
+		rejectReason := "No reason provided"
+		if content.RejectionFeedback != nil && *content.RejectionFeedback != "" {
+			rejectReason = *content.RejectionFeedback
+		}
+		t.notifyCreatorContentRejected(content, rejectReason)
+  }
+
 
 	// 2. Move Task state to DONE if content is POSTED and has associated Task
 	if targetState == enum.ContentStatusPosted && content.TaskID != nil {
@@ -1344,6 +1393,10 @@ func (t stateTransferService) handleContractPaymentSideEffect(
 	switch transactionStatus {
 	case enum.PaymentTransactionStatusCompleted:
 		newStatus = enum.ContractPaymentStatusPaid
+		// Set PaidAt timestamp when payment is completed
+		now := time.Now()
+		contractPayment.PaidAt = &now
+
 		zap.L().Info("Updating contract payment to PAID",
 			zap.String("contract_payment_id", contractPayment.ID.String()))
 
@@ -2260,3 +2313,379 @@ func (t stateTransferService) scheduleLimitedProductAnnouncements(ctx context.Co
 			zap.Time("target_date", sched.targetDate))
 	}
 }
+
+// region: ============== Contract Notification Helpers ==============
+
+// notifyBrandContractApproved sends notification to brand when contract is approved and payment is required
+func (t *stateTransferService) notifyBrandContractApproved(contract *model.Contract, brand *model.Brand) {
+	go func() {
+		ctx := context.Background()
+
+		contractNumber := "N/A"
+		if contract.ContractNumber != nil {
+			contractNumber = *contract.ContractNumber
+		}
+
+		paymentLink := fmt.Sprintf("%s/manage/brand/contract-payment", t.config.Server.BaseFrontendURL)
+		templateData := map[string]any{
+			"ContractNumber": contractNumber,
+			"BrandName":      brand.Name,
+			"PaymentLink":    paymentLink,
+			"CurrentYear":    time.Now().Year(),
+		}
+
+		// Use brand.UserID for IN_APP and brand.ContactEmail for EMAIL
+		req := &requests.PublishNotificationRequest{
+			UserID:            utils.DerefPtr(brand.UserID, uuid.Nil),
+			Types:             []enum.NotificationType{enum.NotificationTypeInApp, enum.NotificationTypeEmail},
+			Title:             "Contract Approved - Deposit Required",
+			Body:              fmt.Sprintf("Your contract %s has been approved. Please proceed with the deposit payment to activate the contract.", contractNumber),
+			Data:              map[string]string{"contract_id": contract.ID.String()},
+			EmailSubject:      utils.PtrOrNil("Contract Approved - Deposit Required"),
+			EmailTemplateName: utils.PtrOrNil("contract_approved_deposit_required"),
+			EmailTemplateData: templateData,
+		}
+
+		// Override email recipient if brand has contact email
+		if brand.ContactEmail != "" {
+			req.CustomReceiver = &brand.ContactEmail
+		}
+
+		if _, err := t.notificationService.CreateAndPublishNotification(ctx, req); err != nil {
+			zap.L().Error("Failed to send contract approved notification to brand",
+				zap.String("contract_id", contract.ID.String()),
+				zap.String("brand_id", brand.ID.String()),
+				zap.Error(err))
+		} else {
+			zap.L().Info("Sent contract approved notification to brand",
+				zap.String("contract_id", contract.ID.String()),
+				zap.String("brand_id", brand.ID.String()))
+		}
+	}()
+}
+
+// notifyStaffContractActivated sends notification to marketing staff when contract becomes active (deposit paid)
+func (t *stateTransferService) notifyStaffContractActivated(contract *model.Contract, brand *model.Brand) {
+	go func() {
+		ctx := context.Background()
+
+		// Find the creator of the contract
+		if contract.CreatedByID == uuid.Nil {
+			zap.L().Warn("Contract has no creator, skipping activation notification",
+				zap.String("contract_id", contract.ID.String()))
+			return
+		}
+
+		creator, err := t.userRepository.GetByID(ctx, contract.CreatedByID, nil)
+		if err != nil || creator == nil {
+			zap.L().Error("Failed to get contract creator for activation notification",
+				zap.String("contract_id", contract.ID.String()),
+				zap.Error(err))
+			return
+		}
+
+		contractNumber := "N/A"
+		if contract.ContractNumber != nil {
+			contractNumber = *contract.ContractNumber
+		}
+
+		contractLink := fmt.Sprintf("%s/manage/marketing/contracts/%s", t.config.Server.BaseFrontendURL, contract.ID.String())
+		createCampaignLink := fmt.Sprintf("%s/manage/marketing/campaigns/create?contract_id=%s", t.config.Server.BaseFrontendURL, contract.ID.String())
+		templateData := map[string]any{
+			"ContractNumber":     contractNumber,
+			"BrandName":          brand.Name,
+			"StaffName":          creator.FullName,
+			"ActivationDate":     time.Now().Format("2006-01-02"),
+			"ContractLink":       contractLink,
+			"CreateCampaignLink": createCampaignLink,
+			"CurrentYear":        time.Now().Year(),
+		}
+
+		req := &requests.PublishNotificationRequest{
+			UserID:            creator.ID,
+			Types:             []enum.NotificationType{enum.NotificationTypeInApp, enum.NotificationTypeEmail},
+			Title:             "Contract Activated",
+			Body:              fmt.Sprintf("Contract %s with %s has been activated. You can now create campaigns.", contractNumber, brand.Name),
+			Data:              map[string]string{"contract_id": contract.ID.String()},
+			EmailSubject:      utils.PtrOrNil("Contract Activated - Ready for Campaign Creation"),
+			EmailTemplateName: utils.PtrOrNil("contract_activated"),
+			EmailTemplateData: templateData,
+		}
+
+		if _, err := t.notificationService.CreateAndPublishNotification(ctx, req); err != nil {
+			zap.L().Error("Failed to send contract activation notification to staff",
+				zap.String("contract_id", contract.ID.String()),
+				zap.String("staff_id", creator.ID.String()),
+				zap.Error(err))
+		} else {
+			zap.L().Info("Sent contract activation notification to staff",
+				zap.String("contract_id", contract.ID.String()),
+				zap.String("staff_id", creator.ID.String()))
+		}
+	}()
+}
+
+// endregion
+
+// region: ============== Campaign Notification Helpers ==============
+
+// notifyStaffCampaignApproved sends notification to marketing staff when campaign is approved (RUNNING)
+func (t *stateTransferService) notifyStaffCampaignApproved(campaign *model.Campaign, brandName string) {
+	go func() {
+		ctx := context.Background()
+
+		// Find the creator of the campaign
+		if campaign.CreatedByID == uuid.Nil {
+			zap.L().Warn("Campaign has no creator, skipping approval notification",
+				zap.String("campaign_id", campaign.ID.String()))
+			return
+		}
+
+		creator, err := t.userRepository.GetByID(ctx, campaign.CreatedByID, nil)
+		if err != nil || creator == nil {
+			zap.L().Error("Failed to get campaign creator for approval notification",
+				zap.String("campaign_id", campaign.ID.String()),
+				zap.Error(err))
+			return
+		}
+
+		campaignLink := fmt.Sprintf("%s/manage/marketing/campaigns/%s", t.config.Server.BaseFrontendURL, campaign.ID.String())
+		templateData := map[string]any{
+			"CampaignName": campaign.Name,
+			"BrandName":    brandName,
+			"StaffName":    creator.FullName,
+			"ApprovalDate": time.Now().Format("2006-01-02"),
+			"CampaignLink": campaignLink,
+			"CurrentYear":  time.Now().Year(),
+		}
+
+		req := &requests.PublishNotificationRequest{
+			UserID:            creator.ID,
+			Types:             []enum.NotificationType{enum.NotificationTypeInApp, enum.NotificationTypeEmail},
+			Title:             "Campaign Approved",
+			Body:              fmt.Sprintf("Campaign '%s' for %s has been approved and is now running.", campaign.Name, brandName),
+			Data:              map[string]string{"campaign_id": campaign.ID.String()},
+			EmailSubject:      utils.PtrOrNil("Campaign Approved - Now Running"),
+			EmailTemplateName: utils.PtrOrNil("campaign_approved"),
+			EmailTemplateData: templateData,
+		}
+
+		if _, err := t.notificationService.CreateAndPublishNotification(ctx, req); err != nil {
+			zap.L().Error("Failed to send campaign approval notification to staff",
+				zap.String("campaign_id", campaign.ID.String()),
+				zap.String("staff_id", creator.ID.String()),
+				zap.Error(err))
+		} else {
+			zap.L().Info("Sent campaign approval notification to staff",
+				zap.String("campaign_id", campaign.ID.String()),
+				zap.String("staff_id", creator.ID.String()))
+		}
+	}()
+}
+
+// notifyStaffCampaignRejected sends notification to marketing staff when campaign is rejected (CANCELLED)
+func (t *stateTransferService) notifyStaffCampaignRejected(campaign *model.Campaign, brandName string) {
+	go func() {
+		ctx := context.Background()
+
+		// Find the creator of the campaign
+		if campaign.CreatedByID == uuid.Nil {
+			zap.L().Warn("Campaign has no creator, skipping rejection notification",
+				zap.String("campaign_id", campaign.ID.String()))
+			return
+		}
+
+		creator, err := t.userRepository.GetByID(ctx, campaign.CreatedByID, nil)
+		if err != nil || creator == nil {
+			zap.L().Error("Failed to get campaign creator for rejection notification",
+				zap.String("campaign_id", campaign.ID.String()),
+				zap.Error(err))
+			return
+		}
+
+		rejectReason := "No reason provided"
+		if campaign.RejectReason != nil && *campaign.RejectReason != "" {
+			rejectReason = *campaign.RejectReason
+		}
+
+		campaignLink := fmt.Sprintf("%s/manage/marketing/campaigns/%s", t.config.Server.BaseFrontendURL, campaign.ID.String())
+		templateData := map[string]any{
+			"CampaignName":  campaign.Name,
+			"BrandName":     brandName,
+			"StaffName":     creator.FullName,
+			"RejectReason":  rejectReason,
+			"RejectionDate": time.Now().Format("2006-01-02"),
+			"CampaignLink":  campaignLink,
+			"CurrentYear":   time.Now().Year(),
+		}
+
+		req := &requests.PublishNotificationRequest{
+			UserID:            creator.ID,
+			Types:             []enum.NotificationType{enum.NotificationTypeInApp, enum.NotificationTypeEmail},
+			Title:             "Campaign Rejected",
+			Body:              fmt.Sprintf("Campaign '%s' for %s has been rejected. Reason: %s", campaign.Name, brandName, rejectReason),
+			Data:              map[string]string{"campaign_id": campaign.ID.String()},
+			EmailSubject:      utils.PtrOrNil("Campaign Rejected"),
+			EmailTemplateName: utils.PtrOrNil("campaign_rejected"),
+			EmailTemplateData: templateData,
+		}
+
+		if _, err := t.notificationService.CreateAndPublishNotification(ctx, req); err != nil {
+			zap.L().Error("Failed to send campaign rejection notification to staff",
+				zap.String("campaign_id", campaign.ID.String()),
+				zap.String("staff_id", creator.ID.String()),
+				zap.Error(err))
+		} else {
+			zap.L().Info("Sent campaign rejection notification to staff",
+				zap.String("campaign_id", campaign.ID.String()),
+				zap.String("staff_id", creator.ID.String()))
+		}
+	}()
+}
+
+// endregion
+
+// region: ============== Content Notification Helpers ==============
+
+// notifyMarketingStaffContentSubmitted broadcasts notification to all marketing staff when content is submitted for review
+func (t *stateTransferService) notifyMarketingStaffContentSubmitted(content *model.Content) {
+	go func() {
+		ctx := context.Background()
+
+		contentLink := fmt.Sprintf("%s/manage/marketing/contents/%s", t.config.Server.BaseFrontendURL, content.ID.String())
+		templateData := map[string]any{
+			"ContentTitle": content.Title,
+			"ContentType":  content.Type,
+			"ContentLink":  contentLink,
+			"CurrentYear":  time.Now().Year(),
+		}
+
+		req := &requests.PublishNotificationRequest{
+			Types:             []enum.NotificationType{enum.NotificationTypeInApp, enum.NotificationTypeEmail},
+			Title:             "New Content Submitted for Review",
+			Body:              fmt.Sprintf("Content '%s' has been submitted and is awaiting your review.", content.Title),
+			Data:              map[string]string{"content_id": content.ID.String()},
+			EmailSubject:      utils.PtrOrNil("New Content Submitted for Review"),
+			EmailTemplateName: utils.PtrOrNil("content_submitted_for_review"),
+			EmailTemplateData: templateData,
+		}
+
+		if err := t.notificationService.BroadcastToRoleWithRequest(ctx, []enum.UserRole{enum.UserRoleMarketingStaff}, req); err != nil {
+			zap.L().Error("Failed to broadcast content submission notification to marketing staff",
+				zap.String("content_id", content.ID.String()),
+				zap.Error(err))
+		} else {
+			zap.L().Info("Broadcasted content submission notification to marketing staff",
+				zap.String("content_id", content.ID.String()))
+		}
+	}()
+}
+
+// notifyCreatorContentApproved sends notification to content creator when content is approved
+func (t *stateTransferService) notifyCreatorContentApproved(content *model.Content) {
+	go func() {
+		ctx := context.Background()
+
+		if content.CreatedBy == nil || *content.CreatedBy == uuid.Nil {
+			zap.L().Warn("Content has no creator, skipping approval notification",
+				zap.String("content_id", content.ID.String()))
+			return
+		}
+
+		creator, err := t.userRepository.GetByID(ctx, content.CreatedBy, nil)
+		if err != nil || creator == nil {
+			zap.L().Error("Failed to get content creator for approval notification",
+				zap.String("content_id", content.ID.String()),
+				zap.Error(err))
+			return
+		}
+
+		contentLink := fmt.Sprintf("%s/manage/marketing/contents/%s", t.config.Server.BaseFrontendURL, content.ID.String())
+		templateData := map[string]any{
+			"ContentTitle": content.Title,
+			"ContentType":  content.Type,
+			"CreatorName":  creator.FullName,
+			"ApprovalDate": time.Now().Format("2006-01-02"),
+			"ContentLink":  contentLink,
+			"CurrentYear":  time.Now().Year(),
+		}
+
+		req := &requests.PublishNotificationRequest{
+			UserID:            creator.ID,
+			Types:             []enum.NotificationType{enum.NotificationTypeInApp, enum.NotificationTypeEmail},
+			Title:             "Content Approved",
+			Body:              fmt.Sprintf("Your content '%s' has been approved.", content.Title),
+			Data:              map[string]string{"content_id": content.ID.String()},
+			EmailSubject:      utils.PtrOrNil("Content Approved"),
+			EmailTemplateName: utils.PtrOrNil("content_approved"),
+			EmailTemplateData: templateData,
+		}
+
+		if _, err := t.notificationService.CreateAndPublishNotification(ctx, req); err != nil {
+			zap.L().Error("Failed to send content approval notification to creator",
+				zap.String("content_id", content.ID.String()),
+				zap.String("creator_id", creator.ID.String()),
+				zap.Error(err))
+		} else {
+			zap.L().Info("Sent content approval notification to creator",
+				zap.String("content_id", content.ID.String()),
+				zap.String("creator_id", creator.ID.String()))
+		}
+	}()
+}
+
+// notifyCreatorContentRejected sends notification to content creator when content is rejected
+func (t *stateTransferService) notifyCreatorContentRejected(content *model.Content, rejectReason string) {
+	go func() {
+		ctx := context.Background()
+
+		if content.CreatedBy == nil || *content.CreatedBy == uuid.Nil {
+			zap.L().Warn("Content has no creator, skipping rejection notification",
+				zap.String("content_id", content.ID.String()))
+			return
+		}
+
+		creator, err := t.userRepository.GetByID(ctx, content.CreatedBy, nil)
+		if err != nil || creator == nil {
+			zap.L().Error("Failed to get content creator for rejection notification",
+				zap.String("content_id", content.ID.String()),
+				zap.Error(err))
+			return
+		}
+
+		contentLink := fmt.Sprintf("%s/manage/marketing/contents/%s", t.config.Server.BaseFrontendURL, content.ID.String())
+		templateData := map[string]any{
+			"ContentTitle":  content.Title,
+			"ContentType":   content.Type,
+			"CreatorName":   creator.FullName,
+			"RejectReason":  rejectReason,
+			"RejectionDate": time.Now().Format("2006-01-02"),
+			"ContentLink":   contentLink,
+			"CurrentYear":   time.Now().Year(),
+		}
+
+		req := &requests.PublishNotificationRequest{
+			UserID:            creator.ID,
+			Types:             []enum.NotificationType{enum.NotificationTypeInApp, enum.NotificationTypeEmail},
+			Title:             "Content Rejected",
+			Body:              fmt.Sprintf("Your content '%s' has been rejected. Reason: %s", content.Title, rejectReason),
+			Data:              map[string]string{"content_id": content.ID.String()},
+			EmailSubject:      utils.PtrOrNil("Content Rejected - Action Required"),
+			EmailTemplateName: utils.PtrOrNil("content_rejected"),
+			EmailTemplateData: templateData,
+		}
+
+		if _, err := t.notificationService.CreateAndPublishNotification(ctx, req); err != nil {
+			zap.L().Error("Failed to send content rejection notification to creator",
+				zap.String("content_id", content.ID.String()),
+				zap.String("creator_id", creator.ID.String()),
+				zap.Error(err))
+		} else {
+			zap.L().Info("Sent content rejection notification to creator",
+				zap.String("content_id", content.ID.String()),
+				zap.String("creator_id", creator.ID.String()))
+		}
+	}()
+}
+
+// endregion
