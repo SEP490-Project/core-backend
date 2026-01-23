@@ -3,6 +3,7 @@ package contentsm
 import (
 	"core-backend/internal/domain/enum"
 	"errors"
+	"slices"
 )
 
 // ApprovedState represents approved content ready for publishing
@@ -17,9 +18,9 @@ func (s *ApprovedState) Name() enum.ContentStatus {
 func (s *ApprovedState) Next(ctx *ContentContext, nextState ContentState) error {
 	nextName := nextState.Name()
 
-	// Valid transitions: APPROVED → POSTED or CANCELLED
-	if nextName != enum.ContentStatusPosted && nextName != enum.ContentStatusCancelled {
-		return errors.New("invalid transition: APPROVED can only transition to POSTED or CANCELLED")
+	// // Valid transitions: APPROVED → POSTED, SCHEDULED, or CANCELLED
+	if !slices.Contains(s.AllowedTransitions(), nextName) {
+		return errors.New("invalid transition: APPROVED can only transition to POSTED, SCHEDULED, or CANCELLED")
 	}
 
 	ctx.SetState(nextState)
@@ -30,6 +31,7 @@ func (s *ApprovedState) Next(ctx *ContentContext, nextState ContentState) error 
 func (s *ApprovedState) AllowedTransitions() []enum.ContentStatus {
 	return []enum.ContentStatus{
 		enum.ContentStatusPosted,
+		enum.ContentStatusScheduled,
 		enum.ContentStatusCancelled,
 	}
 }
