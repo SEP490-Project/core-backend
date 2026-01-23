@@ -15,6 +15,7 @@ const (
 	PreOrderStatusRefundRequest PreOrderStatus = "REFUND_REQUEST"
 	PreOrderStatusRefunded      PreOrderStatus = "REFUNDED"
 
+	PreOrderStatusShipped           PreOrderStatus = "SHIPPED"
 	PreOrderStatusAwaitingPickup    PreOrderStatus = "AWAITING_PICKUP"
 	PreOrderStatusInTransit         PreOrderStatus = "IN_TRANSIT"
 	PreOrderStatusDelivered         PreOrderStatus = "DELIVERED"
@@ -25,7 +26,7 @@ const (
 
 func (pos PreOrderStatus) IsValid() bool {
 	switch pos {
-	case PreOrderStatusPending, PreOrderStatusPaid, PreOrderStatusPreOrdered, PreOrderStatusCancelled, PreOrderStatusAwaitingPickup, PreOrderStatusInTransit, PreOrderStatusDelivered, PreOrderStatusReceived, PreOrderStatusCompensateRequest, PreOrderStatusCompensated, PreOrderStatusRefundRequest, PreOrderStatusRefunded:
+	case PreOrderStatusPending, PreOrderStatusPaid, PreOrderStatusPreOrdered, PreOrderStatusCancelled, PreOrderStatusAwaitingPickup, PreOrderStatusInTransit, PreOrderStatusDelivered, PreOrderStatusReceived, PreOrderStatusCompensateRequest, PreOrderStatusCompensated, PreOrderStatusRefundRequest, PreOrderStatusRefunded, PreOrderStatusShipped:
 		return true
 	}
 	return false

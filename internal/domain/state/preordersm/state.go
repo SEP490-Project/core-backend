@@ -22,6 +22,8 @@ func NewPreOrderState(status enum.PreOrderStatus) PreOrderState {
 		return &PreOrderedState{}
 	case enum.PreOrderStatusCancelled:
 		return &CancelledState{}
+	case enum.PreOrderStatusShipped:
+		return &ShippedState{}
 	case enum.PreOrderStatusAwaitingPickup:
 		return &AwaitingPickupState{}
 	case enum.PreOrderStatusInTransit:

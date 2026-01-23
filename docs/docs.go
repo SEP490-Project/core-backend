@@ -14055,6 +14055,13 @@ const docTemplate = `{
                         "description": "Order code",
                         "name": "code",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Order type",
+                        "name": "orderType",
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -16222,6 +16229,27 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
+                        "example": "550e8400-e29b-41d4-a716-446655440000",
+                        "description": "Brand ID filter\nin: query\nexample: \"550e8400-e29b-41d4-a716-446655440000\"",
+                        "name": "brand_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "2025-01-01",
+                        "description": "Filter by start date (YYYY-MM-DD)\nin: query\nexample: \"2025-01-01\"",
+                        "name": "created_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "2025-12-31",
+                        "description": "Filter by end date (YYYY-MM-DD)\nin: query\nexample: \"2025-12-31\"",
+                        "name": "created_to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "example": "10",
                         "description": "GHN district id\nin: query\nexample: 10",
                         "name": "district_id",
@@ -18019,6 +18047,7 @@ const docTemplate = `{
                                 "CANCELLED",
                                 "REFUND_REQUEST",
                                 "REFUNDED",
+                                "SHIPPED",
                                 "AWAITING_PICKUP",
                                 "IN_TRANSIT",
                                 "DELIVERED",
@@ -18347,6 +18376,7 @@ const docTemplate = `{
                                 "CANCELLED",
                                 "REFUND_REQUEST",
                                 "REFUNDED",
+                                "SHIPPED",
                                 "AWAITING_PICKUP",
                                 "IN_TRANSIT",
                                 "DELIVERED",
@@ -18672,6 +18702,61 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/preorders/staff/{preOrderID}/awaiting-pickup": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Move a preorder from PRE_ORDERED status to AWAITING_PICKUP status. This is typically used for self-pickup orders when the product is ready for customer pickup.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Preorders.States"
+                ],
+                "summary": "Move preorder to AWAITING_PICKUP (Staff)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "PreOrder ID (UUID)",
+                        "name": "preOrderID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "401": {
@@ -26903,13 +26988,15 @@ const docTemplate = `{
                 "ORDER",
                 "CONTRACT_PAYMENT",
                 "PREORDER",
-                "CONTRACT_VIOLATION"
+                "CONTRACT_VIOLATION",
+                "KOL_VIOLATION_REFUNDING"
             ],
             "x-enum-varnames": [
                 "PaymentTransactionReferenceTypeOrder",
                 "PaymentTransactionReferenceTypeContractPayment",
                 "PaymentTransactionReferenceTypePreOrder",
-                "PaymentTransactionReferenceTypeContractViolation"
+                "PaymentTransactionReferenceTypeContractViolation",
+                "PaymentTransactionReferenceTypeKOLViolationRefunding"
             ]
         },
         "enum.PlatformType": {
@@ -26932,6 +27019,7 @@ const docTemplate = `{
                 "CANCELLED",
                 "REFUND_REQUEST",
                 "REFUNDED",
+                "SHIPPED",
                 "AWAITING_PICKUP",
                 "IN_TRANSIT",
                 "DELIVERED",
@@ -26946,6 +27034,7 @@ const docTemplate = `{
                 "PreOrderStatusCancelled",
                 "PreOrderStatusRefundRequest",
                 "PreOrderStatusRefunded",
+                "PreOrderStatusShipped",
                 "PreOrderStatusAwaitingPickup",
                 "PreOrderStatusInTransit",
                 "PreOrderStatusDelivered",
@@ -34964,6 +35053,14 @@ const docTemplate = `{
                 "average_order_value": {
                     "$ref": "#/definitions/responses.AOVMetrics"
                 },
+                "limited_gross_revenue": {
+                    "description": "Limited orders + PreOrders (including shipping)",
+                    "type": "number"
+                },
+                "limited_net_revenue": {
+                    "description": "Limited orders + PreOrders * KOL percentage (without shipping)",
+                    "type": "number"
+                },
                 "limited_revenue": {
                     "type": "number"
                 },
@@ -34975,6 +35072,10 @@ const docTemplate = `{
                 },
                 "revenue_growth": {
                     "description": "Compared to previous period",
+                    "type": "number"
+                },
+                "standard_net_revenue": {
+                    "description": "Standard orders without shipping fee",
                     "type": "number"
                 },
                 "standard_revenue": {
@@ -36062,6 +36163,14 @@ const docTemplate = `{
                 "method": {
                     "type": "string",
                     "example": "CREDIT_CARD"
+                },
+                "payer_id": {
+                    "type": "string",
+                    "example": "d4e5f6a7-b8c9-0a1b-2c3d-4e5f6a7b8c9d"
+                },
+                "received_by_id": {
+                    "type": "string",
+                    "example": "e5f6a7b8-c9d0-1a2b-3c4d-5e6f7a8b9c0d"
                 },
                 "reference_id": {
                     "type": "string",

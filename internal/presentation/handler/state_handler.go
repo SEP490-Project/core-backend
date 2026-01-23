@@ -461,6 +461,7 @@ func (h *StateHandler) UpdateMilestoneState(c *gin.Context) {
 //	@Produce		json
 //	@Param			status	query		string	true	"Order status"
 //	@Param			code	query		string	false	"Order code"
+//	@Param			orderType	query   string	true "Order type"
 //	@Success		200		{object}	map[string]interface{}
 //	@Router			/api/v1/ghn/webhook [get]
 func (h *StateHandler) GHNOrderUpdateWebHook(c *gin.Context) {
@@ -468,12 +469,18 @@ func (h *StateHandler) GHNOrderUpdateWebHook(c *gin.Context) {
 
 	status := c.Query("status")
 	code := c.Query("code")
+	orderType := c.Query("orderType")
 
-	zap.L().Info("Received order update hook request", zap.String("status", status), zap.String("code", code))
+	// Default to ORDER if orderType is not provided
+	if orderType == "" {
+		orderType = "ORDER"
+	}
+
+	zap.L().Info("Received order update hook request", zap.String("status", status), zap.String("code", code), zap.String("orderType", orderType))
 
 	//Find Order by code
 	// Call service with these parameters
-	err := h.StateTransferService.MoveOrderToStateByGHNWebhook(ctx, code, enum.GHNDeliveryStatus(status))
+	err := h.StateTransferService.MoveOrderToStateByGHNWebhook(ctx, code, enum.GHNDeliveryStatus(status), orderType)
 	if err != nil {
 		zap.L().Error("Failed to move order to GHN hook", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to move order: "+err.Error(), http.StatusInternalServerError))

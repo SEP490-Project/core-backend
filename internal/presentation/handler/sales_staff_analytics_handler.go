@@ -48,6 +48,7 @@ func (h *SalesStaffAnalyticsHandler) GetFinancialsDashboard(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
+
 	result, err := h.service.GetFinancialsDashboard(ctx, h.getDefaultFilterRequest(&req))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
@@ -213,4 +214,264 @@ func (h *SalesStaffAnalyticsHandler) getDefaultFilterRequest(filter *requests.Sa
 	}
 
 	return filter
+}
+
+// =============================================================================
+// REVENUE DETAIL HANDLERS
+// =============================================================================
+
+// GetTotalRevenueOrders godoc
+//
+//	@Summary		Get orders contributing to Total Revenue
+//	@Description	Retrieve paginated list of all orders (both STANDARD and LIMITED) and preorders that contribute to total revenue
+//	@Tags			Analytics.Sales
+//	@Accept			json
+//	@Produce		json
+//	@Param			page		query		int		false	"Page number (default 1)"
+//	@Param			limit		query		int		false	"Items per page (default 10, max 100)"
+//	@Param			from_date	query		string	false	"From Date (YYYY-MM-DD)"
+//	@Param			to_date		query		string	false	"To Date (YYYY-MM-DD)"
+//	@Param			search		query		string	false	"Search by order ID or customer name"
+//	@Param			sort_by		query		string	false	"Sort by (created_at, total_amount)"	enums(created_at, total_amount)
+//	@Param			sort_order	query		string	false	"Sort order (asc, desc)"				enums(asc, desc)
+//	@Success		200			{object}	responses.APIResponse{data=responses.RevenueOrdersWithPaymentResponse}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/sales/financials/revenue/total/orders [get]
+func (h *SalesStaffAnalyticsHandler) GetTotalRevenueOrders(c *gin.Context) {
+	var req requests.RevenueOrdersFilter
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters", http.StatusBadRequest))
+		return
+	}
+
+	ctx := c.Request.Context()
+	result, pagination, err := h.service.GetTotalRevenueOrders(ctx, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	resp := responses.NewPaginationResponse(
+		"Total revenue orders retrieved successfully",
+		http.StatusOK,
+		result.Orders,
+		*pagination,
+	)
+	// Add total revenue to response data
+	c.JSON(http.StatusOK, gin.H{
+		"success":       resp.Success,
+		"status":        resp.Status,
+		"status_code":   resp.StatusCode,
+		"message":       resp.Message,
+		"revenue_type":  result.RevenueType,
+		"total_revenue": result.TotalRevenue,
+		"data":          resp.Data,
+		"pagination":    resp.Pagination,
+	})
+}
+
+// GetStandardRevenueOrders godoc
+//
+//	@Summary		Get orders contributing to Standard Revenue
+//	@Description	Retrieve paginated list of STANDARD type orders that contribute to standard revenue
+//	@Tags			Analytics.Sales
+//	@Accept			json
+//	@Produce		json
+//	@Param			page		query		int		false	"Page number (default 1)"
+//	@Param			limit		query		int		false	"Items per page (default 10, max 100)"
+//	@Param			from_date	query		string	false	"From Date (YYYY-MM-DD)"
+//	@Param			to_date		query		string	false	"To Date (YYYY-MM-DD)"
+//	@Param			search		query		string	false	"Search by order ID or customer name"
+//	@Param			sort_by		query		string	false	"Sort by (created_at, total_amount)"	enums(created_at, total_amount)
+//	@Param			sort_order	query		string	false	"Sort order (asc, desc)"				enums(asc, desc)
+//	@Success		200			{object}	responses.APIResponse{data=responses.RevenueOrdersWithPaymentResponse}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/sales/financials/revenue/standard/orders [get]
+func (h *SalesStaffAnalyticsHandler) GetStandardRevenueOrders(c *gin.Context) {
+	var req requests.RevenueOrdersFilter
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters", http.StatusBadRequest))
+		return
+	}
+
+	ctx := c.Request.Context()
+	result, pagination, err := h.service.GetStandardRevenueOrders(ctx, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	resp := responses.NewPaginationResponse(
+		"Standard revenue orders retrieved successfully",
+		http.StatusOK,
+		result.Orders,
+		*pagination,
+	)
+	c.JSON(http.StatusOK, gin.H{
+		"success":       resp.Success,
+		"status":        resp.Status,
+		"status_code":   resp.StatusCode,
+		"message":       resp.Message,
+		"revenue_type":  result.RevenueType,
+		"total_revenue": result.TotalRevenue,
+		"data":          resp.Data,
+		"pagination":    resp.Pagination,
+	})
+}
+
+// GetLimitedRevenueOrders godoc
+//
+//	@Summary		Get orders contributing to Limited Revenue
+//	@Description	Retrieve paginated list of LIMITED type orders and PreOrders that contribute to limited revenue
+//	@Tags			Analytics.Sales
+//	@Accept			json
+//	@Produce		json
+//	@Param			page		query		int		false	"Page number (default 1)"
+//	@Param			limit		query		int		false	"Items per page (default 10, max 100)"
+//	@Param			from_date	query		string	false	"From Date (YYYY-MM-DD)"
+//	@Param			to_date		query		string	false	"To Date (YYYY-MM-DD)"
+//	@Param			search		query		string	false	"Search by order ID or customer name"
+//	@Param			sort_by		query		string	false	"Sort by (created_at, total_amount)"	enums(created_at, total_amount)
+//	@Param			sort_order	query		string	false	"Sort order (asc, desc)"				enums(asc, desc)
+//	@Success		200			{object}	responses.APIResponse{data=responses.RevenueOrdersWithPaymentResponse}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/sales/financials/revenue/limited/orders [get]
+func (h *SalesStaffAnalyticsHandler) GetLimitedRevenueOrders(c *gin.Context) {
+	var req requests.RevenueOrdersFilter
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters", http.StatusBadRequest))
+		return
+	}
+
+	ctx := c.Request.Context()
+	result, pagination, err := h.service.GetLimitedRevenueOrders(ctx, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	resp := responses.NewPaginationResponse(
+		"Limited revenue orders retrieved successfully",
+		http.StatusOK,
+		result.Orders,
+		*pagination,
+	)
+	c.JSON(http.StatusOK, gin.H{
+		"success":       resp.Success,
+		"status":        resp.Status,
+		"status_code":   resp.StatusCode,
+		"message":       resp.Message,
+		"revenue_type":  result.RevenueType,
+		"total_revenue": result.TotalRevenue,
+		"data":          resp.Data,
+		"pagination":    resp.Pagination,
+	})
+}
+
+// GetLimitedNetRevenueOrders godoc
+//
+//	@Summary		Get orders contributing to Limited Net Revenue (KOL Revenue)
+//	@Description	Retrieve paginated list of LIMITED type orders and PreOrders with KOL net revenue calculation. Includes payment transaction information.
+//	@Tags			Analytics.Sales
+//	@Accept			json
+//	@Produce		json
+//	@Param			page		query		int		false	"Page number (default 1)"
+//	@Param			limit		query		int		false	"Items per page (default 10, max 100)"
+//	@Param			from_date	query		string	false	"From Date (YYYY-MM-DD)"
+//	@Param			to_date		query		string	false	"To Date (YYYY-MM-DD)"
+//	@Param			search		query		string	false	"Search by order ID or customer name"
+//	@Param			sort_by		query		string	false	"Sort by (created_at, total_amount, net_amount)"	enums(created_at, total_amount, net_amount)
+//	@Param			sort_order	query		string	false	"Sort order (asc, desc)"							enums(asc, desc)
+//	@Success		200			{object}	responses.APIResponse{data=responses.RevenueOrdersWithPaymentResponse}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/sales/financials/revenue/limited-net/orders [get]
+func (h *SalesStaffAnalyticsHandler) GetLimitedNetRevenueOrders(c *gin.Context) {
+	var req requests.RevenueOrdersFilter
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters", http.StatusBadRequest))
+		return
+	}
+
+	ctx := c.Request.Context()
+	result, pagination, err := h.service.GetLimitedNetRevenueOrders(ctx, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	resp := responses.NewPaginationResponse(
+		"Limited net revenue orders retrieved successfully",
+		http.StatusOK,
+		result.Orders,
+		*pagination,
+	)
+	c.JSON(http.StatusOK, gin.H{
+		"success":       resp.Success,
+		"status":        resp.Status,
+		"status_code":   resp.StatusCode,
+		"message":       resp.Message,
+		"revenue_type":  result.RevenueType,
+		"total_revenue": result.TotalRevenue,
+		"data":          resp.Data,
+		"pagination":    resp.Pagination,
+	})
+}
+
+// GetRefundedOrders godoc
+//
+//	@Summary		Get all refunded orders and preorders
+//	@Description	Retrieve paginated list of all refunded orders and preorders. Includes payment transaction information.
+//	@Tags			Analytics.Sales
+//	@Accept			json
+//	@Produce		json
+//	@Param			page		query		int		false	"Page number (default 1)"
+//	@Param			limit		query		int		false	"Items per page (default 10, max 100)"
+//	@Param			from_date	query		string	false	"From Date (YYYY-MM-DD)"
+//	@Param			to_date		query		string	false	"To Date (YYYY-MM-DD)"
+//	@Param			search		query		string	false	"Search by order ID or customer name"
+//	@Param			sort_by		query		string	false	"Sort by (created_at, total_amount)"	enums(created_at, total_amount)
+//	@Param			sort_order	query		string	false	"Sort order (asc, desc)"				enums(asc, desc)
+//	@Success		200			{object}	responses.APIResponse{data=responses.RevenueOrdersWithPaymentResponse}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/sales/financials/refunded/orders [get]
+func (h *SalesStaffAnalyticsHandler) GetRefundedOrders(c *gin.Context) {
+	var req requests.RevenueOrdersFilter
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters", http.StatusBadRequest))
+		return
+	}
+
+	ctx := c.Request.Context()
+	result, pagination, err := h.service.GetRefundedOrders(ctx, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	resp := responses.NewPaginationResponse(
+		"Refunded orders retrieved successfully",
+		http.StatusOK,
+		result.Orders,
+		*pagination,
+	)
+	c.JSON(http.StatusOK, gin.H{
+		"success":       resp.Success,
+		"status":        resp.Status,
+		"status_code":   resp.StatusCode,
+		"message":       resp.Message,
+		"revenue_type":  result.RevenueType,
+		"total_revenue": result.TotalRevenue,
+		"data":          resp.Data,
+		"pagination":    resp.Pagination,
+	})
 }

@@ -23,6 +23,7 @@ var notificationPreOrderBuilders = map[PreOrderNotificationType]func(ctx context
 	PreOrderNotifyCompensateRequested: buildPreorderCompensateRequestedNotification,
 	PreOrderNotifyCompensated:         buildPreorderCompensatedNotification,
 	PreOrderNotifyCancelled:           buildPreorderCancelledNotification,
+	PreOrderNotifyShipped:             buildPreOrderShippedNotification,
 
 	PreOrderNotifyRefund:           buildPreorderRefundedNotification,
 	PreOrderNotifyRefundRequest:    buildPreorderRefundRequestNotification,
@@ -189,6 +190,15 @@ func buildPreorderCompensateRequestedNotification(ctx context.Context, cfg confi
 		resp = append(resp, buildNotificationRequest(staff.ID, channelEmailPush, staffEmailPayload, staffPushPayload))
 	}
 	return resp, nil
+}
+
+func buildPreOrderShippedNotification(ctx context.Context, cfg config.AppConfig, db *gorm.DB, status PreOrderNotificationType, po *model.PreOrder, user *model.User) ([]requests.PublishNotificationRequest, error) {
+	pushPayload := PushNotificationPayload{
+		Title: "Your Pre-order Has Been Shipped To Delivery Service",
+		Body:  "Your item is on the way.",
+		Data:  pushDataForPreOrder(po),
+	}
+	return []requests.PublishNotificationRequest{buildNotificationRequest(po.UserID, channelPush, EmailNotificationPayload{}, pushPayload)}, nil
 }
 
 func buildPreorderCompensateRejectedNotification(ctx context.Context, cfg config.AppConfig, db *gorm.DB, status PreOrderNotificationType, po *model.PreOrder, user *model.User) ([]requests.PublishNotificationRequest, error) {

@@ -22,10 +22,11 @@ type PreOrderService interface {
 	ProcessCompensation(ctx context.Context, preOrderID, actionBy uuid.UUID, isApproved bool, reason, fileURL *string) error
 
 	// Staff-facing listing similar to staff orders
-	GetStaffAvailablePreOrdersWithPagination(limit, page int, search, fullName, phone, provinceID, districtID, wardCode string, status []string) ([]responses.PreOrderResponse, int, error)
+	GetStaffAvailablePreOrdersWithPagination(limit, page int, search, fullName, phone, provinceID, districtID, wardCode, createdFrom, createdTo, brandID string, status []string) ([]responses.PreOrderResponse, int, error)
 
 	//Job to check and expire pre-orders (total count, failed count, upcomming)
 	PreOrderOpeningChecker(ctx context.Context) (int, int, int)
+	PreOrderOpeningManualTrigger(ctx context.Context, preOrderID, actionBy uuid.UUID) error
 
 	RefundRequest(ctx context.Context, preOrderID, actionBy uuid.UUID, reason *string) error
 
@@ -35,4 +36,7 @@ type PreOrderService interface {
 
 	OpeningPreOrderEarly(ctx context.Context, uow irepository.UnitOfWork, productID uuid.UUID, updatedBy uuid.UUID) error
 	GetPreOrderPricePercentage(ctx context.Context, preOrderID uuid.UUID) ([]responses.PriceBreakdown, error)
+
+	// Update GHN Order Code for a PreOrder
+	UpdateGHNOrderCode(ctx context.Context, preOrderID uuid.UUID, ghnOrderCode string) error
 }

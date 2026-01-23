@@ -55,6 +55,21 @@ type StaffOrdersQuery struct {
 	// in: query
 	// example: "STANDARD"
 	OrderType enum.ProductType `form:"order_type" example:"STANDARD"`
+
+	// Filter by start date (YYYY-MM-DD)
+	// in: query
+	// example: "2025-01-01"
+	CreatedFrom string `form:"created_from" example:"2025-01-01"`
+
+	// Filter by end date (YYYY-MM-DD)
+	// in: query
+	// example: "2025-12-31"
+	CreatedTo string `form:"created_to" example:"2025-12-31"`
+
+	// Brand ID filter
+	// in: query
+	// example: "550e8400-e29b-41d4-a716-446655440000"
+	BrandID string `form:"brand_id" example:"550e8400-e29b-41d4-a716-446655440000"`
 }
 
 // SelfDeliveringQuery represents query parameters for staff order list endpoint.
@@ -152,4 +167,19 @@ type StaffPreOrdersQuery struct {
 	// in: query
 	// example: "01234"
 	WardCode string `form:"ward_code" example:"01234"`
+
+	// Filter by start date (YYYY-MM-DD)
+	// in: query
+	// example: "2025-01-01"
+	CreatedFrom string `form:"created_from" example:"2025-01-01"`
+
+	// Filter by end date (YYYY-MM-DD)
+	// in: query
+	// example: "2025-12-31"
+	CreatedTo string `form:"created_to" example:"2025-12-31"`
+
+	// Brand ID filter
+	// in: query
+	// example: "550e8400-e29b-41d4-a716-446655440000"
+	BrandID string `form:"brand_id" example:"550e8400-e29b-41d4-a716-446655440000"`
 }
