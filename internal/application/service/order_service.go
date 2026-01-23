@@ -953,12 +953,16 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 			return errors.New("order has no items")
 		}
 
-		// Determine order type and shipping fee to apply
+		// Determine order type and shipping fee to store
+		// For LIMITED orders: store the actual shipping fee for analytics (KOL revenue deduction)
+		// but customer doesn't pay it (handled in PayOrder by passing 0 for shipping)
 		orderType := enum.ProductTypeStandard
 		applyShippingFee := shippingPrice
 		if isOrderLimited || (prevItemCategory != nil && *prevItemCategory == -1) {
 			orderType = enum.ProductTypeLimited
-			applyShippingFee = 0
+			// Keep the actual shipping fee for LIMITED orders (for KOL revenue analytics)
+			// Customer payment is handled separately in PayOrder with shippingFee = 0
+			applyShippingFee = shippingPrice
 		}
 
 		//1.2.Build shipping address add to order
