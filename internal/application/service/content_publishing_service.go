@@ -251,7 +251,7 @@ func (s *contentPublishingService) PublishToAllChannels(ctx context.Context, con
 	response := &responses.PublishAllChannelsResponse{
 		TotalChannels: len(content.ContentChannels),
 		Results:       make([]responses.PublishContentResponse, len(content.ContentChannels)),
-		Errors:        make([]responses.PublishChannelError, len(content.ContentChannels)),
+		Errors:        make([]responses.PublishChannelError, 0, len(content.ContentChannels)),
 	}
 
 	// Publish to each channel
@@ -651,6 +651,7 @@ func (s *contentPublishingService) publishToTikTok(ctx context.Context, content 
 		UploadStatus: &uploadStatus,
 		Type:         &contentType,
 	}
+	contentChannel.Metadata = initialMetadata
 	go s.saveUploadMetadataAsync(ctx, contentChannel.ID, initialMetadata, enum.ExternalPostTypeVideo)
 
 	// 1. Get creator info (required - validates token and gets allowed privacy levels)
@@ -740,6 +741,7 @@ func (s *contentPublishingService) publishToTikTok(ctx context.Context, content 
 		UploadStatus: &uploadStatusProcessing,
 		Type:         &contentType,
 	}
+	contentChannel.Metadata = updatedMetadata
 	go s.saveUploadMetadataAsync(ctx, contentChannel.ID, updatedMetadata, enum.ExternalPostTypeVideo)
 
 	// Return empty external_post_id and URL since the upload is not yet complete
