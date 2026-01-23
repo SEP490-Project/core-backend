@@ -40,6 +40,7 @@ type orderService struct {
 	ghnProxy                     iproxies.GHNProxy
 	paymentTransactionService    iservice.PaymentTransactionService
 	notificationService          iservice.NotificationService
+	unitOfWork                   irepository.UnitOfWork
 }
 
 func (o *orderService) GetOrderPricePercentage(ctx context.Context, orderID uuid.UUID, orderType string) ([]responses.PriceBreakdown, error) {
@@ -272,8 +273,35 @@ func (o *orderService) ObligateEarlyRefund(ctx context.Context, orderID, actionB
 		}
 	}()
 
-	err = o.orderRepository.Update(ctx, order)
-	if err != nil {
+	if err = helper.WithTransaction(ctx, o.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		if err = o.orderRepository.Update(ctx, order); err != nil {
+			zap.L().Error("Failed to update order during obligate refund", zap.Error(err), zap.String("orderID", order.ID.String()))
+			return err
+		}
+
+		// Record refunded payment transaction
+		negativePayment := &model.PaymentTransaction{
+			ReferenceID:     order.ID,
+			ReferenceType:   enum.PaymentTransactionReferenceTypeOrder,
+			Amount:          utils.PtrOrNil(-order.TotalAmount),
+			Status:          enum.PaymentTransactionStatusRefunded,
+			Method:          enum.ContractPaymentMethodBankTransfer.String(),
+			TransactionDate: time.Now(),
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+			PayerID:         utils.PtrOrNil(actionBy),
+			ReceivedByID:    utils.PtrOrNil(order.UserID),
+		}
+		if err = uow.PaymentTransaction().Add(ctx, negativePayment); err != nil {
+			zap.L().Error("Failed to add negative payment transaction during refund proof review", zap.Error(err))
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		zap.L().Error("Transaction failed during obligate refund",
+			zap.String("orderID", order.ID.String()),
+			zap.Error(err))
 		return err
 	}
 
@@ -342,7 +370,35 @@ func (o *orderService) ProcessCompensation(ctx context.Context, orderID, actionB
 				zap.L().Error(err.Error())
 			}
 		}()
-		return o.orderRepository.Update(ctx, order)
+		return helper.WithTransaction(ctx, o.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+			if err = uow.Order().Update(ctx, order); err != nil {
+				zap.L().Error("Failed to update order during compensate", zap.Error(err), zap.String("orderID", order.ID.String()))
+				return err
+			}
+
+			if !isApproved {
+				return nil
+			}
+
+			negativePayment := &model.PaymentTransaction{
+				ReferenceID:     order.ID,
+				ReferenceType:   enum.PaymentTransactionReferenceTypeOrder,
+				Amount:          utils.PtrOrNil(-order.TotalAmount),
+				Status:          enum.PaymentTransactionStatusRefunded,
+				Method:          enum.ContractPaymentMethodBankTransfer.String(),
+				TransactionDate: time.Now(),
+				CreatedAt:       time.Now(),
+				UpdatedAt:       time.Now(),
+				PayerID:         utils.PtrOrNil(actionBy),
+				ReceivedByID:    utils.PtrOrNil(order.UserID),
+			}
+			if err = uow.PaymentTransaction().Add(ctx, negativePayment); err != nil {
+				zap.L().Error("Failed to add negative payment transaction during refund proof review", zap.Error(err))
+				return err
+			}
+
+			return nil
+		})
 	}
 }
 
@@ -1190,7 +1246,13 @@ func (o *orderService) CancelOrder(ctx context.Context, orderID uuid.UUID, updat
 	})
 }
 
-func NewOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseRegistry, registry *infrastructure.InfrastructureRegistry, paymentTransactionSvc iservice.PaymentTransactionService, notificationService iservice.NotificationService) iservice.OrderService {
+func NewOrderService(
+	cfg *config.AppConfig,
+	dbRegistry *gormrepository.DatabaseRegistry,
+	registry *infrastructure.InfrastructureRegistry,
+	paymentTransactionSvc iservice.PaymentTransactionService,
+	notificationService iservice.NotificationService,
+) iservice.OrderService {
 	return &orderService{
 		config:                       cfg,
 		db:                           dbRegistry.GormDatabase,
@@ -1204,6 +1266,7 @@ func NewOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseR
 		paymentTransactionRepository: dbRegistry.PaymentTransactionRepository,
 		paymentTransactionService:    paymentTransactionSvc,
 		notificationService:          notificationService,
+		unitOfWork:                   registry.UnitOfWork,
 	}
 }
 

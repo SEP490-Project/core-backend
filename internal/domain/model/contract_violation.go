@@ -55,6 +55,7 @@ type ContractViolation struct {
 	Contract           *Contract           `json:"-" gorm:"foreignKey:ContractID"`
 	Campaign           *Campaign           `json:"-" gorm:"foreignKey:CampaignID"`
 	PaymentTransaction *PaymentTransaction `json:"-" gorm:"foreignKey:PaymentTransactionID"`
+	ProofSubmitter     *User               `json:"-" gorm:"foreignKey:ProofSubmittedBy"`
 }
 
 func (ContractViolation) TableName() string { return "contract_violations" }
