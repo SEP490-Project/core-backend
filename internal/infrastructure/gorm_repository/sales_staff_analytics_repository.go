@@ -2,6 +2,7 @@ package gormrepository
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -1204,4 +1206,1113 @@ func (r *SalesStaffAnalyticsRepository) GetFirstOrderDate(ctx context.Context) (
 		return &firstPreOrder, nil
 	}
 	return &firstOrder, nil
+}
+
+// =============================================================================
+// REVENUE DETAIL QUERIES IMPLEMENTATIONS
+// =============================================================================
+
+// GetTotalRevenueOrders returns all orders (both standard and limited) and preorders contributing to total revenue
+// Includes payment transaction information
+func (r *SalesStaffAnalyticsRepository) GetTotalRevenueOrders(ctx context.Context, from, to time.Time, completedOrderStatuses []enum.OrderStatus, completedPreOrderStatuses []enum.PreOrderStatus, page, limit int, search, sortBy, sortOrder string) ([]responses.RevenueOrderItemWithPayment, int64, float64, error) {
+	offset := (page - 1) * limit
+
+	// Determine sort column and order
+	orderClause := "created_at DESC"
+	if sortBy == "total_amount" {
+		orderClause = "total_amount"
+	} else if sortBy == "created_at" {
+		orderClause = "created_at"
+	}
+	if sortOrder == "asc" {
+		orderClause += " ASC"
+	} else {
+		orderClause += " DESC"
+	}
+
+	// Build search condition
+	searchCondition := ""
+	searchArgs := []interface{}{}
+	if search != "" {
+		searchCondition = " AND (full_name ILIKE ? OR id::text ILIKE ?)"
+		searchPattern := "%" + search + "%"
+		searchArgs = append(searchArgs, searchPattern, searchPattern)
+	}
+
+	query := `
+		WITH orders_data AS (
+			SELECT 
+				o.id,
+				'ORDER' as source,
+				o.order_type,
+				o.user_id as customer_id,
+				o.full_name as customer_name,
+				o.email as customer_email,
+				o.status::varchar(50) as status,
+				o.total_amount,
+				COALESCE(o.shipping_fee, 0)::float as shipping_fee,
+				o.total_amount as net_amount,
+				NULL::float as kol_percent,
+				o.created_at
+			FROM orders o
+			WHERE o.status IN ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at <= ?)
+				AND o.deleted_at IS NULL
+		),
+		pre_orders_data AS (
+			SELECT 
+				po.id,
+				'PRE_ORDER' as source,
+				'LIMITED' as order_type,
+				po.user_id as customer_id,
+				po.full_name as customer_name,
+				po.email as customer_email,
+				po.status::varchar(50) as status,
+				po.total_amount,
+				COALESCE(po.shipping_fee, 0)::float as shipping_fee,
+				po.total_amount as net_amount,
+				NULL::float as kol_percent,
+				po.created_at
+			FROM pre_orders po
+			WHERE po.status IN ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at <= ?)
+				AND po.deleted_at IS NULL
+		),
+		combined AS (
+			SELECT * FROM orders_data
+			UNION ALL
+			SELECT * FROM pre_orders_data
+		)
+		SELECT * FROM combined
+		WHERE 1=1 ` + searchCondition + `
+		ORDER BY ` + orderClause + `
+		LIMIT ? OFFSET ?
+	`
+
+	args := []interface{}{
+		completedOrderStatuses, from, from, from, to, to, to,
+		completedPreOrderStatuses, from, from, from, to, to, to,
+	}
+	args = append(args, searchArgs...)
+	args = append(args, limit, offset)
+
+	// Intermediate struct for scanning
+	type rawItem struct {
+		ID            uuid.UUID `gorm:"column:id"`
+		Source        string    `gorm:"column:source"`
+		OrderType     string    `gorm:"column:order_type"`
+		CustomerID    uuid.UUID `gorm:"column:customer_id"`
+		CustomerName  string    `gorm:"column:customer_name"`
+		CustomerEmail string    `gorm:"column:customer_email"`
+		Status        string    `gorm:"column:status"`
+		TotalAmount   float64   `gorm:"column:total_amount"`
+		ShippingFee   float64   `gorm:"column:shipping_fee"`
+		NetAmount     float64   `gorm:"column:net_amount"`
+		KOLPercent    *float64  `gorm:"column:kol_percent"`
+		CreatedAt     time.Time `gorm:"column:created_at"`
+	}
+
+	var rawItems []rawItem
+	if err := r.db.WithContext(ctx).Raw(query, args...).Scan(&rawItems).Error; err != nil {
+		return nil, 0, 0, err
+	}
+
+	// Get payment transactions for each item
+	var items []responses.RevenueOrderItemWithPayment
+	for _, raw := range rawItems {
+		item := responses.RevenueOrderItemWithPayment{
+			ID:            raw.ID,
+			Source:        raw.Source,
+			OrderType:     raw.OrderType,
+			CustomerID:    raw.CustomerID,
+			CustomerName:  raw.CustomerName,
+			CustomerEmail: raw.CustomerEmail,
+			Status:        raw.Status,
+			TotalAmount:   raw.TotalAmount,
+			ShippingFee:   raw.ShippingFee,
+			NetAmount:     raw.NetAmount,
+			KOLPercent:    raw.KOLPercent,
+			CreatedAt:     raw.CreatedAt,
+		}
+
+		// Fetch payment transaction
+		var paymentTx model.PaymentTransaction
+		referenceType := enum.PaymentTransactionReferenceTypeOrder
+		if raw.Source == "PRE_ORDER" {
+			referenceType = enum.PaymentTransactionReferenceTypePreOrder
+		}
+		if err := r.db.WithContext(ctx).
+			Where("reference_id = ? AND reference_type = ?", raw.ID, referenceType).
+			Order("transaction_date DESC").
+			First(&paymentTx).Error; err == nil {
+			amountStr := ""
+			if paymentTx.Amount != nil {
+				amountStr = fmt.Sprintf("%.2f", *paymentTx.Amount)
+			}
+			item.PaymentTransaction = &responses.PaymentTransactionResponse{
+				ID:              paymentTx.ID,
+				ReferenceID:     paymentTx.ReferenceID.String(),
+				ReferenceType:   string(paymentTx.ReferenceType),
+				Amount:          amountStr,
+				Method:          paymentTx.Method,
+				Status:          string(paymentTx.Status),
+				TransactionDate: paymentTx.TransactionDate.Format(time.RFC3339),
+				GatewayRef:      paymentTx.GatewayRef,
+				GatewayID:       paymentTx.GatewayID,
+				UpdatedAt:       paymentTx.UpdatedAt.Format(time.RFC3339),
+				PayerID:         paymentTx.PayerID,
+				ReceivedByID:    paymentTx.ReceivedByID,
+			}
+		}
+
+		items = append(items, item)
+	}
+
+	// Get total count and sum
+	countQuery := `
+		WITH orders_data AS (
+			SELECT o.id, o.total_amount, o.full_name
+			FROM orders o
+			WHERE o.status IN ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at <= ?)
+				AND o.deleted_at IS NULL
+		),
+		pre_orders_data AS (
+			SELECT po.id, po.total_amount, po.full_name
+			FROM pre_orders po
+			WHERE po.status IN ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at <= ?)
+				AND po.deleted_at IS NULL
+		),
+		combined AS (
+			SELECT * FROM orders_data
+			UNION ALL
+			SELECT * FROM pre_orders_data
+		)
+		SELECT COUNT(*) as total, COALESCE(SUM(total_amount), 0) as total_revenue
+		FROM combined
+		WHERE 1=1 ` + searchCondition
+
+	countArgs := []interface{}{
+		completedOrderStatuses, from, from, from, to, to, to,
+		completedPreOrderStatuses, from, from, from, to, to, to,
+	}
+	countArgs = append(countArgs, searchArgs...)
+
+	var result struct {
+		Total        int64
+		TotalRevenue float64
+	}
+	if err := r.db.WithContext(ctx).Raw(countQuery, countArgs...).Scan(&result).Error; err != nil {
+		return nil, 0, 0, err
+	}
+
+	return items, result.Total, result.TotalRevenue, nil
+}
+
+// GetStandardRevenueOrders returns only STANDARD type orders
+// Includes payment transaction information
+func (r *SalesStaffAnalyticsRepository) GetStandardRevenueOrders(ctx context.Context, from, to time.Time, completedOrderStatuses []enum.OrderStatus, page, limit int, search, sortBy, sortOrder string) ([]responses.RevenueOrderItemWithPayment, int64, float64, error) {
+	offset := (page - 1) * limit
+
+	// Determine sort column and order
+	orderClause := "created_at DESC"
+	if sortBy == "total_amount" {
+		orderClause = "total_amount"
+	} else if sortBy == "created_at" {
+		orderClause = "created_at"
+	}
+	if sortOrder == "asc" {
+		orderClause += " ASC"
+	} else {
+		orderClause += " DESC"
+	}
+
+	// Build search condition
+	searchCondition := ""
+	searchArgs := []interface{}{}
+	if search != "" {
+		searchCondition = " AND (o.full_name ILIKE ? OR o.id::text ILIKE ?)"
+		searchPattern := "%" + search + "%"
+		searchArgs = append(searchArgs, searchPattern, searchPattern)
+	}
+
+	query := `
+		SELECT 
+			o.id,
+			'ORDER' as source,
+			o.order_type,
+			o.user_id as customer_id,
+			o.full_name as customer_name,
+			o.email as customer_email,
+			o.status::varchar(50) as status,
+			o.total_amount,
+			COALESCE(o.shipping_fee, 0)::float as shipping_fee,
+			o.total_amount as net_amount,
+			NULL::float as kol_percent,
+			o.created_at
+		FROM orders o
+		WHERE o.status IN ?
+			AND o.order_type = 'STANDARD'
+			AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at >= ?)
+			AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at <= ?)
+			AND o.deleted_at IS NULL
+			` + searchCondition + `
+		ORDER BY ` + orderClause + `
+		LIMIT ? OFFSET ?
+	`
+
+	args := []interface{}{
+		completedOrderStatuses, from, from, from, to, to, to,
+	}
+	args = append(args, searchArgs...)
+	args = append(args, limit, offset)
+
+	// Intermediate struct for scanning
+	type rawItem struct {
+		ID            uuid.UUID `gorm:"column:id"`
+		Source        string    `gorm:"column:source"`
+		OrderType     string    `gorm:"column:order_type"`
+		CustomerID    uuid.UUID `gorm:"column:customer_id"`
+		CustomerName  string    `gorm:"column:customer_name"`
+		CustomerEmail string    `gorm:"column:customer_email"`
+		Status        string    `gorm:"column:status"`
+		TotalAmount   float64   `gorm:"column:total_amount"`
+		ShippingFee   float64   `gorm:"column:shipping_fee"`
+		NetAmount     float64   `gorm:"column:net_amount"`
+		KOLPercent    *float64  `gorm:"column:kol_percent"`
+		CreatedAt     time.Time `gorm:"column:created_at"`
+	}
+
+	var rawItems []rawItem
+	if err := r.db.WithContext(ctx).Raw(query, args...).Scan(&rawItems).Error; err != nil {
+		return nil, 0, 0, err
+	}
+
+	// Get payment transactions for each item
+	var items []responses.RevenueOrderItemWithPayment
+	for _, raw := range rawItems {
+		item := responses.RevenueOrderItemWithPayment{
+			ID:            raw.ID,
+			Source:        raw.Source,
+			OrderType:     raw.OrderType,
+			CustomerID:    raw.CustomerID,
+			CustomerName:  raw.CustomerName,
+			CustomerEmail: raw.CustomerEmail,
+			Status:        raw.Status,
+			TotalAmount:   raw.TotalAmount,
+			ShippingFee:   raw.ShippingFee,
+			NetAmount:     raw.NetAmount,
+			KOLPercent:    raw.KOLPercent,
+			CreatedAt:     raw.CreatedAt,
+		}
+
+		// Fetch payment transaction (STANDARD orders are always ORDER type)
+		var paymentTx model.PaymentTransaction
+		if err := r.db.WithContext(ctx).
+			Where("reference_id = ? AND reference_type = ?", raw.ID, enum.PaymentTransactionReferenceTypeOrder).
+			Order("transaction_date DESC").
+			First(&paymentTx).Error; err == nil {
+			amountStr := ""
+			if paymentTx.Amount != nil {
+				amountStr = fmt.Sprintf("%.2f", *paymentTx.Amount)
+			}
+			item.PaymentTransaction = &responses.PaymentTransactionResponse{
+				ID:              paymentTx.ID,
+				ReferenceID:     paymentTx.ReferenceID.String(),
+				ReferenceType:   string(paymentTx.ReferenceType),
+				Amount:          amountStr,
+				Method:          paymentTx.Method,
+				Status:          string(paymentTx.Status),
+				TransactionDate: paymentTx.TransactionDate.Format(time.RFC3339),
+				GatewayRef:      paymentTx.GatewayRef,
+				GatewayID:       paymentTx.GatewayID,
+				UpdatedAt:       paymentTx.UpdatedAt.Format(time.RFC3339),
+				PayerID:         paymentTx.PayerID,
+				ReceivedByID:    paymentTx.ReceivedByID,
+			}
+		}
+
+		items = append(items, item)
+	}
+
+	// Get total count and sum
+	countQuery := `
+		SELECT COUNT(*) as total, COALESCE(SUM(o.total_amount), 0) as total_revenue
+		FROM orders o
+		WHERE o.status IN ?
+			AND o.order_type = 'STANDARD'
+			AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at >= ?)
+			AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at <= ?)
+			AND o.deleted_at IS NULL
+			` + searchCondition
+
+	countArgs := []interface{}{
+		completedOrderStatuses, from, from, from, to, to, to,
+	}
+	countArgs = append(countArgs, searchArgs...)
+
+	var result struct {
+		Total        int64
+		TotalRevenue float64
+	}
+	if err := r.db.WithContext(ctx).Raw(countQuery, countArgs...).Scan(&result).Error; err != nil {
+		return nil, 0, 0, err
+	}
+
+	return items, result.Total, result.TotalRevenue, nil
+}
+
+// GetLimitedRevenueOrders returns LIMITED type orders and all PreOrders
+// Includes payment transaction information
+func (r *SalesStaffAnalyticsRepository) GetLimitedRevenueOrders(ctx context.Context, from, to time.Time, completedOrderStatuses []enum.OrderStatus, completedPreOrderStatuses []enum.PreOrderStatus, page, limit int, search, sortBy, sortOrder string) ([]responses.RevenueOrderItemWithPayment, int64, float64, error) {
+	offset := (page - 1) * limit
+
+	// Determine sort column and order
+	orderClause := "created_at DESC"
+	if sortBy == "total_amount" {
+		orderClause = "total_amount"
+	} else if sortBy == "created_at" {
+		orderClause = "created_at"
+	}
+	if sortOrder == "asc" {
+		orderClause += " ASC"
+	} else {
+		orderClause += " DESC"
+	}
+
+	// Build search condition
+	searchCondition := ""
+	searchArgs := []interface{}{}
+	if search != "" {
+		searchCondition = " AND (full_name ILIKE ? OR id::text ILIKE ?)"
+		searchPattern := "%" + search + "%"
+		searchArgs = append(searchArgs, searchPattern, searchPattern)
+	}
+
+	query := `
+		WITH limited_orders AS (
+			SELECT 
+				o.id,
+				'ORDER' as source,
+				o.order_type,
+				o.user_id as customer_id,
+				o.full_name as customer_name,
+				o.email as customer_email,
+				o.status::varchar(50) as status,
+				o.total_amount,
+				COALESCE(o.shipping_fee, 0)::float as shipping_fee,
+				o.total_amount as net_amount,
+				NULL::float as kol_percent,
+				o.created_at
+			FROM orders o
+			WHERE o.status IN ?
+				AND o.order_type = 'LIMITED'
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at <= ?)
+				AND o.deleted_at IS NULL
+		),
+		pre_orders AS (
+			SELECT 
+				po.id,
+				'PRE_ORDER' as source,
+				'LIMITED' as order_type,
+				po.user_id as customer_id,
+				po.full_name as customer_name,
+				po.email as customer_email,
+				po.status::varchar(50) as status,
+				po.total_amount,
+				COALESCE(po.shipping_fee, 0)::float as shipping_fee,
+				po.total_amount as net_amount,
+				NULL::float as kol_percent,
+				po.created_at
+			FROM pre_orders po
+			WHERE po.status IN ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at <= ?)
+				AND po.deleted_at IS NULL
+		),
+		combined AS (
+			SELECT * FROM limited_orders
+			UNION ALL
+			SELECT * FROM pre_orders
+		)
+		SELECT * FROM combined
+		WHERE 1=1 ` + searchCondition + `
+		ORDER BY ` + orderClause + `
+		LIMIT ? OFFSET ?
+	`
+
+	args := []interface{}{
+		completedOrderStatuses, from, from, from, to, to, to,
+		completedPreOrderStatuses, from, from, from, to, to, to,
+	}
+	args = append(args, searchArgs...)
+	args = append(args, limit, offset)
+
+	// Intermediate struct for scanning
+	type rawItem struct {
+		ID            uuid.UUID `gorm:"column:id"`
+		Source        string    `gorm:"column:source"`
+		OrderType     string    `gorm:"column:order_type"`
+		CustomerID    uuid.UUID `gorm:"column:customer_id"`
+		CustomerName  string    `gorm:"column:customer_name"`
+		CustomerEmail string    `gorm:"column:customer_email"`
+		Status        string    `gorm:"column:status"`
+		TotalAmount   float64   `gorm:"column:total_amount"`
+		ShippingFee   float64   `gorm:"column:shipping_fee"`
+		NetAmount     float64   `gorm:"column:net_amount"`
+		KOLPercent    *float64  `gorm:"column:kol_percent"`
+		CreatedAt     time.Time `gorm:"column:created_at"`
+	}
+
+	var rawItems []rawItem
+	if err := r.db.WithContext(ctx).Raw(query, args...).Scan(&rawItems).Error; err != nil {
+		return nil, 0, 0, err
+	}
+
+	// Get payment transactions for each item
+	var items []responses.RevenueOrderItemWithPayment
+	for _, raw := range rawItems {
+		item := responses.RevenueOrderItemWithPayment{
+			ID:            raw.ID,
+			Source:        raw.Source,
+			OrderType:     raw.OrderType,
+			CustomerID:    raw.CustomerID,
+			CustomerName:  raw.CustomerName,
+			CustomerEmail: raw.CustomerEmail,
+			Status:        raw.Status,
+			TotalAmount:   raw.TotalAmount,
+			ShippingFee:   raw.ShippingFee,
+			NetAmount:     raw.NetAmount,
+			KOLPercent:    raw.KOLPercent,
+			CreatedAt:     raw.CreatedAt,
+		}
+
+		// Fetch payment transaction
+		var paymentTx model.PaymentTransaction
+		referenceType := enum.PaymentTransactionReferenceTypeOrder
+		if raw.Source == "PRE_ORDER" {
+			referenceType = enum.PaymentTransactionReferenceTypePreOrder
+		}
+		if err := r.db.WithContext(ctx).
+			Where("reference_id = ? AND reference_type = ?", raw.ID, referenceType).
+			Order("transaction_date DESC").
+			First(&paymentTx).Error; err == nil {
+			amountStr := ""
+			if paymentTx.Amount != nil {
+				amountStr = fmt.Sprintf("%.2f", *paymentTx.Amount)
+			}
+			item.PaymentTransaction = &responses.PaymentTransactionResponse{
+				ID:              paymentTx.ID,
+				ReferenceID:     paymentTx.ReferenceID.String(),
+				ReferenceType:   string(paymentTx.ReferenceType),
+				Amount:          amountStr,
+				Method:          paymentTx.Method,
+				Status:          string(paymentTx.Status),
+				TransactionDate: paymentTx.TransactionDate.Format(time.RFC3339),
+				GatewayRef:      paymentTx.GatewayRef,
+				GatewayID:       paymentTx.GatewayID,
+				UpdatedAt:       paymentTx.UpdatedAt.Format(time.RFC3339),
+				PayerID:         paymentTx.PayerID,
+				ReceivedByID:    paymentTx.ReceivedByID,
+			}
+		}
+
+		items = append(items, item)
+	}
+
+	// Get total count and sum
+	countQuery := `
+		WITH limited_orders AS (
+			SELECT o.id, o.total_amount, o.full_name
+			FROM orders o
+			WHERE o.status IN ?
+				AND o.order_type = 'LIMITED'
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at <= ?)
+				AND o.deleted_at IS NULL
+		),
+		pre_orders AS (
+			SELECT po.id, po.total_amount, po.full_name
+			FROM pre_orders po
+			WHERE po.status IN ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at <= ?)
+				AND po.deleted_at IS NULL
+		),
+		combined AS (
+			SELECT * FROM limited_orders
+			UNION ALL
+			SELECT * FROM pre_orders
+		)
+		SELECT COUNT(*) as total, COALESCE(SUM(total_amount), 0) as total_revenue
+		FROM combined
+		WHERE 1=1 ` + searchCondition
+
+	countArgs := []interface{}{
+		completedOrderStatuses, from, from, from, to, to, to,
+		completedPreOrderStatuses, from, from, from, to, to, to,
+	}
+	countArgs = append(countArgs, searchArgs...)
+
+	var result struct {
+		Total        int64
+		TotalRevenue float64
+	}
+	if err := r.db.WithContext(ctx).Raw(countQuery, countArgs...).Scan(&result).Error; err != nil {
+		return nil, 0, 0, err
+	}
+
+	return items, result.Total, result.TotalRevenue, nil
+}
+
+// GetStandardNetRevenueOrders returns STANDARD orders with net revenue (total_amount - shipping_fee)
+func (r *SalesStaffAnalyticsRepository) GetStandardNetRevenueOrders(ctx context.Context, from, to time.Time, completedOrderStatuses []enum.OrderStatus, page, limit int, search, sortBy, sortOrder string) ([]responses.RevenueOrderItem, int64, float64, error) {
+	var items []responses.RevenueOrderItem
+
+	offset := (page - 1) * limit
+
+	// Determine sort column and order
+	orderClause := "created_at DESC"
+	if sortBy == "total_amount" {
+		orderClause = "total_amount"
+	} else if sortBy == "net_amount" {
+		orderClause = "net_amount"
+	} else if sortBy == "created_at" {
+		orderClause = "created_at"
+	}
+	if sortOrder == "asc" {
+		orderClause += " ASC"
+	} else {
+		orderClause += " DESC"
+	}
+
+	// Build search condition
+	searchCondition := ""
+	searchArgs := []interface{}{}
+	if search != "" {
+		searchCondition = " AND (o.full_name ILIKE ? OR o.id::text ILIKE ?)"
+		searchPattern := "%" + search + "%"
+		searchArgs = append(searchArgs, searchPattern, searchPattern)
+	}
+
+	query := `
+		SELECT 
+			o.id,
+			'ORDER' as source,
+			o.order_type,
+			o.user_id as customer_id,
+			o.full_name as customer_name,
+			o.email as customer_email,
+			o.status::varchar(50) as status,
+			o.total_amount,
+			COALESCE(o.shipping_fee, 0)::float as shipping_fee,
+			(o.total_amount - COALESCE(o.shipping_fee, 0))::float as net_amount,
+			NULL::float as kol_percent,
+			o.created_at
+		FROM orders o
+		WHERE o.status IN ?
+			AND o.order_type = 'STANDARD'
+			AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at >= ?)
+			AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at <= ?)
+			AND o.deleted_at IS NULL
+			` + searchCondition + `
+		ORDER BY ` + orderClause + `
+		LIMIT ? OFFSET ?
+	`
+
+	args := []interface{}{
+		completedOrderStatuses, from, from, from, to, to, to,
+	}
+	args = append(args, searchArgs...)
+	args = append(args, limit, offset)
+
+	if err := r.db.WithContext(ctx).Raw(query, args...).Scan(&items).Error; err != nil {
+		return nil, 0, 0, err
+	}
+
+	// Get total count and sum (net revenue = total_amount - shipping_fee)
+	countQuery := `
+		SELECT 
+			COUNT(*) as total, 
+			COALESCE(SUM(o.total_amount - COALESCE(o.shipping_fee, 0)), 0) as total_revenue
+		FROM orders o
+		WHERE o.status IN ?
+			AND o.order_type = 'STANDARD'
+			AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at >= ?)
+			AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at <= ?)
+			AND o.deleted_at IS NULL
+			` + searchCondition
+
+	countArgs := []interface{}{
+		completedOrderStatuses, from, from, from, to, to, to,
+	}
+	countArgs = append(countArgs, searchArgs...)
+
+	var result struct {
+		Total        int64
+		TotalRevenue float64
+	}
+	if err := r.db.WithContext(ctx).Raw(countQuery, countArgs...).Scan(&result).Error; err != nil {
+		return nil, 0, 0, err
+	}
+
+	return items, result.Total, result.TotalRevenue, nil
+}
+
+// GetLimitedNetRevenueOrders returns LIMITED orders and PreOrders with KOL net revenue calculation
+// KOL Net Revenue = (item_total) * kol_percent / 100 - shipping_fee
+// Includes payment transaction information
+func (r *SalesStaffAnalyticsRepository) GetLimitedNetRevenueOrders(ctx context.Context, from, to time.Time, completedOrderStatuses []enum.OrderStatus, completedPreOrderStatuses []enum.PreOrderStatus, page, limit int, search, sortBy, sortOrder string) ([]responses.RevenueOrderItemWithPayment, int64, float64, error) {
+	offset := (page - 1) * limit
+
+	// Determine sort column and order
+	orderClause := "created_at DESC"
+	if sortBy == "total_amount" {
+		orderClause = "total_amount"
+	} else if sortBy == "net_amount" {
+		orderClause = "net_amount"
+	} else if sortBy == "created_at" {
+		orderClause = "created_at"
+	}
+	if sortOrder == "asc" {
+		orderClause += " ASC"
+	} else {
+		orderClause += " DESC"
+	}
+
+	// Build search condition
+	searchCondition := ""
+	searchArgs := []interface{}{}
+	if search != "" {
+		searchCondition = " AND (full_name ILIKE ? OR id::text ILIKE ?)"
+		searchPattern := "%" + search + "%"
+		searchArgs = append(searchArgs, searchPattern, searchPattern)
+	}
+
+	// Query for LIMITED orders with KOL net revenue calculation
+	query := `
+		WITH limited_orders AS (
+			SELECT 
+				o.id,
+				'ORDER' as source,
+				o.order_type,
+				o.user_id as customer_id,
+				o.full_name as customer_name,
+				o.email as customer_email,
+				o.status::varchar(50) as status,
+				o.total_amount,
+				COALESCE(o.shipping_fee, 0)::float as shipping_fee,
+				COALESCE((c.financial_terms->>'profit_split_kol_percent')::float, 0) as kol_percent,
+				((SUM(oi.unit_price * oi.quantity) * COALESCE((c.financial_terms->>'profit_split_kol_percent')::float, 0) / 100.0) - COALESCE(o.shipping_fee, 0))::float as net_amount,
+				o.created_at
+			FROM orders o
+			JOIN order_items oi ON o.id = oi.order_id
+			JOIN product_variants pv ON oi.variant_id = pv.id
+			JOIN products p ON pv.product_id = p.id
+			LEFT JOIN tasks t ON p.task_id = t.id
+			LEFT JOIN milestones m ON t.milestone_id = m.id
+			LEFT JOIN campaigns camp ON m.campaign_id = camp.id
+			LEFT JOIN contracts c ON camp.contract_id = c.id
+			WHERE o.status IN ?
+				AND o.order_type = 'LIMITED'
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at <= ?)
+				AND o.deleted_at IS NULL
+			GROUP BY o.id, o.order_type, o.user_id, o.full_name, o.email, o.status, o.total_amount, o.shipping_fee, c.financial_terms, o.created_at
+		),
+		pre_orders AS (
+			SELECT 
+				po.id,
+				'PRE_ORDER' as source,
+				'LIMITED' as order_type,
+				po.user_id as customer_id,
+				po.full_name as customer_name,
+				po.email as customer_email,
+				po.status::varchar(50) as status,
+				po.total_amount,
+				COALESCE(po.shipping_fee, 0)::float as shipping_fee,
+				COALESCE((c.financial_terms->>'profit_split_kol_percent')::float, 0) as kol_percent,
+				((po.total_amount * COALESCE((c.financial_terms->>'profit_split_kol_percent')::float, 0) / 100.0) - COALESCE(po.shipping_fee, 0))::float as net_amount,
+				po.created_at
+			FROM pre_orders po
+			JOIN product_variants pv ON po.variant_id = pv.id
+			JOIN products p ON pv.product_id = p.id
+			LEFT JOIN tasks t ON p.task_id = t.id
+			LEFT JOIN milestones m ON t.milestone_id = m.id
+			LEFT JOIN campaigns camp ON m.campaign_id = camp.id
+			LEFT JOIN contracts c ON camp.contract_id = c.id
+			WHERE po.status IN ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at <= ?)
+				AND po.deleted_at IS NULL
+		),
+		combined AS (
+			SELECT * FROM limited_orders
+			UNION ALL
+			SELECT * FROM pre_orders
+		)
+		SELECT 
+			id,
+			source,
+			order_type,
+			customer_id,
+			customer_name,
+			customer_email,
+			status,
+			total_amount,
+			shipping_fee,
+			net_amount,
+			kol_percent,
+			created_at
+		FROM combined
+		WHERE 1=1 ` + searchCondition + `
+		ORDER BY ` + orderClause + `
+		LIMIT ? OFFSET ?
+	`
+
+	args := []interface{}{
+		completedOrderStatuses, from, from, from, to, to, to,
+		completedPreOrderStatuses, from, from, from, to, to, to,
+	}
+	args = append(args, searchArgs...)
+	args = append(args, limit, offset)
+
+	// Intermediate struct for scanning
+	type rawItem struct {
+		ID            uuid.UUID `gorm:"column:id"`
+		Source        string    `gorm:"column:source"`
+		OrderType     string    `gorm:"column:order_type"`
+		CustomerID    uuid.UUID `gorm:"column:customer_id"`
+		CustomerName  string    `gorm:"column:customer_name"`
+		CustomerEmail string    `gorm:"column:customer_email"`
+		Status        string    `gorm:"column:status"`
+		TotalAmount   float64   `gorm:"column:total_amount"`
+		ShippingFee   float64   `gorm:"column:shipping_fee"`
+		NetAmount     float64   `gorm:"column:net_amount"`
+		KOLPercent    float64   `gorm:"column:kol_percent"`
+		CreatedAt     time.Time `gorm:"column:created_at"`
+	}
+
+	var rawItems []rawItem
+	if err := r.db.WithContext(ctx).Raw(query, args...).Scan(&rawItems).Error; err != nil {
+		return nil, 0, 0, err
+	}
+
+	// Get payment transactions for each item
+	var items []responses.RevenueOrderItemWithPayment
+	for _, raw := range rawItems {
+		item := responses.RevenueOrderItemWithPayment{
+			ID:            raw.ID,
+			Source:        raw.Source,
+			OrderType:     raw.OrderType,
+			CustomerID:    raw.CustomerID,
+			CustomerName:  raw.CustomerName,
+			CustomerEmail: raw.CustomerEmail,
+			Status:        raw.Status,
+			TotalAmount:   raw.TotalAmount,
+			ShippingFee:   raw.ShippingFee,
+			NetAmount:     raw.NetAmount,
+			KOLPercent:    &raw.KOLPercent,
+			CreatedAt:     raw.CreatedAt,
+		}
+
+		// Fetch payment transaction
+		var paymentTx model.PaymentTransaction
+		referenceType := enum.PaymentTransactionReferenceTypeOrder
+		if raw.Source == "PRE_ORDER" {
+			referenceType = enum.PaymentTransactionReferenceTypePreOrder
+		}
+		if err := r.db.WithContext(ctx).
+			Where("reference_id = ? AND reference_type = ?", raw.ID, referenceType).
+			Order("transaction_date DESC").
+			First(&paymentTx).Error; err == nil {
+			amountStr := ""
+			if paymentTx.Amount != nil {
+				amountStr = fmt.Sprintf("%.2f", *paymentTx.Amount)
+			}
+			item.PaymentTransaction = &responses.PaymentTransactionResponse{
+				ID:              paymentTx.ID,
+				ReferenceID:     paymentTx.ReferenceID.String(),
+				ReferenceType:   string(paymentTx.ReferenceType),
+				Amount:          amountStr,
+				Method:          paymentTx.Method,
+				Status:          string(paymentTx.Status),
+				TransactionDate: paymentTx.TransactionDate.Format(time.RFC3339),
+				GatewayRef:      paymentTx.GatewayRef,
+				GatewayID:       paymentTx.GatewayID,
+				UpdatedAt:       paymentTx.UpdatedAt.Format(time.RFC3339),
+				PayerID:         paymentTx.PayerID,
+				ReceivedByID:    paymentTx.ReceivedByID,
+			}
+		}
+
+		items = append(items, item)
+	}
+
+	// Get total count and total net revenue
+	countQuery := `
+		WITH limited_orders AS (
+			SELECT 
+				o.id,
+				o.full_name,
+				((SUM(oi.unit_price * oi.quantity) * COALESCE((c.financial_terms->>'profit_split_kol_percent')::float, 0) / 100.0) - COALESCE(o.shipping_fee, 0))::float as net_amount
+			FROM orders o
+			JOIN order_items oi ON o.id = oi.order_id
+			JOIN product_variants pv ON oi.variant_id = pv.id
+			JOIN products p ON pv.product_id = p.id
+			LEFT JOIN tasks t ON p.task_id = t.id
+			LEFT JOIN milestones m ON t.milestone_id = m.id
+			LEFT JOIN campaigns camp ON m.campaign_id = camp.id
+			LEFT JOIN contracts c ON camp.contract_id = c.id
+			WHERE o.status IN ?
+				AND o.order_type = 'LIMITED'
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at <= ?)
+				AND o.deleted_at IS NULL
+			GROUP BY o.id, o.full_name, o.shipping_fee, c.financial_terms
+		),
+		pre_orders AS (
+			SELECT 
+				po.id,
+				po.full_name,
+				((po.total_amount * COALESCE((c.financial_terms->>'profit_split_kol_percent')::float, 0) / 100.0) - COALESCE(po.shipping_fee, 0))::float as net_amount
+			FROM pre_orders po
+			JOIN product_variants pv ON po.variant_id = pv.id
+			JOIN products p ON pv.product_id = p.id
+			LEFT JOIN tasks t ON p.task_id = t.id
+			LEFT JOIN milestones m ON t.milestone_id = m.id
+			LEFT JOIN campaigns camp ON m.campaign_id = camp.id
+			LEFT JOIN contracts c ON camp.contract_id = c.id
+			WHERE po.status IN ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at <= ?)
+				AND po.deleted_at IS NULL
+		),
+		combined AS (
+			SELECT id, full_name, net_amount FROM limited_orders
+			UNION ALL
+			SELECT id, full_name, net_amount FROM pre_orders
+		)
+		SELECT COUNT(*) as total, COALESCE(SUM(net_amount), 0) as total_revenue
+		FROM combined
+		WHERE 1=1 ` + searchCondition
+
+	countArgs := []interface{}{
+		completedOrderStatuses, from, from, from, to, to, to,
+		completedPreOrderStatuses, from, from, from, to, to, to,
+	}
+	countArgs = append(countArgs, searchArgs...)
+
+	var result struct {
+		Total        int64
+		TotalRevenue float64
+	}
+	if err := r.db.WithContext(ctx).Raw(countQuery, countArgs...).Scan(&result).Error; err != nil {
+		return nil, 0, 0, err
+	}
+
+	return items, result.Total, result.TotalRevenue, nil
+}
+
+// GetRefundedOrders returns all refunded orders and preorders with payment transaction information
+func (r *SalesStaffAnalyticsRepository) GetRefundedOrders(ctx context.Context, from, to time.Time, refundedOrderStatuses []enum.OrderStatus, refundedPreOrderStatuses []enum.PreOrderStatus, page, limit int, search, sortBy, sortOrder string) ([]responses.RevenueOrderItemWithPayment, int64, float64, error) {
+	offset := (page - 1) * limit
+
+	// Determine sort column and order
+	orderClause := "created_at DESC"
+	if sortBy == "total_amount" {
+		orderClause = "total_amount"
+	} else if sortBy == "created_at" {
+		orderClause = "created_at"
+	}
+	if sortOrder == "asc" {
+		orderClause += " ASC"
+	} else {
+		orderClause += " DESC"
+	}
+
+	// Build search condition
+	searchCondition := ""
+	searchArgs := []interface{}{}
+	if search != "" {
+		searchCondition = " AND (full_name ILIKE ? OR id::text ILIKE ?)"
+		searchPattern := "%" + search + "%"
+		searchArgs = append(searchArgs, searchPattern, searchPattern)
+	}
+
+	query := `
+		WITH refunded_orders AS (
+			SELECT 
+				o.id,
+				'ORDER' as source,
+				o.order_type,
+				o.user_id as customer_id,
+				o.full_name as customer_name,
+				o.email as customer_email,
+				o.status::varchar(50) as status,
+				o.total_amount,
+				COALESCE(o.shipping_fee, 0)::float as shipping_fee,
+				o.total_amount as net_amount,
+				o.created_at
+			FROM orders o
+			WHERE o.status IN ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at <= ?)
+				AND o.deleted_at IS NULL
+		),
+		refunded_pre_orders AS (
+			SELECT 
+				po.id,
+				'PRE_ORDER' as source,
+				'LIMITED' as order_type,
+				po.user_id as customer_id,
+				po.full_name as customer_name,
+				po.email as customer_email,
+				po.status::varchar(50) as status,
+				po.total_amount,
+				COALESCE(po.shipping_fee, 0)::float as shipping_fee,
+				po.total_amount as net_amount,
+				po.created_at
+			FROM pre_orders po
+			WHERE po.status IN ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at <= ?)
+				AND po.deleted_at IS NULL
+		),
+		combined AS (
+			SELECT * FROM refunded_orders
+			UNION ALL
+			SELECT * FROM refunded_pre_orders
+		)
+		SELECT * FROM combined
+		WHERE 1=1 ` + searchCondition + `
+		ORDER BY ` + orderClause + `
+		LIMIT ? OFFSET ?
+	`
+
+	args := []interface{}{
+		refundedOrderStatuses, from, from, from, to, to, to,
+		refundedPreOrderStatuses, from, from, from, to, to, to,
+	}
+	args = append(args, searchArgs...)
+	args = append(args, limit, offset)
+
+	// Intermediate struct for scanning
+	type rawItem struct {
+		ID            uuid.UUID `gorm:"column:id"`
+		Source        string    `gorm:"column:source"`
+		OrderType     string    `gorm:"column:order_type"`
+		CustomerID    uuid.UUID `gorm:"column:customer_id"`
+		CustomerName  string    `gorm:"column:customer_name"`
+		CustomerEmail string    `gorm:"column:customer_email"`
+		Status        string    `gorm:"column:status"`
+		TotalAmount   float64   `gorm:"column:total_amount"`
+		ShippingFee   float64   `gorm:"column:shipping_fee"`
+		NetAmount     float64   `gorm:"column:net_amount"`
+		CreatedAt     time.Time `gorm:"column:created_at"`
+	}
+
+	var rawItems []rawItem
+	if err := r.db.WithContext(ctx).Raw(query, args...).Scan(&rawItems).Error; err != nil {
+		return nil, 0, 0, err
+	}
+
+	// Get payment transactions for each item
+	var items []responses.RevenueOrderItemWithPayment
+	for _, raw := range rawItems {
+		item := responses.RevenueOrderItemWithPayment{
+			ID:            raw.ID,
+			Source:        raw.Source,
+			OrderType:     raw.OrderType,
+			CustomerID:    raw.CustomerID,
+			CustomerName:  raw.CustomerName,
+			CustomerEmail: raw.CustomerEmail,
+			Status:        raw.Status,
+			TotalAmount:   raw.TotalAmount,
+			ShippingFee:   raw.ShippingFee,
+			NetAmount:     raw.NetAmount,
+			CreatedAt:     raw.CreatedAt,
+		}
+
+		// Fetch payment transaction (look for refund transaction or latest transaction)
+		var paymentTx model.PaymentTransaction
+		referenceType := enum.PaymentTransactionReferenceTypeOrder
+		if raw.Source == "PRE_ORDER" {
+			referenceType = enum.PaymentTransactionReferenceTypePreOrder
+		}
+		if err := r.db.WithContext(ctx).
+			Where("reference_id = ? AND reference_type = ?", raw.ID, referenceType).
+			Order("transaction_date DESC").
+			First(&paymentTx).Error; err == nil {
+			amountStr := ""
+			if paymentTx.Amount != nil {
+				amountStr = fmt.Sprintf("%.2f", *paymentTx.Amount)
+			}
+			item.PaymentTransaction = &responses.PaymentTransactionResponse{
+				ID:              paymentTx.ID,
+				ReferenceID:     paymentTx.ReferenceID.String(),
+				ReferenceType:   string(paymentTx.ReferenceType),
+				Amount:          amountStr,
+				Method:          paymentTx.Method,
+				Status:          string(paymentTx.Status),
+				TransactionDate: paymentTx.TransactionDate.Format(time.RFC3339),
+				GatewayRef:      paymentTx.GatewayRef,
+				GatewayID:       paymentTx.GatewayID,
+				UpdatedAt:       paymentTx.UpdatedAt.Format(time.RFC3339),
+				PayerID:         paymentTx.PayerID,
+				ReceivedByID:    paymentTx.ReceivedByID,
+			}
+		}
+
+		items = append(items, item)
+	}
+
+	// Get total count and sum
+	countQuery := `
+		WITH refunded_orders AS (
+			SELECT o.id, o.total_amount, o.full_name
+			FROM orders o
+			WHERE o.status IN ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at <= ?)
+				AND o.deleted_at IS NULL
+		),
+		refunded_pre_orders AS (
+			SELECT po.id, po.total_amount, po.full_name
+			FROM pre_orders po
+			WHERE po.status IN ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at <= ?)
+				AND po.deleted_at IS NULL
+		),
+		combined AS (
+			SELECT * FROM refunded_orders
+			UNION ALL
+			SELECT * FROM refunded_pre_orders
+		)
+		SELECT COUNT(*) as total, COALESCE(SUM(total_amount), 0) as total_revenue
+		FROM combined
+		WHERE 1=1 ` + searchCondition
+
+	countArgs := []interface{}{
+		refundedOrderStatuses, from, from, from, to, to, to,
+		refundedPreOrderStatuses, from, from, from, to, to, to,
+	}
+	countArgs = append(countArgs, searchArgs...)
+
+	var result struct {
+		Total        int64
+		TotalRevenue float64
+	}
+	if err := r.db.WithContext(ctx).Raw(countQuery, countArgs...).Scan(&result).Error; err != nil {
+		return nil, 0, 0, err
+	}
+
+	return items, result.Total, result.TotalRevenue, nil
 }
