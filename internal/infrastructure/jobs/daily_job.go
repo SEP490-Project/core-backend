@@ -347,7 +347,7 @@ func (j *DailyJob) scheduleOverdueNotification(
 			Body:         notiBodyBuilder.String(),
 			Data:         stringData,
 			Types:        channels,
-			TemplateName: "contract_terminated",
+			TemplateName: "contract_termination",
 			Subject:      fmt.Sprintf("URGENT: Contract Termination Notice - %s", contractNumber),
 			TemplateData: data,
 			ScheduleIDs:  nil,
