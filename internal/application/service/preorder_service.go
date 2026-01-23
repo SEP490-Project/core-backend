@@ -181,7 +181,33 @@ func (p preOrderService) ApproveRefundRequest(ctx context.Context, preOrderID, a
 	}
 
 	preOrder.StaffResource = fileURL
-	if err := p.preOrderRepository.Update(ctx, preOrder); err != nil {
+	if err = helper.WithTransaction(ctx, p.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		if err = uow.PreOrder().Update(ctx, preOrder); err != nil {
+			zap.L().Error("Failed to update PreOrder state", zap.Error(err))
+			return err
+		}
+
+		// Record refunded payment transaction
+		negativePayment := &model.PaymentTransaction{
+			ReferenceID:     preOrder.ID,
+			ReferenceType:   enum.PaymentTransactionReferenceTypePreOrder,
+			Amount:          utils.PtrOrNil(-preOrder.TotalAmount),
+			Status:          enum.PaymentTransactionStatusRefunded,
+			Method:          enum.ContractPaymentMethodBankTransfer.String(),
+			TransactionDate: time.Now(),
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+			PayerID:         utils.PtrOrNil(actionBy),
+			ReceivedByID:    utils.PtrOrNil(preOrder.UserID),
+		}
+		if err = uow.PaymentTransaction().Add(ctx, negativePayment); err != nil {
+			zap.L().Error("Failed to add negative payment transaction during refund proof review", zap.Error(err))
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		zap.L().Error("Failed to update PreOrder state", zap.Error(err))
 		return err
 	}
 
