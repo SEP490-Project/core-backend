@@ -26,6 +26,7 @@ type PreOrderService interface {
 
 	//Job to check and expire pre-orders (total count, failed count, upcomming)
 	PreOrderOpeningChecker(ctx context.Context) (int, int, int)
+	PreOrderOpeningManualTrigger(ctx context.Context, preOrderID, actionBy uuid.UUID) error
 
 	RefundRequest(ctx context.Context, preOrderID, actionBy uuid.UUID, reason *string) error
 
@@ -35,4 +36,7 @@ type PreOrderService interface {
 
 	OpeningPreOrderEarly(ctx context.Context, uow irepository.UnitOfWork, productID uuid.UUID, updatedBy uuid.UUID) error
 	GetPreOrderPricePercentage(ctx context.Context, preOrderID uuid.UUID) ([]responses.PriceBreakdown, error)
+
+	// Update GHN Order Code for a PreOrder
+	UpdateGHNOrderCode(ctx context.Context, preOrderID uuid.UUID, ghnOrderCode string) error
 }
