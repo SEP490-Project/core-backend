@@ -199,9 +199,34 @@ func (s *coProducingRefundService) ReviewRefundProof(
 	}
 
 	err = helper.WithTransaction(ctx, s.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
-		return uow.ContractPayments().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+		if err = uow.ContractPayments().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
 			return db.Where("id = ?", payment.ID)
-		}, updateMap)
+		}, updateMap); err != nil {
+			zap.L().Error("Failed to update contract payment during refund proof review", zap.Error(err))
+			return err
+		}
+		if !req.Approved {
+			return nil
+		}
+		// If approved, create refund transaction here (omitted for brevity)
+		negativePayment := &model.PaymentTransaction{
+			ReferenceID:     payment.ID,
+			ReferenceType:   enum.PaymentTransactionReferenceTypeContractPayment,
+			Amount:          utils.PtrOrNil(-payment.RefundAmount),
+			Status:          enum.PaymentTransactionStatusRefunded,
+			Method:          enum.ContractPaymentMethodBankTransfer.String(),
+			TransactionDate: time.Now(),
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+			PayerID:         payment.RefundSubmittedBy,
+			ReceivedByID:    utils.PtrOrNil(reviewedBy),
+		}
+		if err = uow.PaymentTransaction().Add(ctx, negativePayment); err != nil {
+			zap.L().Error("Failed to create negative payment transaction during refund proof review", zap.Error(err))
+			return err
+		}
+
+		return nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to review refund proof: %w", err)
