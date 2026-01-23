@@ -226,8 +226,8 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 
 // CreateLimitedOrder godoc
 //
-//	@Summary		Place an order and initiate payment
-//	@Description	Create a limited order
+//	@Summary		Place a limited order and initiate payment
+//	@Description	Create a limited order. Delivery fee is calculated from GHN but paid by KOL system (deducted from KOL revenue), not the customer.
 //	@Tags			Orders
 //	@Accept			json
 //	@Produce		json
@@ -268,15 +268,48 @@ func (h *OrderHandler) CreateLimitedOrder(c *gin.Context) {
 		}
 	}()
 
-	//*2 Create order with payment
-	order, err := h.orderService.PlaceOrder(ctx, userID, req.Order, 0, true, uow)
+	// Calculate delivery fee from GHN for LIMITED orders
+	// This fee is NOT charged to the customer but stored for analytics purposes
+	// (will be deducted from KOL's Limited Product Revenue NET)
+	var deliveryFee *dtos.DeliveryFeeSuccess
+	if !req.Order.IsSelfPickup {
+		deliveryFee, err = h.ghnProxy.CalculateDeliveryPriceByShippingAddressAndOrderItem(ctx, req.Order.AddressID, req.Order.Items, uow)
+		if err != nil {
+			_ = uow.Rollback()
+			c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to calculate delivery fee: "+err.Error(), http.StatusBadRequest))
+			return
+		}
+	} else {
+		// Self-pickup: no delivery fee
+		deliveryFee = &dtos.DeliveryFeeSuccess{
+			Total:                 0,
+			ServiceFee:            0,
+			InsuranceFee:          0,
+			PickStationFee:        0,
+			CouponValue:           0,
+			R2SFee:                0,
+			ReturnAgain:           0,
+			DocumentReturn:        0,
+			DoubleCheck:           0,
+			CodFee:                0,
+			PickRemoteAreasFee:    0,
+			DeliverRemoteAreasFee: 0,
+			CodFailedFee:          0,
+		}
+	}
+
+	// Create order with the calculated delivery fee (stored for analytics, but customer doesn't pay)
+	// The PlaceOrder service will set applyShippingFee = 0 for LIMITED orders in payment calculation
+	// but we pass the actual fee to store it in the order for KOL revenue deduction
+	order, err := h.orderService.PlaceOrder(ctx, userID, req.Order, deliveryFee.Total, true, uow)
 	if err != nil {
 		_ = uow.Rollback()
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to place order: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 
-	//*3 Initiate payment
+	// Initiate payment - customer pays 0 for shipping (KOL system covers it)
+	// The delivery fee is already stored in the order for analytics
 	paymentTx, err := h.orderService.PayOrder(ctx, order.ID, 0, req.SuccessURL, req.CancelURL, uow)
 	if err != nil {
 		_ = uow.Rollback()
@@ -294,7 +327,7 @@ func (h *OrderHandler) CreateLimitedOrder(c *gin.Context) {
 	resp := responses.SuccessResponse("Order placed and payment initiated", ptr.Int(http.StatusOK), map[string]any{
 		"order":        order,
 		"payment_tx":   paymentTx,
-		"delivery_fee": nil,
+		"delivery_fee": deliveryFee,
 	})
 	c.JSON(http.StatusOK, resp)
 }
