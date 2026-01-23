@@ -21,7 +21,7 @@ type OrderService interface {
 	MarkAsReceived(ctx context.Context, orderID, userID uuid.UUID) error
 
 	//Staff
-	GetStaffAvailableOrdersWithPagination(limit, page int, search, fullName, phone, provinceID, districtID, wardCode string, orderType string, statuses []string) ([]responses.OrderResponse, int, error)
+	GetStaffAvailableOrdersWithPagination(limit, page int, search, fullName, phone, provinceID, districtID, wardCode string, orderType, createdFrom, createdTo, brandID string, statuses []string) ([]responses.OrderResponse, int, error)
 	MarkAsReadyToPickedUp(ctx context.Context, orderID, userID uuid.UUID) error
 	MarkAsReceivedAfterPickedUp(ctx context.Context, orderID, userID uuid.UUID, imageUrl string) error
 
