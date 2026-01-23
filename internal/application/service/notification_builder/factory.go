@@ -89,6 +89,7 @@ const (
 	PreOrderNotifyCompensateRequested PreOrderNotificationType = "COMPENSATE_REQUEST"
 	PreOrderNotifyCompensated         PreOrderNotificationType = "COMPENSATED"
 	PreOrderNotifyReceived            PreOrderNotificationType = "RECEIVED"
+	PreOrderNotifyShipped             PreOrderNotificationType = "SHIPPED"
 
 	PreOrderNotifyRefund           PreOrderNotificationType = "REFUND"
 	PreOrderNotifyRefundRequest    PreOrderNotificationType = "REFUND_REQUEST"

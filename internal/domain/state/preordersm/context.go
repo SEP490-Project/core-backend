@@ -44,6 +44,12 @@ func (s *PreOrderContext) GenerateActionNote(user *model.User, reason *string) *
 		}
 		note.ActionType = enum.PreOrderStatusPreOrdered
 		note.Reason = *reason
+	case enum.PreOrderStatusShipped:
+		if !utils.NotEmptyOrNil(reason) {
+			reason = ptr.String("Pre-order being shipped By GHN")
+		}
+		note.ActionType = enum.PreOrderStatusShipped
+		note.Reason = *reason
 	case enum.PreOrderStatusAwaitingPickup:
 		if !utils.NotEmptyOrNil(reason) {
 			reason = ptr.String("Pre-order being changed By System")
@@ -52,13 +58,13 @@ func (s *PreOrderContext) GenerateActionNote(user *model.User, reason *string) *
 		note.Reason = *reason
 	case enum.PreOrderStatusInTransit:
 		if !utils.NotEmptyOrNil(reason) {
-			reason = ptr.String("Pre-order being changed By System")
+			reason = ptr.String("Pre-order being in transit by Delivery Service")
 		}
 		note.ActionType = enum.PreOrderStatusInTransit
 		note.Reason = *reason
 	case enum.PreOrderStatusDelivered:
 		if !utils.NotEmptyOrNil(reason) {
-			reason = ptr.String("Pre-order being confirmed delivered By Staff")
+			reason = ptr.String("Your Pre-order has been delivered")
 		}
 		note.ActionType = enum.PreOrderStatusDelivered
 		note.Reason = *reason

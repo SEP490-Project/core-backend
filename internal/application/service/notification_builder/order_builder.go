@@ -181,7 +181,7 @@ func buildOrderConfirmedNotification(ctx context.Context, _ config.AppConfig, _ 
 	var resp []requests.PublishNotificationRequest
 	pushPayload := PushNotificationPayload{
 		Title: "Your Order Has Been Confirm!",
-		Body:  "Happy Happy Happy",
+		Body:  "",
 		Data:  pushDataForOrder(order),
 	}
 	resp = append(resp, buildNotificationRequest(order.UserID, channelPush, EmailNotificationPayload{}, pushPayload))
