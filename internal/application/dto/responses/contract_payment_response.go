@@ -245,11 +245,15 @@ func (ContractPaymentResponse) ToResponseList(sources []model.ContractPayment, f
 						allowedDays := config.GetAppConfig().AdminConfig.ContractPaymentAllowedOverdueDays
 						resp.PayNow = resp.Status == enum.ContractPaymentStatusPending && isWithinAllowedOverdue(p.DueDate, allowedDays)
 						if !resp.PayNow {
-							resp.Status = enum.ContractPaymentStatusNotStarted
+							if !resp.Status.IsRefundStatus() && !resp.Status.IsTerminalStatus() {
+								resp.Status = enum.ContractPaymentStatusNotStarted
+							}
 						}
 					} else {
 						resp.PayNow = false
-						resp.Status = enum.ContractPaymentStatusNotStarted
+						if !resp.Status.IsRefundStatus() && !resp.Status.IsTerminalStatus() {
+							resp.Status = enum.ContractPaymentStatusNotStarted
+						}
 					}
 				}
 				groupRes = append(groupRes, *resp)
