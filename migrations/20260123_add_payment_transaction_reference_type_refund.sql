@@ -1,4 +1,5 @@
 alter type payment_transactions_status add value 'REFUNDED' ;
+alter type content_status add value 'SCHEDULED' ;
 
 alter table payment_transactions
 add column received_by_id uuid ;
