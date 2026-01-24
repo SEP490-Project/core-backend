@@ -111,7 +111,6 @@ func (r *MarketingAnalyticsRepository) GetGrossContractRevenue(ctx context.Conte
 	`
 	args := []any{
 		enum.ViolationTypeBrand,
-		enum.ViolationProofStatusApproved,
 		current.Start, current.End,
 		[]enum.ContractPaymentStatus{enum.ContractPaymentStatusPaid, enum.ContractPaymentStatusKOLRefundApproved},
 		current.Start, current.End,
@@ -380,17 +379,18 @@ func (r *MarketingAnalyticsRepository) GetContractStatusDistribution(ctx context
 
 	query := `
 		SELECT 
-			COUNT(CASE WHEN status = ? THEN 1 END) as draft,
-			COUNT(CASE WHEN status = ? THEN 1 END) as active,
-			COUNT(CASE WHEN status = ? THEN 1 END) as completed,
-			COUNT(CASE WHEN status = ? THEN 1 END) as terminated,
-			COUNT(CASE WHEN status IN ? THEN 1 END) as brand_violations,
-			COUNT(CASE WHEN status IN ? THEN 1 END) as kol_violations,
+			COUNT(CASE WHEN c.status = ? THEN 1 END) as draft,
+			COUNT(CASE WHEN c.status = ? THEN 1 END) as active,
+			COUNT(CASE WHEN c.status = ? THEN 1 END) as completed,
+			COUNT(CASE WHEN c.status = ? THEN 1 END) as terminated,
+			COUNT(CASE WHEN c.status IN ? AND cv.type = ? THEN 1 END) as brand_violations,
+			COUNT(CASE WHEN c.status IN ? AND cv.type = ? THEN 1 END) as kol_violations,
 			COUNT(*) as total
-		FROM contracts
-		WHERE deleted_at IS NULL
-		  AND created_at >= ?
-		  AND created_at < ?
+		FROM contracts c
+			LEFT JOIN contract_violations cv ON c.id = cv.contract_id AND cv.deleted_at IS NULL
+		WHERE c.deleted_at IS NULL
+		  AND c.created_at >= ?
+		  AND c.created_at < ?
 	`
 
 	var result dtoResponses.ContractStatusDistributionResponse
@@ -399,8 +399,10 @@ func (r *MarketingAnalyticsRepository) GetContractStatusDistribution(ctx context
 		enum.ContractStatusActive,
 		enum.ContractStatusCompleted,
 		enum.ContractStatusTerminated,
-		[]enum.ContractStatus{enum.ContractStatusBrandViolated, enum.ContractStatusBrandPenaltyPending, enum.ContractStatusBrandPenaltyPaid},
-		[]enum.ContractStatus{enum.ContractStatusKOLViolated, enum.ContractStatusKOLRefundPending, enum.ContractStatusKOLProofSubmitted, enum.ContractStatusKOLProofRejected, enum.ContractStatusKOLRefundApproved},
+		[]enum.ContractStatus{enum.ContractStatusBrandViolated, enum.ContractStatusBrandPenaltyPending, enum.ContractStatusBrandPenaltyPaid, enum.ContractStatusTerminated},
+		enum.ViolationTypeBrand,
+		[]enum.ContractStatus{enum.ContractStatusKOLViolated, enum.ContractStatusKOLRefundPending, enum.ContractStatusKOLProofSubmitted, enum.ContractStatusKOLProofRejected, enum.ContractStatusKOLRefundApproved, enum.ContractStatusTerminated},
+		enum.ViolationTypeKOL,
 		current.Start, current.End,
 	).Scan(&result).Error
 	if err != nil {
@@ -531,7 +533,7 @@ func (r *MarketingAnalyticsRepository) GetRefundViolationStats(ctx context.Conte
 			SELECT 
 				COUNT(CASE WHEN c.status = $4 THEN 1 END) as pending,
         		-- SUM(CASE WHEN c.status = $4 THEN cv.penalty_amount END) as pending_amount,
-				COUNT(CASE WHEN (c.status = $5) OR (cv.type = $10 AND cv.proof_status = $11) THEN 1 END) as paid
+				COUNT(CASE WHEN (c.status = $5) OR (cv.type = $10) THEN 1 END) as paid
         		-- SUM(CASE WHEN (c.status = $5) OR (cv.type = $10 AND cv.proof_status = $11) THEN cv.penalty_amount END) as paid_amount
 			FROM contracts c
 			LEFT JOIN contract_violations cv on c.id = cv.contract_id
@@ -584,15 +586,15 @@ func (r *MarketingAnalyticsRepository) GetRefundViolationStats(ctx context.Conte
 
 	var result dtoResponses.RefundViolationStatsResponse
 	err := r.db.WithContext(ctx).Raw(query,
-		current.Start, current.End,
-		coProducingType,
-		enum.ContractStatusBrandPenaltyPending,
-		enum.ContractStatusBrandPenaltyPaid,
-		[]string{enum.ContractStatusKOLViolated.String(), enum.ContractStatusKOLRefundPending.String(), enum.ContractStatusKOLProofSubmitted.String(), enum.ContractStatusKOLProofRejected.String()},
-		enum.ContractStatusKOLRefundApproved,
-		[]string{enum.ContractPaymentStatusKOLPending.String(), enum.ContractPaymentStatusKOLProofSubmitted.String()},
-		enum.ContractPaymentStatusKOLRefundApproved,
-		enum.ViolationTypeBrand.String(), enum.ViolationProofStatusApproved.String(), enum.ViolationTypeKOL.String(),
+		current.Start, current.End, // 1 - 2
+		coProducingType,                        // 3
+		enum.ContractStatusBrandPenaltyPending, // 4
+		enum.ContractStatusBrandPenaltyPaid,    // 5
+		[]string{enum.ContractStatusKOLViolated.String(), enum.ContractStatusKOLRefundPending.String(), enum.ContractStatusKOLProofSubmitted.String(), enum.ContractStatusKOLProofRejected.String()}, // 6
+		enum.ContractStatusKOLRefundApproved, // 7
+		[]string{enum.ContractPaymentStatusKOLPending.String(), enum.ContractPaymentStatusKOLProofSubmitted.String()}, // 8
+		enum.ContractPaymentStatusKOLRefundApproved,                                                                  // 9
+		enum.ViolationTypeBrand.String(), enum.ViolationProofStatusApproved.String(), enum.ViolationTypeKOL.String(), // 10 - 12
 	).Scan(&result).Error
 	if err != nil {
 		zap.L().Error("Failed to get refund violation stats", zap.Error(err))
