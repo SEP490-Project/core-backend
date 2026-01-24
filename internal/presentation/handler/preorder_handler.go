@@ -1019,7 +1019,7 @@ func (p *PreOrderHandler) GetPreOrderPricePercentage(c *gin.Context) {
 
 	c.JSON(http.StatusOK, responses.SuccessResponse("Preorder price breakdown retrieved successfully", ptr.Int(http.StatusOK), breakdowns))
 }
- 
+
 // MovePreOrderToAwaitingPickup godoc
 //
 //	@Summary		Move preorder to AWAITING_PICKUP (Staff)
@@ -1071,7 +1071,6 @@ func (p *PreOrderHandler) MovePreOrderToAwaitingPickup(c *gin.Context) {
 	resp := responses.SuccessResponse("PreOrder moved to AWAITING_PICKUP successfully", ptr.Int(http.StatusOK), nil)
 	c.JSON(http.StatusOK, resp)
 }
-
 
 func NewPreOrderHandler(preOrderService iservice.PreOrderService, uow irepository.UnitOfWork, stateSvc iservice.StateTransferService, fileSvc iservice.FileService, ghnProxy iproxies.GHNProxy) *PreOrderHandler {
 	return &PreOrderHandler{

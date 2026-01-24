@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"core-backend/config"
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
@@ -25,11 +26,14 @@ import (
 )
 
 type ContractService struct {
-	brandRepository    irepository.GenericRepository[model.Brand]
-	contractRepository irepository.ContractRepository
-	violationRepo      irepository.ContractViolationRepository
-	taskRepository     irepository.TaskRepository
-	unitOfWork         irepository.UnitOfWork
+	brandRepository     irepository.GenericRepository[model.Brand]
+	contractRepository  irepository.ContractRepository
+	violationRepo       irepository.ContractViolationRepository
+	taskRepository      irepository.TaskRepository
+	userRepository      irepository.GenericRepository[model.User]
+	unitOfWork          irepository.UnitOfWork
+	notificationService iservice.NotificationService
+	config              *config.AppConfig
 }
 
 // GetContractsByUserID implements iservice.ContractService.
@@ -164,7 +168,7 @@ func (s *ContractService) CreateContract(
 	// Verify brand exists
 	brandID, _ := uuid.Parse(createRequest.BrandID)
 	brandRepo := unitOfWork.Brands()
-	_, err = brandRepo.GetByID(ctx, brandID, nil)
+	brand, err := brandRepo.GetByID(ctx, brandID, nil)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			zap.L().Warn("Brand not found", zap.String("brand_id", createRequest.BrandID))
@@ -199,6 +203,12 @@ func (s *ContractService) CreateContract(
 	if err != nil {
 		zap.L().Error("Failed to retrieve created contract", zap.Error(err))
 		return nil, errors.New("contract created but failed to retrieve details")
+	}
+
+	// Send notification to brand (async)
+	creator, _ := s.userRepository.GetByID(ctx, userID, nil)
+	if creator != nil && brand != nil {
+		s.notifyBrandContractCreated(createdContract, brand, creator)
 	}
 
 	zap.L().Info("Contract created successfully",
@@ -791,12 +801,65 @@ func (s *ContractService) UpdateAllContractScopeOfWorkWithReferencinnTaskIDs(ctx
 func NewContractService(
 	dbReg *gormrepository.DatabaseRegistry,
 	infraReg *infrastructure.InfrastructureRegistry,
+	notificationService iservice.NotificationService,
+	config *config.AppConfig,
 ) iservice.ContractService {
 	return &ContractService{
-		contractRepository: dbReg.ContractRepository,
-		brandRepository:    dbReg.BrandRepository,
-		violationRepo:      dbReg.ContractViolationRepository,
-		taskRepository:     dbReg.TaskRepository,
-		unitOfWork:         infraReg.UnitOfWork,
+		contractRepository:  dbReg.ContractRepository,
+		brandRepository:     dbReg.BrandRepository,
+		violationRepo:       dbReg.ContractViolationRepository,
+		taskRepository:      dbReg.TaskRepository,
+		userRepository:      dbReg.UserRepository,
+		unitOfWork:          infraReg.UnitOfWork,
+		notificationService: notificationService,
+		config:              config,
 	}
 }
+
+// region: ============ Notification Helpers ============
+
+// notifyBrandContractCreated sends notification to brand when a new contract is created
+func (s *ContractService) notifyBrandContractCreated(contract *model.Contract, brand *model.Brand, creator *model.User) {
+	go func() {
+		ctx := context.Background()
+
+		// Build deep link
+		reviewLink := fmt.Sprintf("%s/manage/brand/contracts/%s", s.config.Server.BaseURL, contract.ID.String())
+
+		// Build notification request
+		req := &requests.PublishNotificationRequest{
+			UserID: utils.DerefPtr(brand.UserID, uuid.Nil),
+			Types:  []enum.NotificationType{enum.NotificationTypeInApp, enum.NotificationTypeEmail},
+			Title:  fmt.Sprintf("New Contract: %s", *contract.ContractNumber),
+			Body:   fmt.Sprintf("A new contract '%s' has been created for %s. Please review and approve.", contract.Title, brand.Name),
+			Data: map[string]string{
+				"type":        "CONTRACT_CREATED",
+				"contract_id": contract.ID.String(),
+				"link":        reviewLink,
+			},
+			CustomReceiver:    &brand.ContactEmail,
+			EmailSubject:      utils.PtrOrNil(fmt.Sprintf("New Contract Created - %s", *contract.ContractNumber)),
+			EmailTemplateName: utils.PtrOrNil("contract_created"),
+			EmailTemplateData: map[string]any{
+				"ContractNumber": *contract.ContractNumber,
+				"Title":          contract.Title,
+				"BrandName":      brand.Name,
+				"CreatedByName":  creator.Username,
+				"ReviewLink":     reviewLink,
+			},
+		}
+
+		if _, err := s.notificationService.CreateAndPublishNotification(ctx, req); err != nil {
+			zap.L().Error("Failed to send contract created notification",
+				zap.String("contract_id", contract.ID.String()),
+				zap.String("brand_id", brand.ID.String()),
+				zap.Error(err))
+		} else {
+			zap.L().Info("Contract created notification sent",
+				zap.String("contract_id", contract.ID.String()),
+				zap.String("brand_user_id", brand.UserID.String()))
+		}
+	}()
+}
+
+// endregion

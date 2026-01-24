@@ -1,6 +1,7 @@
 package responses
 
 import (
+	"core-backend/config"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
@@ -37,6 +38,7 @@ type ContractPaymentResponse struct {
 	Note                  *string                    `json:"note" example:"First installment payment"`
 	IsDeposit             bool                       `json:"is_deposit" example:"true"`
 	PayNow                bool                       `json:"pay_now" example:"false"`
+	PaidAt                *string                    `json:"paid_at" example:"2006-01-02T15:04:05Z07:00"`
 	CreatedAt             string                     `json:"created_at" example:"2006-01-02T15:04:05Z07:00"`
 	UpdatedAt             string                     `json:"updated_at" example:"2006-01-02T15:04:05Z07:00"`
 
@@ -84,6 +86,11 @@ func (ContractPaymentResponse) ToResponse(m *model.ContractPayment) *ContractPay
 		RefundAttempts:        m.RefundAttempts,
 	}
 
+	if m.PaidAt != nil {
+		paidAt := utils.FormatLocalTime(m.PaidAt, utils.TimezoneFormat)
+		response.PaidAt = &paidAt
+	}
+
 	// Populate contract and brand info
 	if m.ContractID != uuid.Nil && m.Contract != nil {
 		response.ContractID = m.Contract.ID.String()
@@ -129,6 +136,9 @@ func (ContractPaymentResponse) ToResponse(m *model.ContractPayment) *ContractPay
 	// - Current time must be after due date
 	now := time.Now()
 	response.CanGeneratePaymentLink = m.Status == enum.ContractPaymentStatusPending && now.After(m.DueDate)
+	// Compute PayNow: only available when payment is pending and within allowed overdue window
+	allowedDays := config.GetAppConfig().AdminConfig.ContractPaymentAllowedOverdueDays
+	response.PayNow = response.Status == enum.ContractPaymentStatusPending && isWithinAllowedOverdue(m.DueDate, allowedDays)
 
 	return response
 }
@@ -232,13 +242,24 @@ func (ContractPaymentResponse) ToResponseList(sources []model.ContractPayment, f
 				}
 				// Apply PayNow logic: Only true for the first item in the sorted group
 				if utils.ContainsSlice(endStatuses, resp.Status) {
+					// End statuses are never payable now
+					resp.PayNow = false
 					index++
 				} else {
-					// resp.PayNow = (k == index)
+					// Only the first non-ended payment in the group is eligible to be paid now.
 					if k == index {
-						resp.PayNow = true
+						allowedDays := config.GetAppConfig().AdminConfig.ContractPaymentAllowedOverdueDays
+						resp.PayNow = resp.Status == enum.ContractPaymentStatusPending && isWithinAllowedOverdue(p.DueDate, allowedDays)
+						if !resp.PayNow {
+							if !resp.Status.IsRefundStatus() && !resp.Status.IsTerminalStatus() {
+								resp.Status = enum.ContractPaymentStatusNotStarted
+							}
+						}
 					} else {
-						resp.Status = enum.ContractPaymentStatusNotStarted
+						resp.PayNow = false
+						if !resp.Status.IsRefundStatus() && !resp.Status.IsTerminalStatus() {
+							resp.Status = enum.ContractPaymentStatusNotStarted
+						}
 					}
 				}
 				groupRes = append(groupRes, *resp)
@@ -263,6 +284,39 @@ func (ContractPaymentResponse) ToResponseList(sources []model.ContractPayment, f
 	return finalResponses
 }
 
+func (ContractPaymentResponse) ToSimpleResponseList(sources []model.ContractPayment) []ContractPaymentResponse {
+	if len(sources) == 0 {
+		return []ContractPaymentResponse{}
+	}
+
+	// var response []ContractPaymentResponse
+	list := make([]ContractPaymentResponse, len(sources))
+	for i, source := range sources {
+		// list = append(list, *ContractPaymentResponse{}.ToResponse(&source))
+		list[i] = *ContractPaymentResponse{}.ToResponse(&source)
+	}
+	return list
+}
+
 // endregion
+
+// isWithinAllowedOverdue returns true if now is between due date (inclusive)
+// and due date + allowedDays (inclusive) using local date comparison.
+func isWithinAllowedOverdue(due time.Time, allowedDays int) bool {
+	if allowedDays < 0 {
+		return false
+	}
+	// Normalize to local date (midnight)
+	loc := time.Local
+	now := time.Now().In(loc)
+	dueLocal := due.In(loc)
+
+	nowDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+	dueDate := time.Date(dueLocal.Year(), dueLocal.Month(), dueLocal.Day(), 0, 0, 0, 0, loc)
+
+	endDate := dueDate.AddDate(0, 0, allowedDays)
+
+	return !nowDate.Before(dueDate) && !nowDate.After(endDate)
+}
 
 type ContractPaymentPaginationResponse PaginationResponse[ContractPaymentResponse]

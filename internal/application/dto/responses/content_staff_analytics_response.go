@@ -75,7 +75,7 @@ type ChannelMetricsCard struct {
 	ChannelName      string             `json:"channel_name"`
 	ChannelCode      string             `json:"channel_code"` // "WEBSITE", "FACEBOOK", "TIKTOK"
 	PostCount        int64              `json:"post_count"`
-	TotalReach       int64              `json:"total_reach"`
+	TotalViews       int64              `json:"total_views"`
 	TotalEngagement  int64              `json:"total_engagement"`
 	CTR              float64            `json:"ctr"`
 	FollowersCount   int64              `json:"followers_count"`           // Channel followers/subscribers
@@ -83,7 +83,7 @@ type ChannelMetricsCard struct {
 	FetchedMetrics   map[string]any     `json:"fetched_metrics"`           // Raw platform metrics
 	MappedMetrics    map[string]float64 `json:"mapped_metrics"`            // Standardized KPI values
 	TopPost          *TopPostBrief      `json:"top_post,omitempty"`
-	ReachGrowth      float64            `json:"reach_growth"`
+	ViewsGrowth      float64            `json:"views_growth"`
 	EngagementGrowth float64            `json:"engagement_growth"`
 }
 
@@ -190,6 +190,9 @@ type ChannelDetailsResponse struct {
 
 	// Channel information
 	Channel ChannelInfo `json:"channel"`
+
+	// Total published contents count
+	PublishedContentsCount int64 `json:"published_contents_count"`
 
 	// Period information
 	Period DashboardPeriodInfo `json:"period"`

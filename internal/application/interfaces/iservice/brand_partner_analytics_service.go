@@ -4,6 +4,7 @@ import (
 	"context"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
+	"core-backend/internal/domain/constant"
 
 	"github.com/google/uuid"
 )
@@ -36,4 +37,22 @@ type BrandPartnerAnalyticsService interface {
 
 	// GetBrandTopSoldProduct return top sold products for a brand
 	GetBrandTopSoldProduct(ctx context.Context, brandUserID uuid.UUID, req *requests.BrandTopSoldProductRequest) ([]responses.BrandTopSoldProducts, error)
+
+	// GetBrandContractStatusDistribution returns contract status distribution for a brand
+	GetBrandContractStatusDistribution(ctx context.Context, brandUserID uuid.UUID, filter *requests.DashboardFilterRequest) (*responses.ContractStatusDistributionResponse, error)
+
+	// GetBrandTaskStatusDistribution returns task status distribution for a brand
+	GetBrandTaskStatusDistribution(ctx context.Context, brandUserID uuid.UUID, filter *requests.DashboardFilterRequest) (*responses.TaskStatusDistributionResponse, error)
+
+	// GetBrandRevenueOverTime returns revenue trend over time for a brand (Limited Products only)
+	GetBrandRevenueOverTime(ctx context.Context, brandUserID uuid.UUID, filter *requests.DashboardFilterRequest, granularity constant.TrendGranularity) (*responses.BrandRevenueOverTimeResponse, error)
+
+	// GetBrandRefundViolationStats returns refund and contract violation stats for a brand
+	GetBrandRefundViolationStats(ctx context.Context, brandUserID uuid.UUID, filter *requests.DashboardFilterRequest) (*responses.RefundViolationStatsResponse, error)
+
+	// GetBrandGrossIncome returns brand's gross income (limited product revenue × brand share percentage)
+	GetBrandGrossIncome(ctx context.Context, brandUserID uuid.UUID, filter *requests.DashboardFilterRequest) (*responses.BrandIncomeResponse, error)
+
+	// GetBrandNetIncome returns brand's net income (gross income - paid contract payments)
+	GetBrandNetIncome(ctx context.Context, brandUserID uuid.UUID, filter *requests.DashboardFilterRequest) (*responses.BrandNetIncomeResponse, error)
 }

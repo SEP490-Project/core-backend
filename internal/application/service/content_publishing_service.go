@@ -220,6 +220,9 @@ func (s *contentPublishingService) PublishToChannel(ctx context.Context, content
 		return nil, err
 	}
 
+	// Asynchronously add zero metrics to KPI metrics for this content channel
+	go s.addZeroMetricsToKPIMetrics(ctx, contentChannel.ID)
+
 	zap.L().Info("Content published successfully",
 		zap.String("content_id", contentID.String()),
 		zap.String("channel_code", channel.Code),
@@ -871,6 +874,77 @@ func (s *contentPublishingService) saveUploadMetadataAsync(
 
 	return nil
 } */
+
+// addZeroMetricsToKPIMetrics adds zero value kpi_metrics records two days back before the content channel published date
+// This is to ensure that the content dashboard able to show the growth rate correctly on the first day of publishing.
+func (s *contentPublishingService) addZeroMetricsToKPIMetrics(ctx context.Context, contentChannelID uuid.UUID) {
+	contentChannel, err := s.contentChannelRepo.GetByID(ctx, contentChannelID, nil)
+	if err != nil {
+		zap.L().Error("Failed to get content channel for adding zero metrics", zap.Error(err))
+		return
+	}
+	if contentChannel.AutoPostStatus != enum.AutoPostStatusPosted && contentChannel.PublishedAt == nil {
+		zap.L().Warn("Content channel is not posted or published yet, skipping addZeroMetricsToKPIMetrics",
+			zap.String("content_channel_id", contentChannelID.String()))
+		return
+	}
+
+	var (
+		publishedAt = contentChannel.PublishedAt.Truncate(24 * time.Hour)
+		twoDaysAgo  = publishedAt.Add(-2 * 24 * time.Hour)
+		metricsList = []enum.KPIValueType{
+			enum.KPIValueTypeViews,
+			enum.KPIValueTypeUniqueViews,
+			enum.KPIValueTypeReach,
+			enum.KPIValueTypeLikes,
+			enum.KPIValueTypeComments,
+			enum.KPIValueTypeShares,
+			enum.KPIValueTypeEngagement,
+			enum.KPIValueTypeClickThrough,
+			enum.KPIValueTypeImpressions,
+			enum.KPIValueTypeFollowers,
+		}
+	)
+
+	if err := utils.RunWithRetry(ctx, utils.DefaultRetryOptions, func(ctx context.Context) error {
+		if err := helper.WithTransaction(ctx, s.uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
+			kpiMetricsRecords := make([]*model.KPIMetrics, 0, len(metricsList))
+			for _, metricType := range metricsList {
+				kpiMetricsRecords = append(kpiMetricsRecords, &model.KPIMetrics{
+					ReferenceID:   contentChannelID,
+					ReferenceType: enum.KPIReferenceTypeContentChannel,
+					Type:          metricType,
+					Value:         0,
+					RecordedDate:  twoDaysAgo,
+				}, &model.KPIMetrics{
+					ReferenceID:   contentChannelID,
+					ReferenceType: enum.KPIReferenceTypeContentChannel,
+					Type:          metricType,
+					Value:         0,
+					RecordedDate:  twoDaysAgo.Add(24 * time.Hour),
+				})
+			}
+
+			if rowAffected, err := uow.KPIMetrics().BulkAdd(ctx, kpiMetricsRecords, 500); err != nil {
+				zap.L().Error("Failed to bulk create zero kpi metrics", zap.Error(err))
+				return fmt.Errorf("failed to bulk create zero kpi metrics: %w", err)
+			} else {
+				zap.L().Info("Successfully added zero kpi metrics",
+					zap.Int64("rows_affected", rowAffected),
+					zap.Int("expected_rows", len(kpiMetricsRecords)))
+			}
+
+			return nil
+		}); err != nil {
+			zap.L().Error("Transaction failed when adding zero metrics to KPI metrics", zap.Error(err))
+			return fmt.Errorf("transaction failed when adding zero metrics to KPI metrics: %w", err)
+		}
+		return nil
+	}); err != nil {
+		zap.L().Error("Failed to add zero metrics to KPI metrics after retries", zap.Error(err))
+		return
+	}
+}
 
 // endregion 1.
 

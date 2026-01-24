@@ -701,6 +701,7 @@ func (s *violationService) ReviewRefundProof(
 		approvedStatus := enum.ViolationProofStatusApproved
 		violation.ProofStatus = &approvedStatus
 		violation.ProofReviewNote = nil
+		violation.ResolvedAt = &now
 	} else {
 		rejectedStatus := enum.ViolationProofStatusRejected
 		violation.ProofStatus = &rejectedStatus
@@ -734,6 +735,64 @@ func (s *violationService) ReviewRefundProof(
 			return fmt.Errorf("failed to add negative payment: %w", err)
 		}
 
+		// Send notifications
+		if req.IsApprove() {
+			// Notify Brand: Violation Resolved
+			s.sendNotification(ctx, violation.ContractID, "Violation Resolved",
+				"The KOL refund proof has been approved. The violation is resolved.",
+				"Refund Approved",
+				utils.PtrOrNil("violation_resolved"),
+				map[string]any{
+					"ReportedDate":   utils.FormatLocalTime(&violation.CreatedAt, utils.TimeFormat),
+					"ResolutionDate": utils.FormatLocalTime(utils.PtrOrNil(utils.DerefPtr(violation.ResolvedAt, now)), utils.TimeFormat),
+					"AmountSettled":  fmt.Sprintf("%.2f", violation.RefundAmount),
+					"ResolutionNote": utils.DerefPtr(req.RejectReason, "No reason provided"),
+					"Currency":       "VND",
+				},
+				violation.ID,
+				enum.ViolationTypeBrand,
+				nil,
+			)
+
+			var reviewerFullName string
+			reviewerFullName, err = s.userRepo.GetUserFullnameByID(ctx, reviewedBy)
+			if err != nil {
+				zap.L().Error("Failed to get reviewer full name", zap.Error(err))
+				reviewerFullName = "Brand Partner"
+			}
+			// Notify Staff: Proof Approved (Broadcast)
+			s.sendNotification(ctx, violation.ContractID, "Refund Proof Approved",
+				"Refund proof has been approved by brand.",
+				"Proof Approved",
+				utils.PtrOrNil("kol_proof_approved"),
+				map[string]any{
+					"ViolationID":  violation.ID.String(),
+					"Currency":     "VND",
+					"RefundAmount": fmt.Sprintf("%.2f", violation.RefundAmount),
+					"ReviewerName": reviewerFullName,
+					"ApprovalDate": time.Now().Format(utils.TimeFormat),
+				},
+				violation.ID,
+				enum.ViolationTypeKOL,
+				violation.ProofSubmittedBy,
+			)
+		} else {
+			// Notify marketing staff: Proof Rejected
+			s.sendNotification(ctx, violation.ContractID, "Refund Proof Rejected",
+				fmt.Sprintf("Your refund proof was rejected. Reason: %s", utils.DerefPtr(req.RejectReason, "N/A")),
+				"Proof Rejected",
+				utils.PtrOrNil("kol_proof_rejected"),
+				map[string]any{
+					"RejectReason":      utils.DerefPtr(req.RejectReason, "N/A"),
+					"RemainingAttempts": s.config.AdminConfig.ViolationProofMaxAttempts - violation.ProofAttempts,
+					"DashboardLink":     fmt.Sprintf("%s/manage/marketing/contracts/%s", s.config.Server.BaseFrontendURL, violation.ContractID.String()),
+				},
+				violation.ID,
+				enum.ViolationTypeKOL,
+				violation.ProofSubmittedBy,
+			)
+		}
+
 		return nil
 	}); err != nil {
 		zap.L().Error("ViolationService - Failed to review refund proof", zap.Error(err))
@@ -744,64 +803,6 @@ func (s *violationService) ReviewRefundProof(
 		zap.String("request_id", requestID),
 		zap.String("violation_id", violationID.String()),
 		zap.String("status", string(*violation.ProofStatus)))
-
-	// Send notifications
-	if req.IsApprove() {
-		// Notify Brand: Violation Resolved
-		s.sendNotification(ctx, violation.ContractID, "Violation Resolved",
-			"The KOL refund proof has been approved. The violation is resolved.",
-			"Refund Approved",
-			utils.PtrOrNil("violation_resolved"),
-			map[string]any{
-				"ReportedDate":   violation.CreatedAt.Format("2006-01-02"),
-				"ResolutionDate": violation.ResolvedAt.Format("2006-01-02"),
-				"AmountSettled":  fmt.Sprintf("%.2f", violation.RefundAmount),
-				"ResolutionNote": utils.DerefPtr(req.RejectReason, "No reason provided"),
-				"Currency":       "VND",
-			},
-			violation.ID,
-			enum.ViolationTypeBrand,
-			nil,
-		)
-
-		var reviewerFullName string
-		reviewerFullName, err = s.userRepo.GetUserFullnameByID(ctx, reviewedBy)
-		if err != nil {
-			zap.L().Error("Failed to get reviewer full name", zap.Error(err))
-			reviewerFullName = "Brand Partner"
-		}
-		// Notify Staff: Proof Approved (Broadcast)
-		s.sendNotification(ctx, violation.ContractID, "Refund Proof Approved",
-			"Refund proof has been approved by brand.",
-			"Proof Approved",
-			utils.PtrOrNil("kol_proof_approved"),
-			map[string]any{
-				"ViolationID":  violation.ID.String(),
-				"Currency":     "VND",
-				"RefundAmount": fmt.Sprintf("%.2f", violation.RefundAmount),
-				"ReviewerName": reviewerFullName,
-				"ApprovalDate": time.Now().Format(utils.TimeFormat),
-			},
-			violation.ID,
-			enum.ViolationTypeKOL,
-			violation.ProofSubmittedBy,
-		)
-	} else {
-		// Notify marketing staff: Proof Rejected
-		s.sendNotification(ctx, violation.ContractID, "Refund Proof Rejected",
-			fmt.Sprintf("Your refund proof was rejected. Reason: %s", utils.DerefPtr(req.RejectReason, "N/A")),
-			"Proof Rejected",
-			utils.PtrOrNil("kol_proof_rejected"),
-			map[string]any{
-				"RejectReason":      utils.DerefPtr(req.RejectReason, "N/A"),
-				"RemainingAttempts": s.config.AdminConfig.ViolationProofMaxAttempts - violation.ProofAttempts,
-				"DashboardLink":     fmt.Sprintf("%s/manage/marketing/contracts/%s", s.config.Server.BaseFrontendURL, violation.ContractID.String()),
-			},
-			violation.ID,
-			enum.ViolationTypeKOL,
-			violation.ProofSubmittedBy,
-		)
-	}
 
 	return violation, nil
 }

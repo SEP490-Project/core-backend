@@ -194,6 +194,9 @@ func (s *coProducingRefundService) ReviewRefundProof(
 		"refund_reviewed_at": &now,
 		"refund_reviewed_by": reviewedBy,
 	}
+	if newStatus == enum.ContractPaymentStatusKOLRefundApproved {
+		updateMap["paid_at"] = &now
+	}
 	if rejectReason != nil {
 		updateMap["refund_reject_reason"] = rejectReason
 	}
@@ -236,6 +239,9 @@ func (s *coProducingRefundService) ReviewRefundProof(
 	payment.Status = newStatus
 	payment.RefundReviewedAt = &now
 	payment.RefundReviewedBy = &reviewedBy
+	if newStatus == enum.ContractPaymentStatusKOLRefundApproved {
+		payment.PaidAt = &now
+	}
 	if rejectReason != nil {
 		payment.RefundRejectReason = rejectReason
 	}
@@ -267,6 +273,7 @@ func (s *coProducingRefundService) AutoApproveRefundProof(ctx context.Context, p
 		}, map[string]any{
 			"status":             enum.ContractPaymentStatusKOLRefundApproved,
 			"refund_reviewed_at": &now,
+			"paid_at":            &now,
 			// refund_reviewed_by remains nil (auto-approved)
 		})
 	})
