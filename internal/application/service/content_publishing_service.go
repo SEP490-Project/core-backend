@@ -195,13 +195,13 @@ func (s *contentPublishingService) PublishToChannel(ctx context.Context, content
 				return fmt.Errorf("failed to update content status: %w", err)
 			}
 
-			if content.TaskID != nil {
-				if err = s.stateTransferService.MoveTaskToState(ctx, uow, *content.TaskID, enum.TaskStatusDone, userID); err != nil {
-					uow.Rollback()
-					zap.L().Error("Failed to update task status to DONE", zap.Error(err))
-					return fmt.Errorf("failed to update task status: %w", err)
-				}
-			}
+			// if content.TaskID != nil {
+			// 	if err = s.stateTransferService.MoveTaskToState(ctx, uow, *content.TaskID, enum.TaskStatusDone, userID); err != nil {
+			// 		uow.Rollback()
+			// 		zap.L().Error("Failed to update task status to DONE", zap.Error(err))
+			// 		// return fmt.Errorf("failed to update task status: %w", err)
+			// 	}
+			// }
 		}
 
 		if len(pendingSchedules) > 0 {
