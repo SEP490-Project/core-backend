@@ -5236,6 +5236,527 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/analytics/sales/financials/refunded/orders": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve paginated list of all refunded orders and preorders. Includes payment transaction information.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics.Sales"
+                ],
+                "summary": "Get all refunded orders and preorders",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 10, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "From Date (YYYY-MM-DD)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "To Date (YYYY-MM-DD)",
+                        "name": "to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by order ID or customer name",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "created_at",
+                            "total_amount"
+                        ],
+                        "type": "string",
+                        "description": "Sort by (created_at, total_amount)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "description": "Sort order (asc, desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.RevenueOrdersWithPaymentResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/sales/financials/revenue/limited-net/orders": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve paginated list of LIMITED type orders and PreOrders with KOL net revenue calculation. Includes payment transaction information.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics.Sales"
+                ],
+                "summary": "Get orders contributing to Limited Net Revenue (KOL Revenue)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 10, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "From Date (YYYY-MM-DD)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "To Date (YYYY-MM-DD)",
+                        "name": "to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by order ID or customer name",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "created_at",
+                            "total_amount",
+                            "net_amount"
+                        ],
+                        "type": "string",
+                        "description": "Sort by (created_at, total_amount, net_amount)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "description": "Sort order (asc, desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.RevenueOrdersWithPaymentResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/sales/financials/revenue/limited/orders": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve paginated list of LIMITED type orders and PreOrders that contribute to limited revenue",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics.Sales"
+                ],
+                "summary": "Get orders contributing to Limited Revenue",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 10, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "From Date (YYYY-MM-DD)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "To Date (YYYY-MM-DD)",
+                        "name": "to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by order ID or customer name",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "created_at",
+                            "total_amount"
+                        ],
+                        "type": "string",
+                        "description": "Sort by (created_at, total_amount)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "description": "Sort order (asc, desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.RevenueOrdersWithPaymentResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/sales/financials/revenue/standard/orders": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve paginated list of STANDARD type orders that contribute to standard revenue",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics.Sales"
+                ],
+                "summary": "Get orders contributing to Standard Revenue",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 10, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "From Date (YYYY-MM-DD)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "To Date (YYYY-MM-DD)",
+                        "name": "to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by order ID or customer name",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "created_at",
+                            "total_amount"
+                        ],
+                        "type": "string",
+                        "description": "Sort by (created_at, total_amount)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "description": "Sort order (asc, desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.RevenueOrdersWithPaymentResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/sales/financials/revenue/total/orders": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve paginated list of all orders (both STANDARD and LIMITED) and preorders that contribute to total revenue",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics.Sales"
+                ],
+                "summary": "Get orders contributing to Total Revenue",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 10, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "From Date (YYYY-MM-DD)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "To Date (YYYY-MM-DD)",
+                        "name": "to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by order ID or customer name",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "created_at",
+                            "total_amount"
+                        ],
+                        "type": "string",
+                        "description": "Sort by (created_at, total_amount)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "description": "Sort order (asc, desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.RevenueOrdersWithPaymentResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/analytics/sales/financials/trend": {
             "get": {
                 "security": [
@@ -10441,7 +10962,11 @@ const docTemplate = `{
                         "enum": [
                             "PENDING",
                             "PAID",
-                            "OVERDUE"
+                            "OVERDUE",
+                            "KOL_PENDING",
+                            "KOL_PROOF_SUBMITTED",
+                            "KOL_PROOF_REJECTED",
+                            "KOL_REFUND_APPROVED"
                         ],
                         "type": "string",
                         "example": "\"PAID\"",
@@ -10652,7 +11177,11 @@ const docTemplate = `{
                         "enum": [
                             "PENDING",
                             "PAID",
-                            "OVERDUE"
+                            "OVERDUE",
+                            "KOL_PENDING",
+                            "KOL_PROOF_SUBMITTED",
+                            "KOL_PROOF_REJECTED",
+                            "KOL_REFUND_APPROVED"
                         ],
                         "type": "string",
                         "example": "\"PAID\"",
@@ -16083,7 +16612,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create a limited order",
+                "description": "Create a limited order. Delivery fee is calculated from GHN but paid by KOL system (deducted from KOL revenue), not the customer.",
                 "consumes": [
                     "application/json"
                 ],
@@ -16093,7 +16622,7 @@ const docTemplate = `{
                 "tags": [
                     "Orders"
                 ],
-                "summary": "Place an order and initiate payment",
+                "summary": "Place a limited order and initiate payment",
                 "parameters": [
                     {
                         "description": "Place and pay payload",
@@ -18317,6 +18846,27 @@ const docTemplate = `{
                 ],
                 "summary": "Get staff-available preorders with pagination",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "example": "550e8400-e29b-41d4-a716-446655440000",
+                        "description": "Brand ID filter\nin: query\nexample: \"550e8400-e29b-41d4-a716-446655440000\"",
+                        "name": "brand_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "2025-01-01",
+                        "description": "Filter by start date (YYYY-MM-DD)\nin: query\nexample: \"2025-01-01\"",
+                        "name": "created_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "2025-12-31",
+                        "description": "Filter by end date (YYYY-MM-DD)\nin: query\nexample: \"2025-12-31\"",
+                        "name": "created_to",
+                        "in": "query"
+                    },
                     {
                         "type": "string",
                         "example": "10",
@@ -26767,6 +27317,7 @@ const docTemplate = `{
                 "REJECTED",
                 "APPROVED",
                 "POSTED",
+                "SCHEDULED",
                 "CANCELLED"
             ],
             "x-enum-varnames": [
@@ -26776,6 +27327,7 @@ const docTemplate = `{
                 "ContentStatusRejected",
                 "ContentStatusApproved",
                 "ContentStatusPosted",
+                "ContentStatusScheduled",
                 "ContentStatusCancelled"
             ]
         },
@@ -33386,6 +33938,10 @@ const docTemplate = `{
                         }
                     ]
                 },
+                "published_contents_count": {
+                    "description": "Total published contents count",
+                    "type": "integer"
+                },
                 "recent_content": {
                     "description": "Recent content for this channel",
                     "type": "array",
@@ -33527,17 +34083,17 @@ const docTemplate = `{
                 "post_count": {
                     "type": "integer"
                 },
-                "reach_growth": {
-                    "type": "number"
-                },
                 "top_post": {
                     "$ref": "#/definitions/responses.TopPostBrief"
                 },
                 "total_engagement": {
                     "type": "integer"
                 },
-                "total_reach": {
+                "total_views": {
                     "type": "integer"
+                },
+                "views_growth": {
+                    "type": "number"
                 }
             }
         },
@@ -34340,6 +34896,10 @@ const docTemplate = `{
                 "note": {
                     "type": "string",
                     "example": "First installment payment"
+                },
+                "paid_at": {
+                    "type": "string",
+                    "example": "2006-01-02T15:04:05Z07:00"
                 },
                 "pay_now": {
                     "type": "boolean",
@@ -35542,6 +36102,9 @@ const docTemplate = `{
                 "brand": {
                     "$ref": "#/definitions/responses.OrderItemBrandResponse"
                 },
+                "brand_place_holder": {
+                    "type": "string"
+                },
                 "capacity": {
                     "type": "number"
                 },
@@ -36289,6 +36852,9 @@ const docTemplate = `{
                 "brand": {
                     "$ref": "#/definitions/responses.OrderItemBrandResponse"
                 },
+                "brand_place_holder": {
+                    "type": "string"
+                },
                 "capacity": {
                     "description": "Variant Info",
                     "type": "number"
@@ -36339,6 +36905,9 @@ const docTemplate = `{
                 },
                 "ghn_district_id": {
                     "type": "integer"
+                },
+                "ghn_order_code": {
+                    "type": "string"
                 },
                 "ghn_province_id": {
                     "type": "integer"
@@ -36396,6 +36965,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "quantity": {
+                    "type": "integer"
+                },
+                "shipping_fee": {
                     "type": "integer"
                 },
                 "staff_resource": {
@@ -37543,6 +38115,72 @@ const docTemplate = `{
                 "total_revenue": {
                     "type": "number",
                     "example": 140000000
+                }
+            }
+        },
+        "responses.RevenueOrderItemWithPayment": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "customer_email": {
+                    "type": "string"
+                },
+                "customer_id": {
+                    "type": "string"
+                },
+                "customer_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "kol_percent": {
+                    "description": "Only for LIMITED/PreOrder",
+                    "type": "number"
+                },
+                "net_amount": {
+                    "description": "Calculated based on revenue type (KOL net or refund amount)",
+                    "type": "number"
+                },
+                "order_type": {
+                    "description": "STANDARD or LIMITED",
+                    "type": "string"
+                },
+                "payment_transaction": {
+                    "$ref": "#/definitions/responses.PaymentTransactionResponse"
+                },
+                "shipping_fee": {
+                    "type": "number"
+                },
+                "source": {
+                    "description": "ORDER or PRE_ORDER",
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
+                }
+            }
+        },
+        "responses.RevenueOrdersWithPaymentResponse": {
+            "type": "object",
+            "properties": {
+                "orders": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.RevenueOrderItemWithPayment"
+                    }
+                },
+                "revenue_type": {
+                    "description": "LIMITED_NET, REFUNDED",
+                    "type": "string"
+                },
+                "total_revenue": {
+                    "type": "number"
                 }
             }
         },

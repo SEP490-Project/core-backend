@@ -111,14 +111,14 @@ func (h *ContractPaymentHandler) CreateContractPaymentsFromContract(c *gin.Conte
 //	@Param		brand_id		query		string										false	"Brand ID"			example("a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6")
 //	@Param		brand_user_id	query		string										false	"Brand User ID"		example("a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6")
 //	@Param		contract_id		query		string										false	"Contract ID"		example("a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6")
-//	@Param		status			query		string										false	"Payment Status"	enums(PENDING,PAID,OVERDUE, KOL_PENDING, KOL_PROOF_SUBMITTED, KOL_PROOF_REJECTED, KOL_REFUND_APPROVED)		example("PAID")
-//	@Param		due_date_from	query		string										false	"Due Date From"		format(date)					example("2023-01-01")
-//	@Param		due_date_to		query		string										false	"Due Date To"		format(date)					example("2023-12-31")
-//	@Param		payment_method	query		string										false	"Payment Method"	enums(BANK_TRANSFER,CASH,CHECK)	example("BANK_TRANSFER")
-//	@Param		page			query		int											false	"Page number"		default(1)						example(1)
-//	@Param		limit			query		int											false	"Items per page"	default(10)						example(10)
-//	@Param		sort_by			query		string										false	"Sort by field"		enums(due_date,amount,status)	example("due_date")
-//	@Param		sort_order		query		string										false	"Sort order"		enums(asc,desc)					example("asc")
+//	@Param		status			query		string										false	"Payment Status"	enums(PENDING,PAID,OVERDUE, KOL_PENDING, KOL_PROOF_SUBMITTED, KOL_PROOF_REJECTED, KOL_REFUND_APPROVED)	example("PAID")
+//	@Param		due_date_from	query		string										false	"Due Date From"		format(date)																							example("2023-01-01")
+//	@Param		due_date_to		query		string										false	"Due Date To"		format(date)																							example("2023-12-31")
+//	@Param		payment_method	query		string										false	"Payment Method"	enums(BANK_TRANSFER,CASH,CHECK)																			example("BANK_TRANSFER")
+//	@Param		page			query		int											false	"Page number"		default(1)																								example(1)
+//	@Param		limit			query		int											false	"Items per page"	default(10)																								example(10)
+//	@Param		sort_by			query		string										false	"Sort by field"		enums(due_date,amount,status)																			example("due_date")
+//	@Param		sort_order		query		string										false	"Sort order"		enums(asc,desc)																							example("asc")
 //	@Success	200				{object}	responses.ContractPaymentPaginationResponse	"Contract payments retrieved successfully"
 //	@Failure	400				{object}	responses.APIResponse						"Invalid request or validation error"
 //	@Failure	401				{object}	responses.APIResponse						"Unauthorized"
@@ -201,14 +201,14 @@ func (h *ContractPaymentHandler) GetContractPaymentByID(c *gin.Context) {
 //	@Accept		json
 //	@Produce	json
 //	@Param		contract_id		query		string										false	"Contract ID"		example("a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6")
-//	@Param		status			query		string										false	"Payment Status"	enums(PENDING,PAID,OVERDUE, KOL_PENDING, KOL_PROOF_SUBMITTED, KOL_PROOF_REJECTED, KOL_REFUND_APPROVED)		example("PAID")
-//	@Param		due_date_from	query		string										false	"Due Date From"		format(date)					example("2023-01-01")
-//	@Param		due_date_to		query		string										false	"Due Date To"		format(date)					example("2023-12-31")
-//	@Param		payment_method	query		string										false	"Payment Method"	enums(BANK_TRANSFER,CASH,CHECK)	example("BANK_TRANSFER")
-//	@Param		page			query		int											false	"Page number"		default(1)						example(1)
-//	@Param		limit			query		int											false	"Items per page"	default(10)						example(10)
-//	@Param		sort_by			query		string										false	"Sort by field"		enums(due_date,amount,status)	example("due_date")
-//	@Param		sort_order		query		string										false	"Sort order"		enums(asc,desc)					example("asc")
+//	@Param		status			query		string										false	"Payment Status"	enums(PENDING,PAID,OVERDUE, KOL_PENDING, KOL_PROOF_SUBMITTED, KOL_PROOF_REJECTED, KOL_REFUND_APPROVED)	example("PAID")
+//	@Param		due_date_from	query		string										false	"Due Date From"		format(date)																							example("2023-01-01")
+//	@Param		due_date_to		query		string										false	"Due Date To"		format(date)																							example("2023-12-31")
+//	@Param		payment_method	query		string										false	"Payment Method"	enums(BANK_TRANSFER,CASH,CHECK)																			example("BANK_TRANSFER")
+//	@Param		page			query		int											false	"Page number"		default(1)																								example(1)
+//	@Param		limit			query		int											false	"Items per page"	default(10)																								example(10)
+//	@Param		sort_by			query		string										false	"Sort by field"		enums(due_date,amount,status)																			example("due_date")
+//	@Param		sort_order		query		string										false	"Sort order"		enums(asc,desc)																							example("asc")
 //	@Success	200				{object}	responses.ContractPaymentPaginationResponse	"Contract payments retrieved successfully"
 //	@Failure	400				{object}	responses.APIResponse						"Invalid request or validation error"
 //	@Failure	401				{object}	responses.APIResponse						"Unauthorized"
