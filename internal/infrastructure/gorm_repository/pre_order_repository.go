@@ -60,6 +60,7 @@ func (r *PreOrderRepository) GetStaffAvailablePreOrdersWithPagination(ctx contex
 					SELECT 1 FROM payment_transactions pt 
 					WHERE pt.reference_id = pre_orders.id 
 					AND pt.reference_type = 'PREORDER' 
+					AND method = 'PAYOS'
 					AND pt.id = ?
 				)
 			)`, search, search)
@@ -72,6 +73,7 @@ func (r *PreOrderRepository) GetStaffAvailablePreOrdersWithPagination(ctx contex
 					SELECT 1 FROM payment_transactions pt 
 					WHERE pt.reference_id = pre_orders.id 
 					AND pt.reference_type = 'PREORDER' 
+					AND method = 'PAYOS'
 					AND (pt.id::text ILIKE ? OR pt.payos_metadata->>'bin' ILIKE ?)
 				)
 			)`, like, like, like)
@@ -149,6 +151,7 @@ func (r *PreOrderRepository) GetStaffAvailablePreOrdersWithPagination(ctx contex
 					SELECT 1 FROM payment_transactions pt 
 					WHERE pt.reference_id = pre_orders.id 
 					AND pt.reference_type = 'PREORDER' 
+					AND method = 'PAYOS' 
 					AND pt.id = ?
 				)
 			)`, search, search)
@@ -160,6 +163,7 @@ func (r *PreOrderRepository) GetStaffAvailablePreOrdersWithPagination(ctx contex
 					SELECT 1 FROM payment_transactions pt 
 					WHERE pt.reference_id = pre_orders.id 
 					AND pt.reference_type = 'PREORDER' 
+					AND method = 'PAYOS' 
 					AND (pt.id::text ILIKE ? OR pt.payos_metadata->>'bin' ILIKE ?)
 				)
 			)`, like, like, like)

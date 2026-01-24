@@ -1652,6 +1652,47 @@ func (h *ProductHandler) UpdateLimitedProduct(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+// SetPremiereDateToToday godoc
+//
+//	@Summary		Set premiere date to today
+//	@Description	Set the premiere date of a limited product to today (start of day)
+//	@Tags			Products.Limited
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string											true	"Product ID (UUID)"
+//	@Success		200	{object}	responses.APIResponse{data=responses.ProductResponse}	"Premiere date set successfully"
+//	@Failure		400	{object}	object{error=string}							"Invalid product ID or product is not LIMITED type"
+//	@Failure		404	{object}	object{error=string}							"Product not found"
+//	@Failure		500	{object}	object{error=string}							"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/products/limited/{id}/premiere-today [patch]
+func (h *ProductHandler) SetPremiereDateToToday(c *gin.Context) {
+	// Extract product id
+	idStr := c.Param("id")
+	productID, err := uuid.Parse(idStr)
+	if err != nil {
+		resp := responses.ErrorResponse("invalid product id: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, resp)
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	updatedProduct, err := h.productService.SetPremiereDateToToday(ctx, productID)
+	if err != nil {
+		// Map common errors
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			c.JSON(http.StatusNotFound, responses.ErrorResponse(err.Error(), http.StatusNotFound))
+			return
+		}
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse(err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	resp := responses.SuccessResponse("Premiere date set to today successfully", ptr.Int(http.StatusOK), updatedProduct)
+	c.JSON(http.StatusOK, resp)
+}
+
 // UpdateVariant godoc
 //
 //	@Summary		Update a product variant

@@ -787,7 +787,7 @@ func (o *orderService) GetOrdersByUserIDWithPagination(
 		var transactions []model.PaymentTransaction
 		if err := o.paymentTransactionRepository.DB().WithContext(ctx).
 			Model(&model.PaymentTransaction{}).
-			Where("reference_type = ? AND reference_id IN (?)", enum.PaymentTransactionReferenceTypeOrder, orderIDs).
+			Where("method = 'PAYOS' AND reference_type = ? AND reference_id IN (?)", enum.PaymentTransactionReferenceTypeOrder, orderIDs).
 			Find(&transactions).Error; err != nil {
 			zap.L().Error("Failed to fetch payment transactions for orders", zap.Error(err))
 			// non-fatal: continue without payment info
@@ -1190,7 +1190,7 @@ func (o *orderService) GetStaffAvailableOrdersWithPagination(limit, page int, se
 	var transactions []model.PaymentTransaction
 	if err := o.paymentTransactionRepository.DB().WithContext(ctx).
 		Model(&model.PaymentTransaction{}).
-		Where("reference_type = ? AND reference_id IN (?)", enum.PaymentTransactionReferenceTypeOrder, orderIDs).
+		Where("method = 'PAYOS' AND reference_type = ? AND reference_id IN (?)", enum.PaymentTransactionReferenceTypeOrder, orderIDs).
 		Find(&transactions).Error; err != nil {
 		zap.L().Error("Failed to fetch payment transactions for staff orders", zap.Error(err))
 		return responses.OrderResponse{}.ToResponseList(orders, map[uuid.UUID]model.PaymentTransaction{}), total, nil

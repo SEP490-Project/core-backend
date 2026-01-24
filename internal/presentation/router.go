@@ -184,6 +184,8 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 				staffGroup.PUT("/:id", productHandler.UpdateProduct)
 				// Update limited product (Sales, Admin)
 				staffGroup.PUT("/limited/:id", productHandler.UpdateLimitedProduct)
+				// Set premiere date to today for limited product (Sales, Admin)
+				staffGroup.PATCH("/limited/:id/premiere-today", productHandler.SetPremiereDateToToday)
 				// Update variant (Sales, Admin)
 				staffGroup.PATCH("/variants/:variantId", productHandler.UpdateVariant)
 				// Update limited variant (Sales, Admin)
