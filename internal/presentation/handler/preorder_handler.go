@@ -431,7 +431,7 @@ func (p *PreOrderHandler) MarkPreOrderAsReceived(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, responses.SuccessResponse("Preorder marked as received successfully", ptr.Int(http.StatusOK), nil))
+	c.JSON(http.StatusOK, responses.SuccessResponse("Preoorderrder marked as received successfully", ptr.Int(http.StatusOK), nil))
 }
 
 // RequestCompensation godoc
