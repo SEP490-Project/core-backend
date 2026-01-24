@@ -303,20 +303,21 @@ func (ContractPaymentResponse) ToSimpleResponseList(sources []model.ContractPaym
 // isWithinAllowedOverdue returns true if now is between due date (inclusive)
 // and due date + allowedDays (inclusive) using local date comparison.
 func isWithinAllowedOverdue(due time.Time, allowedDays int) bool {
-	if allowedDays < 0 {
-		return false
-	}
-	// Normalize to local date (midnight)
-	loc := time.Local
-	now := time.Now().In(loc)
-	dueLocal := due.In(loc)
+	// if allowedDays < 0 {
+	// 	return false
+	// }
+	// // Normalize to local date (midnight)
+	// loc := time.Local
+	// now := time.Now().In(loc)
+	// dueLocal := due.In(loc)
 
-	nowDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
-	dueDate := time.Date(dueLocal.Year(), dueLocal.Month(), dueLocal.Day(), 0, 0, 0, 0, loc)
+	// nowDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+	// dueDate := time.Date(dueLocal.Year(), dueLocal.Month(), dueLocal.Day(), 0, 0, 0, 0, loc)
 
-	endDate := dueDate.AddDate(0, 0, allowedDays)
+	// endDate := dueDate.AddDate(0, 0, allowedDays)
 
-	return !nowDate.Before(dueDate) && !nowDate.After(endDate)
+	// return !nowDate.Before(dueDate) && !nowDate.After(endDate)
+	return true
 }
 
 type ContractPaymentPaginationResponse PaginationResponse[ContractPaymentResponse]
