@@ -1344,7 +1344,7 @@ func (r *SalesStaffAnalyticsRepository) GetTotalRevenueOrders(ctx context.Contex
 			referenceType = enum.PaymentTransactionReferenceTypePreOrder
 		}
 		if err := r.db.WithContext(ctx).
-			Where("reference_id = ? AND reference_type = ?", raw.ID, referenceType).
+			Where("reference_id = ? AND reference_type = ? AND method = 'PAYOS' ", raw.ID, referenceType).
 			Order("transaction_date DESC").
 			First(&paymentTx).Error; err == nil {
 			amountStr := ""
@@ -1514,7 +1514,7 @@ func (r *SalesStaffAnalyticsRepository) GetStandardRevenueOrders(ctx context.Con
 		// Fetch payment transaction (STANDARD orders are always ORDER type)
 		var paymentTx model.PaymentTransaction
 		if err := r.db.WithContext(ctx).
-			Where("reference_id = ? AND reference_type = ?", raw.ID, enum.PaymentTransactionReferenceTypeOrder).
+			Where("reference_id = ? AND reference_type = ? AND method = 'PAYOS' ", raw.ID, enum.PaymentTransactionReferenceTypeOrder).
 			Order("transaction_date DESC").
 			First(&paymentTx).Error; err == nil {
 			amountStr := ""
@@ -1700,7 +1700,7 @@ func (r *SalesStaffAnalyticsRepository) GetLimitedRevenueOrders(ctx context.Cont
 			referenceType = enum.PaymentTransactionReferenceTypePreOrder
 		}
 		if err := r.db.WithContext(ctx).
-			Where("reference_id = ? AND reference_type = ?", raw.ID, referenceType).
+			Where("reference_id = ? AND reference_type = ? AND method = 'PAYOS' ", raw.ID, referenceType).
 			Order("transaction_date DESC").
 			First(&paymentTx).Error; err == nil {
 			amountStr := ""
@@ -2029,7 +2029,7 @@ func (r *SalesStaffAnalyticsRepository) GetLimitedNetRevenueOrders(ctx context.C
 			referenceType = enum.PaymentTransactionReferenceTypePreOrder
 		}
 		if err := r.db.WithContext(ctx).
-			Where("reference_id = ? AND reference_type = ?", raw.ID, referenceType).
+			Where("reference_id = ? AND reference_type = ? AND method = 'PAYOS' ", raw.ID, referenceType).
 			Order("transaction_date DESC").
 			First(&paymentTx).Error; err == nil {
 			amountStr := ""
@@ -2247,7 +2247,7 @@ func (r *SalesStaffAnalyticsRepository) GetRefundedOrders(ctx context.Context, f
 			referenceType = enum.PaymentTransactionReferenceTypePreOrder
 		}
 		if err := r.db.WithContext(ctx).
-			Where("reference_id = ? AND reference_type = ?", raw.ID, referenceType).
+			Where("reference_id = ? AND reference_type = ? AND method = 'PAYOS'", raw.ID, referenceType).
 			Order("transaction_date DESC").
 			First(&paymentTx).Error; err == nil {
 			amountStr := ""
