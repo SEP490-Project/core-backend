@@ -173,7 +173,7 @@ func (t stateTransferService) MovePreOrderToState(ctx context.Context, preOrderI
 			preOrder.GHNOrderCode = &ghnOrderCode
 		}
 
-		if err := uow.PreOrder().Update(ctx, preOrder); err != nil {
+		if err = uow.PreOrder().Update(ctx, preOrder); err != nil {
 			zap.L().Error("Failed to update PreOrder state", zap.String("preorder_id", preOrderID.String()), zap.Error(err))
 			return errors.New("failed to update PreOrder state: " + err.Error())
 		}
@@ -227,7 +227,7 @@ func (t stateTransferService) MovePreOrderToState(ctx context.Context, preOrderI
 				CreatedBy:     utils.DerefPtr(&preOrder.UserID, uuid.Nil),
 			}
 
-			if err := uow.Schedules().Add(ctx, preOrderAutoReceiveSchedule); err != nil {
+			if err = uow.Schedules().Add(ctx, preOrderAutoReceiveSchedule); err != nil {
 				zap.L().Error("Failed to create PreOrder auto-receive schedule", zap.String("preorder_id", preOrder.ID.String()), zap.Error(err))
 				return errors.New("failed to create PreOrder auto-receive schedule: " + err.Error())
 			}
@@ -821,7 +821,7 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, trx irepo
 		// Send notification to KOL about proof rejection
 		go func() {
 			ctxBg := context.Background()
-			contract, err := t.contractRepository.GetByID(ctxBg, contractID, nil)
+			contract, err = t.contractRepository.GetByID(ctxBg, contractID, nil)
 			if err != nil {
 				zap.L().Error("Failed to get contract for proof rejection notification", zap.Error(err))
 				return
@@ -886,11 +886,6 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, trx irepo
 		zap.L().Info("Successfully published contract create payment message",
 			zap.String("contract_id", contractID.String()),
 			zap.String("user_id", updatedBy.String()))
-
-		// Notify brand that contract is approved and deposit payment is required
-		if contract.Brand != nil {
-			t.notifyBrandContractApproved(contract, contract.Brand)
-		}
 
 	case enum.ContractStatusActive:
 		// Notify marketing staff that contract has been activated (deposit paid)
@@ -2314,54 +2309,6 @@ func (t stateTransferService) scheduleLimitedProductAnnouncements(ctx context.Co
 }
 
 // region: ============== Contract Notification Helpers ==============
-
-// notifyBrandContractApproved sends notification to brand when contract is approved and payment is required
-func (t *stateTransferService) notifyBrandContractApproved(contract *model.Contract, brand *model.Brand) {
-	go func() {
-		ctx := context.Background()
-
-		contractNumber := "N/A"
-		if contract.ContractNumber != nil {
-			contractNumber = *contract.ContractNumber
-		}
-
-		paymentLink := fmt.Sprintf("%s/manage/brand/contract-payment", t.config.Server.BaseFrontendURL)
-		templateData := map[string]any{
-			"ContractNumber": contractNumber,
-			"BrandName":      brand.Name,
-			"PaymentLink":    paymentLink,
-			"CurrentYear":    time.Now().Year(),
-		}
-
-		// Use brand.UserID for IN_APP and brand.ContactEmail for EMAIL
-		req := &requests.PublishNotificationRequest{
-			UserID:            utils.DerefPtr(brand.UserID, uuid.Nil),
-			Types:             []enum.NotificationType{enum.NotificationTypeInApp, enum.NotificationTypeEmail},
-			Title:             "Contract Approved - Deposit Required",
-			Body:              fmt.Sprintf("Your contract %s has been approved. Please proceed with the deposit payment to activate the contract.", contractNumber),
-			Data:              map[string]string{"contract_id": contract.ID.String()},
-			EmailSubject:      utils.PtrOrNil("Contract Approved - Deposit Required"),
-			EmailTemplateName: utils.PtrOrNil("contract_approved_deposit_required"),
-			EmailTemplateData: templateData,
-		}
-
-		// Override email recipient if brand has contact email
-		if brand.ContactEmail != "" {
-			req.CustomReceiver = &brand.ContactEmail
-		}
-
-		if _, err := t.notificationService.CreateAndPublishNotification(ctx, req); err != nil {
-			zap.L().Error("Failed to send contract approved notification to brand",
-				zap.String("contract_id", contract.ID.String()),
-				zap.String("brand_id", brand.ID.String()),
-				zap.Error(err))
-		} else {
-			zap.L().Info("Sent contract approved notification to brand",
-				zap.String("contract_id", contract.ID.String()),
-				zap.String("brand_id", brand.ID.String()))
-		}
-	}()
-}
 
 // notifyStaffContractActivated sends notification to marketing staff when contract becomes active (deposit paid)
 func (t *stateTransferService) notifyStaffContractActivated(contract *model.Contract, brand *model.Brand) {
