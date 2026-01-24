@@ -1083,7 +1083,7 @@ func (s preOrderService) GetStaffAvailablePreOrdersWithPagination(
 	var transactions []model.PaymentTransaction
 	if err := s.paymentTransactionRepository.DB().WithContext(ctx).
 		Model(&model.PaymentTransaction{}).
-		Where("reference_type = ? AND reference_id IN (?)", enum.PaymentTransactionReferenceTypePreOrder, preOrderIDs).
+		Where("method = 'PAYOS' AND reference_type = ? AND reference_id IN (?)", enum.PaymentTransactionReferenceTypePreOrder, preOrderIDs).
 		Find(&transactions).Error; err != nil {
 		zap.L().Error("Failed to fetch payment transactions for staff preorders", zap.Error(err))
 		return toPreOrderResponseList(preOrders, map[uuid.UUID]model.PaymentTransaction{}), total, nil
