@@ -72,4 +72,7 @@ type ContentStaffAnalyticsRepository interface {
 
 	// GetChannelFollowers returns the followers count for a channel at a specific time (or latest before)
 	GetChannelFollowers(ctx context.Context, channelID uuid.UUID, atTime time.Time) (int64, error)
+
+	// GetAggregatedClicksFromKPIMetrics returns total clicks from affiliate links for a channel in date range
+	GetAggregatedClicksFromKPIMetrics(ctx context.Context, channelID *uuid.UUID, startDate, endDate *time.Time) (int64, error)
 }
