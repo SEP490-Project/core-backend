@@ -178,35 +178,6 @@ func (t stateTransferService) MovePreOrderToState(ctx context.Context, preOrderI
 			return errors.New("failed to update PreOrder state: " + err.Error())
 		}
 
-		// schedule to auto update status after opening day
-		if targetState == enum.PreOrderStatusPreOrdered {
-			// OLD LOGIC
-			//openDay := limitedProduct.AvailabilityStartDate
-			////isSelfPickedUp := preOrder.IsSelfPickedUp
-			////limitedProduct := preOrder.ProductVariant.Product.Limited
-			//
-			//preOrderOpeningSchedule := &model.Schedule{
-			//	ReferenceID:   &preOrder.ID,
-			//	Type:          enum.ScheduleTypeOther,
-			//	ReferenceType: utils.PtrOrNil(enum.ReferenceTypePreOrderOpening),
-			//	ScheduledAt:   openDay,
-			//	Status:        enum.ScheduleStatusPending,
-			//	RetryCount:    0,
-			//	CreatedBy:     utils.DerefPtr(&preOrder.UserID, uuid.Nil),
-			//}
-			//
-			//if err := uow.Schedules().Add(ctx, preOrderOpeningSchedule); err != nil {
-			//	zap.L().Error("Failed to create PreOrder opening schedule", zap.String("preorder_id", preOrder.ID.String()), zap.Error(err))
-			//	return errors.New("failed to create PreOrder opening schedule: " + err.Error())
-			//}
-			//
-			//// publish to asynq
-			//t.publishPreOrderOpeningDelayMessage(ctx, preOrderOpeningSchedule, uow)
-
-			// NEW LOGIC
-
-		}
-
 		// Schedule auto-receive when preorder is delivered (not self-pickup)
 		// For self-pickup, we use AwaitingPickup -> Received flow
 		if targetState == enum.PreOrderStatusDelivered {
@@ -288,7 +259,6 @@ func (t stateTransferService) MoveTaskToState(ctx context.Context, uow ireposito
 		taskRepo := uow.Tasks()
 
 		//1. Load current task from DB
-		// Preload nested product -> task to have back-reference available ("Products.Task")
 		task, err := taskRepo.GetByID(ctx, taskID, []string{"Product", "Product.Task", "Contents", "Contents.Task", "Milestone"})
 		if err != nil {
 			zap.L().Error("Failed to load task from DB",
@@ -350,7 +320,6 @@ func (t *stateTransferService) handleTaskSideEffects(
 	ctx context.Context, uow irepository.UnitOfWork, taskCtx *tasksm.TaskContext, task *model.Task, targetState enum.TaskStatus, updatedBy uuid.UUID,
 ) error {
 	//1. Cascade UpdatedByID (and any status changes applied by state machine) to product, if any
-	// Ensure task back-reference present (if not, assign for safety)
 	if taskCtx.Products != nil {
 		if taskCtx.Products.Task == nil {
 			taskCtx.Products.Task = task

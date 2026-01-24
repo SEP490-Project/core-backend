@@ -757,6 +757,7 @@ func (r *adminAnalyticsRepository) GetDashboardRevenueMetrics(ctx context.Contex
 			FROM contract_payments cp
 			INNER JOIN contracts c ON c.id = cp.contract_id
          	INNER JOIN payment_transactions pt ON pt.reference_id = cp.id 
+				AND pt.method = 'PAYOS'
 				AND pt.reference_type = 'CONTRACT_PAYMENT'
 			WHERE cp.deleted_at IS NULL
 				AND c.deleted_at IS NULL

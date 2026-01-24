@@ -305,13 +305,49 @@ func (p preOrderService) ObligateRefund(ctx context.Context, preOrderID, actionB
 }
 
 func (p preOrderService) MarkPreOrderAsReceived(ctx context.Context, preOrderID, updatedBy uuid.UUID) error {
-	err := p.stateTransferService.MovePreOrderToState(ctx, preOrderID, enum.PreOrderStatusReceived, updatedBy, nil, nil)
+	// First, get the preorder to check shipping fee
+	preOrder, err := p.preOrderRepository.GetByID(ctx, preOrderID, nil)
+	if err != nil {
+		return fmt.Errorf("failed to get pre-order: %w", err)
+	}
 
-	// publish delay message to asynq
-
+	// Move preorder to received state
+	err = p.stateTransferService.MovePreOrderToState(ctx, preOrderID, enum.PreOrderStatusReceived, updatedBy, nil, nil)
 	if err != nil {
 		return err
 	}
+
+	// For preorders with delivery (not self-picked-up), create a negative transaction for shipping fee
+	// This represents the shipping cost that KOL will be charged
+	if !preOrder.IsSelfPickedUp && preOrder.ShippingFee > 0 {
+		shippingFeeFloat := -float64(preOrder.ShippingFee) // Negative amount for KOL deduction
+
+		shippingFeeTransaction := &model.PaymentTransaction{
+			ReferenceID:     preOrder.ID,
+			ReferenceType:   enum.PaymentTransactionReferenceTypePreOrder,
+			Amount:          &shippingFeeFloat,
+			Status:          enum.PaymentTransactionStatusCompleted,
+			Method:          "SHIPPING_REFUND",
+			TransactionDate: time.Now(),
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+			PayerID:         utils.PtrOrNil(preOrder.UserID),
+			ReceivedByID:    utils.PtrOrNil(uuid.UUID{}), // Company (system)
+		}
+
+		if err = p.paymentTransactionRepository.Add(ctx, shippingFeeTransaction); err != nil {
+			zap.L().Error("Failed to add shipping fee transaction for preorder",
+				zap.String("preOrderID", preOrderID.String()),
+				zap.Float64("shippingFee", shippingFeeFloat),
+				zap.Error(err))
+			return err
+		}
+
+		zap.L().Info("Created shipping fee transaction for preorder",
+			zap.String("preOrderID", preOrderID.String()),
+			zap.Float64("shippingFee", shippingFeeFloat))
+	}
+
 	return nil
 }
 
@@ -700,7 +736,7 @@ func (p preOrderService) PreserverOrder(ctx context.Context, request requests.Pr
 
 		// 2. Build persistent model -> minus stock, create pre-order record
 		// 2.1 build pre-order model
-		preOrder = requests.PreOrderRequest{}.ToModel(*creator, *address, *variant, now, request.Quantity)
+		preOrder = request.ToModel(*creator, *address, *variant, now, request.Quantity)
 		// 2.2 minus stock
 		if variant.CurrentStock == nil {
 			return fmt.Errorf("variant stock is nil")
