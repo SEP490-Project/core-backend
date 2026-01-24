@@ -11,8 +11,8 @@ type ContractStatusDistributionResponse struct {
 	Active          int64               `json:"active" gorm:"column:active"`
 	Completed       int64               `json:"completed" gorm:"column:completed"`
 	Terminated      int64               `json:"terminated" gorm:"column:terminated"`
-	BrandViolations int64               `json:"brand_violations" json:"brand_violations"`
-	KOLViolations   int64               `json:"kol_violations" json:"kol_violations"`
+	BrandViolations int64               `json:"brand_violations" gorm:"column:brand_violations"`
+	KOLViolations   int64               `json:"kol_violations" gorm:"column:kol_violations"`
 	Total           int64               `json:"total" gorm:"column:total"`
 	Period          requests.PeriodInfo `json:"period" gorm:"-"`
 }
@@ -151,23 +151,29 @@ type BrandRevenueOverTimeResponse struct {
 
 // BrandIncomeResponse represents the brand's income (gross or net)
 type BrandIncomeResponse struct {
-	Amount              float64             `json:"amount"`
+	GrossIncome         float64             `json:"gross_income"`
+	OrderRevenue        float64             `json:"order_revenue"`     // Revenue from completed orders (LIMITED products)
+	PreorderRevenue     float64             `json:"preorder_revenue"`  // Revenue from completed pre-orders
+	PaymentRefunds      float64             `json:"payment_refunds"`   // Refunds from KOL_REFUND_APPROVED payments
+	ViolationRefunds    float64             `json:"violation_refunds"` // Refunds from resolved KOL violations
 	Period              requests.PeriodInfo `json:"period" gorm:"-"`
-	PreviousAmount      float64             `json:"previous_amount,omitempty"`
+	PreviousGrossIncome float64             `json:"previous_gross_income,omitempty"`
 	PercentageChange    float64             `json:"percentage_change,omitempty"`
 	ChangeDirection     string              `json:"change_direction,omitempty"` // "up", "down", "unchanged"
-	LimitedSalesRevenue float64             `json:"limited_sales_revenue,omitempty"`
-	BrandSharePercent   float64             `json:"brand_share_percent,omitempty"`
-	RefundAmount        float64             `json:"refund_amount,omitempty"` // Refund amount added from KOL_REFUND_APPROVED payments
 }
 
 // BrandNetIncomeResponse provides detailed breakdown of net income
 type BrandNetIncomeResponse struct {
-	GrossIncome               float64             `json:"gross_income"`
-	TotalContractPaymentsPaid float64             `json:"total_contract_payments_paid"`
-	NetIncome                 float64             `json:"net_income"`
-	Period                    requests.PeriodInfo `json:"period" gorm:"-"`
-	PreviousNetIncome         float64             `json:"previous_net_income,omitempty"`
-	PercentageChange          float64             `json:"percentage_change,omitempty"`
-	ChangeDirection           string              `json:"change_direction,omitempty"` // "up", "down", "unchanged"
+	GrossIncome           float64             `json:"gross_income"`
+	OrderRevenue          float64             `json:"order_revenue"`           // Revenue from completed orders (LIMITED products)
+	PreorderRevenue       float64             `json:"preorder_revenue"`        // Revenue from completed pre-orders
+	PaymentRefunds        float64             `json:"payment_refunds"`         // Refunds from KOL_REFUND_APPROVED payments
+	ViolationRefunds      float64             `json:"violation_refunds"`       // Refunds from resolved KOL violations
+	TotalContractPayments float64             `json:"total_contract_payments"` // Total paid contract payments (deducted)
+	NetIncome             float64             `json:"net_income"`
+	Period                requests.PeriodInfo `json:"period" gorm:"-"`
+	PreviousNetIncome     float64             `json:"previous_net_income,omitempty"`
+	PreviousGrossIncome   float64             `json:"previous_gross_income,omitempty"`
+	PercentageChange      float64             `json:"percentage_change,omitempty"`
+	ChangeDirection       string              `json:"change_direction,omitempty"` // "up", "down", "unchanged"
 }

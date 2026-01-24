@@ -993,6 +993,14 @@ func (r *Router) SetupBrandPartnerAnalyticsRoutes(group *gin.RouterGroup) {
 			protectedGroup.GET("/affiliates", brandAnalyticsHandler.GetAffiliateMetrics)
 			protectedGroup.GET("/contracts", brandAnalyticsHandler.GetContractDetails)
 			protectedGroup.GET("/top-rating-products", brandAnalyticsHandler.GetTopRatingProducts)
+
+			// New analytics endpoints with unified filter
+			protectedGroup.GET("/contract-status-distribution", brandAnalyticsHandler.GetContractStatusDistribution)
+			protectedGroup.GET("/task-status-distribution", brandAnalyticsHandler.GetTaskStatusDistribution)
+			protectedGroup.GET("/revenue-over-time", brandAnalyticsHandler.GetRevenueOverTime)
+			protectedGroup.GET("/refund-violation-stats", brandAnalyticsHandler.GetRefundViolationStats)
+			protectedGroup.GET("/gross-income", brandAnalyticsHandler.GetGrossIncome)
+			protectedGroup.GET("/net-income", brandAnalyticsHandler.GetNetIncome)
 		}
 	}
 }
