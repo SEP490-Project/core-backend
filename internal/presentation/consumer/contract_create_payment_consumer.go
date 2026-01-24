@@ -2,16 +2,22 @@ package consumer
 
 import (
 	"context"
+	"core-backend/config"
 	"core-backend/internal/application"
 	"core-backend/internal/application/dto/consumers"
+	"core-backend/internal/application/dto/requests"
+	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
+	"core-backend/pkg/utils"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 // ContractCreatePaymentConsumer handles contract payment creation messages from RabbitMQ
@@ -19,8 +25,10 @@ type ContractCreatePaymentConsumer struct {
 	appRegistry            *application.ApplicationRegistry
 	contractPaymentService iservice.ContractPaymentService
 	modifiedHistoryService iservice.ModifiedHistoryService
+	notificationService    iservice.NotificationService
 	stateTransferService   iservice.StateTransferService
 	unitOfWork             irepository.UnitOfWork
+	config                 *config.AppConfig
 }
 
 // NewContractCreatePaymentConsumer creates a new contract payment consumer
@@ -30,7 +38,9 @@ func NewContractCreatePaymentConsumer(appRegistry *application.ApplicationRegist
 		contractPaymentService: appRegistry.ContractPaymentService,
 		modifiedHistoryService: appRegistry.ModifiedHistoryService,
 		stateTransferService:   appRegistry.StateTransferService,
+		notificationService:    appRegistry.NotificationService,
 		unitOfWork:             appRegistry.InfrastructureRegistry.UnitOfWork,
+		config:                 appRegistry.InfrastructureRegistry.Config,
 	}
 }
 
@@ -120,6 +130,12 @@ func (c *ContractCreatePaymentConsumer) Handle(ctx context.Context, body []byte)
 				zap.Error(err))
 			return fmt.Errorf("failed to transition contract to Active state: %w", err)
 		}
+	} else {
+		// Notify brand that contract is approved and deposit payment is required
+		if contractResponse.Brand != nil {
+			c.notifyBrandContractApproved(contractResponse, contractResponse.Brand)
+		}
+
 	}
 
 	if err = uow.Commit(); err != nil {
@@ -131,4 +147,62 @@ func (c *ContractCreatePaymentConsumer) Handle(ctx context.Context, body []byte)
 		zap.String("contract_id", msg.ContractID))
 
 	return nil
+}
+
+// notifyBrandContractApproved sends notification to brand when contract is approved and payment is required
+func (c *ContractCreatePaymentConsumer) notifyBrandContractApproved(contract *responses.ContractResponse, brand *responses.BrandSummary) {
+	go func() {
+		ctx := context.Background()
+
+		contractNumber := "N/A"
+		if contract.ContractNumber != "" {
+			contractNumber = contract.ContractNumber
+		}
+
+		paymentLink := fmt.Sprintf("%s/manage/brand/contract-payment", c.config.Server.BaseFrontendURL)
+		templateData := map[string]any{
+			"ContractNumber": contractNumber,
+			"BrandName":      brand.Name,
+			"PaymentLink":    paymentLink,
+			"CurrentYear":    time.Now().Year(),
+		}
+
+		brandModel, err := c.appRegistry.DatabaseRegistry.BrandRepository.GetByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("id = ?", brand.ID)
+		}, nil)
+		if err != nil {
+			zap.L().Error("Failed to fetch brand for notification",
+				zap.String("brand_id", brand.ID),
+				zap.Error(err))
+			return
+		}
+
+		// Use brand.UserID for IN_APP and brand.ContactEmail for EMAIL
+		req := &requests.PublishNotificationRequest{
+			UserID:            utils.DerefPtr(brandModel.UserID, uuid.Nil),
+			Types:             []enum.NotificationType{enum.NotificationTypeInApp, enum.NotificationTypeEmail},
+			Title:             "Contract Approved - Deposit Required",
+			Body:              fmt.Sprintf("Your contract %s has been approved. Please proceed with the deposit payment to activate the contract.", contractNumber),
+			Data:              map[string]string{"contract_id": contract.ID},
+			EmailSubject:      utils.PtrOrNil("Contract Approved - Deposit Required"),
+			EmailTemplateName: utils.PtrOrNil("contract_approved_deposit_required"),
+			EmailTemplateData: templateData,
+		}
+
+		// Override email recipient if brand has contact email
+		if brand.ContactEmail != "" {
+			req.CustomReceiver = &brand.ContactEmail
+		}
+
+		if _, err := c.notificationService.CreateAndPublishNotification(ctx, req); err != nil {
+			zap.L().Error("Failed to send contract approved notification to brand",
+				zap.String("contract_id", contract.ID),
+				zap.String("brand_id", brand.ID),
+				zap.Error(err))
+		} else {
+			zap.L().Info("Sent contract approved notification to brand",
+				zap.String("contract_id", contract.ID),
+				zap.String("brand_id", brand.ID))
+		}
+	}()
 }

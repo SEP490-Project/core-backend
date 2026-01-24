@@ -7,7 +7,6 @@ import (
 	"core-backend/internal/domain/constant"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
-	"core-backend/pkg/utils"
 	"fmt"
 	"time"
 
@@ -57,8 +56,8 @@ func (r *contentStaffAnalyticsRepository) GetTotalViews(ctx context.Context, sta
 	args := []any{
 		enum.KPIReferenceTypeContentChannel,
 		enum.KPIValueTypeViews,
+		enum.AutoPostStatusPosted,
 		startDate, endDate,
-		enum.AutoPostStatusPosted.String(),
 		startDate, endDate,
 	}
 
@@ -80,11 +79,9 @@ func (r *contentStaffAnalyticsRepository) GetTotalViews(ctx context.Context, sta
 			JOIN channels ch ON ch.id = cc.channel_id
 			WHERE km.reference_type = ?
 			  AND km.type = ?
-			  AND km.recorded_date >= ?
-			  AND km.recorded_date < ?
 			  AND cc.auto_post_status = ?
-			  AND cc.published_at >= ?
-			  AND cc.published_at < ?
+			  AND km.recorded_date >= ? AND km.recorded_date < ?
+			  AND cc.published_at >= ? AND cc.published_at < ?
 			  %s
 		),
 		per_content_channel AS (
@@ -119,54 +116,112 @@ func (r *contentStaffAnalyticsRepository) GetTotalViews(ctx context.Context, sta
 // Engagement = Likes + Comments + Shares (delta for each)
 // All engagement metrics are cumulative snapshots, so we calculate delta = last - first
 func (r *contentStaffAnalyticsRepository) GetTotalEngagement(ctx context.Context, startDate, endDate time.Time, channelID *uuid.UUID) (int64, error) {
-	var engagement float64
+	var totalEngagement int64
 
-	// Get latest ENGAGEMENT (or LIKES+COMMENTS+SHARES) per content_channel
-	subquery := `
-		SELECT DISTINCT ON (km.reference_id, km.type) km.reference_id, km.type, km.value
-		FROM kpi_metrics km
-		JOIN content_channels cc ON cc.id = km.reference_id
-		WHERE km.reference_type = ?
-		  AND km.type IN ?
-		  AND km.recorded_date >= ?
-		  AND km.recorded_date < ?
-		  AND cc.auto_post_status = ?
-		  AND cc.published_at >= ?
-		  AND cc.published_at < ?
-	`
-	kpiMetricsType := []enum.KPIValueType{
-		enum.KPIValueTypeEngagement,
-		// enum.KPIValueTypeLikes,
-		// enum.KPIValueTypeComments,
-		// enum.KPIValueTypeShares,
-	}
+	// Build unified query that handles both Website (SUM) and Social (delta) in one pass
+	channelFilter := ""
 	args := []any{
 		enum.KPIReferenceTypeContentChannel,
-		kpiMetricsType,
-		startDate,
-		endDate,
-		enum.AutoPostStatusPosted.String(),
-		startDate,
-		endDate,
+		enum.KPIValueTypeEngagement,
+		enum.AutoPostStatusPosted,
+		startDate, endDate,
+		startDate, endDate,
 	}
 
 	if channelID != nil {
-		subquery += " AND cc.channel_id = ?"
+		channelFilter = "AND cc.channel_id = ?"
 		args = append(args, *channelID)
 	}
 
-	subquery += " ORDER BY km.reference_id, km.type, km.recorded_date DESC"
+	query := fmt.Sprintf(`
+		WITH range_views AS (
+			SELECT 
+				km.reference_id,
+				ch.code,
+				km.value,
+				ROW_NUMBER() OVER (PARTITION BY km.reference_id ORDER BY km.recorded_date ASC) as rn_first,
+				ROW_NUMBER() OVER (PARTITION BY km.reference_id ORDER BY km.recorded_date DESC) as rn_last
+			FROM kpi_metrics km
+			JOIN content_channels cc ON cc.id = km.reference_id
+			JOIN channels ch ON ch.id = cc.channel_id
+			WHERE km.reference_type = ?
+			  AND km.type = ?
+			  AND cc.auto_post_status = ?
+			  AND km.recorded_date >= ? AND km.recorded_date < ?
+			  AND cc.published_at >= ? AND cc.published_at < ?
+			  %s
+		),
+		per_content_channel AS (
+			SELECT 
+				reference_id,
+				code,
+				MAX(CASE WHEN rn_first = 1 THEN value END) as first_val,
+				MAX(CASE WHEN rn_last = 1 THEN value END) as last_val,
+				SUM(value) as sum_val
+			FROM range_views
+			GROUP BY reference_id, code
+		)
+		SELECT COALESCE(SUM(GREATEST(COALESCE(last_val, 0) - COALESCE(first_val, 0), 0)), 0)::BIGINT as total
+		FROM per_content_channel
+	`, channelFilter)
 
-	query := r.db.WithContext(ctx).Raw(`
-		SELECT COALESCE(SUM(latest.value), 0) as total
-		FROM (`+subquery+`) AS latest
-	`, args...)
-
-	if err := query.Scan(&engagement).Error; err != nil {
+	if err := r.db.WithContext(ctx).Raw(query, args...).Scan(&totalEngagement).Error; err != nil {
 		zap.L().Error("Failed to get total engagement from kpi_metrics", zap.Error(err))
 		return 0, err
 	}
-	return int64(engagement), nil
+	return totalEngagement, nil
+
+	// // Get latest ENGAGEMENT (or LIKES+COMMENTS+SHARES) per content_channel
+	// subquery := `
+	// 	SELECT DISTINCT ON (km.reference_id, km.type) km.reference_id, km.type, km.value
+	// 	FROM kpi_metrics km
+	// 	JOIN content_channels cc ON cc.id = km.reference_id
+	// 	WHERE km.reference_type = ?
+	// 	  AND km.type IN ?
+	// 	  AND km.recorded_date >= ?
+	// 	  AND km.recorded_date < ?
+	// 	  AND cc.auto_post_status = ?
+	// 	  AND cc.published_at >= ?
+	// 	  AND cc.published_at < ?
+	// `
+	// kpiMetricsType := []enum.KPIValueType{
+	// 	enum.KPIValueTypeEngagement,
+	// 	// enum.KPIValueTypeLikes,
+	// 	// enum.KPIValueTypeComments,
+	// 	// enum.KPIValueTypeShares,
+	// }
+	// args := []any{
+	// 	enum.KPIReferenceTypeContentChannel,
+	// 	kpiMetricsType,
+	// 	startDate,
+	// 	endDate,
+	// 	enum.AutoPostStatusPosted.String(),
+	// 	startDate,
+	// 	endDate,
+	// }
+
+	// if channelID != nil {
+	// 	subquery += " AND cc.channel_id = ?"
+	// 	args = append(args, *channelID)
+	// }
+
+	// subquery += " ORDER BY km.reference_id, km.type, km.recorded_date DESC"
+
+	// query := r.db.WithContext(ctx).Raw(`
+	// 	SELECT COALESCE(SUM(latest.value), 0) as total
+	// 	FROM (`+subquery+`) AS latest
+	// `, args...)
+
+	// if err := query.Scan(&engagement).Error; err != nil {
+	// 	zap.L().Error("Failed to get total engagement from kpi_metrics", zap.Error(err))
+	// 	return 0, err
+	// }
+	// return int64(engagement), nil
+	// var totalEngagement int64
+
+	// engagementQuery := `
+	//  	WITH
+	// `
 }
 
 // GetAverageCTR returns CTR using latest CLICK_THROUGH and VIEWS values
@@ -242,15 +297,14 @@ func (r *contentStaffAnalyticsRepository) GetPendingContentCount(ctx context.Con
 func (r *contentStaffAnalyticsRepository) GetChannelMetrics(ctx context.Context, startDate, endDate time.Time) ([]dtos.ChannelMetricsDTO, error) {
 	var results []dtos.ChannelMetricsDTO
 
-	// Get channel info with post count
+	// 1. Get channel info
+	// Note: We don't need to fetch 'metrics' column here if we are calculating fresh deltas below
 	channelQuery := r.db.WithContext(ctx).Table("channels ch").
 		Select(`
 			ch.id as channel_id,
 			ch.name as channel_name,
 			ch.code as channel_code,
-			COALESCE((ch.metrics->'current_mapped'->>'FOLLOWERS')::bigint, 0) as followers_count,
-			ch.metrics->'current_fetched' as fetched_metrics,
-			ch.metrics->'current_mapped' as mapped_metrics
+			COALESCE((ch.metrics->'current_mapped'->>'FOLLOWERS')::bigint, 0) as followers_count
 		`).
 		Where("ch.deleted_at IS NULL")
 
@@ -260,146 +314,132 @@ func (r *contentStaffAnalyticsRepository) GetChannelMetrics(ctx context.Context,
 		return nil, err
 	}
 
-	// For each channel, calculate DELTA metrics from kpi_metrics with reference_type = 'CHANNEL'
+	// 2. Loop channels
 	for i := range channels {
 		channelID := channels[i].ChannelID
-		channelCode := channels[i].ChannelCode
 
-		// Get post count for the date range
+		// A. Get post count (For NEW posts in this period)
 		var postCount int64
-		r.db.WithContext(ctx).Table("content_channels cc").
-			Select("COUNT(DISTINCT cc.content_id)").
+		if err := r.db.WithContext(ctx).Table("content_channels cc").
 			Where("cc.channel_id = ?", channelID).
 			Where("cc.auto_post_status = ?", enum.AutoPostStatusPosted.String()).
-			Where("cc.published_at >= ?", startDate).
-			Where("cc.published_at < ?", endDate).
-			Scan(&postCount)
+			Where("cc.published_at >= ? AND cc.published_at < ?", startDate, endDate).
+			Count(&postCount).Error; err != nil {
+			// Log but don't fail entire request
+			zap.L().Warn("Failed to get post count", zap.String("channel_id", channelID.String()), zap.Error(err))
+		}
 		channels[i].PostCount = postCount
 
-		// Get DELTA metrics from kpi_metrics with reference_type = 'CHANNEL'
-		// For cumulative metrics: delta = latest - earliest (or latest - value_before_start)
-		// For Website views: SUM (already incremental)
+		// B. Get Metrics Deltas
+		// Unified Query: Handles both Incremental (Website) and Cumulative (Social)
 		type MetricDelta struct {
 			Type  enum.KPIValueType
 			Delta float64
 		}
 		var metrics []MetricDelta
 
-		var deltaQuery string
-		if channelCode == "WEBSITE" {
-			// Website: Views are incremental, use SUM; other metrics use delta
-			deltaQuery = `
-				WITH range_metrics AS (
-					SELECT 
-						km.type,
-						km.value,
-						km.recorded_date,
-						ROW_NUMBER() OVER (PARTITION BY km.type ORDER BY km.recorded_date ASC) as rn_first,
-						ROW_NUMBER() OVER (PARTITION BY km.type ORDER BY km.recorded_date DESC) as rn_last
-					FROM kpi_metrics km
-					WHERE km.reference_id = $1
-					  AND km.reference_type = $2
-					  AND km.recorded_date >= $3
-					  AND km.recorded_date < $4
-				),
-				first_last AS (
-					SELECT 
-						type,
-						MAX(CASE WHEN rn_first = 1 THEN value END) as first_val,
-						MAX(CASE WHEN rn_last = 1 THEN value END) as last_val,
-						SUM(value) as sum_val
-					FROM range_metrics
-					GROUP BY type
-				)
-				SELECT 
+		deltaQuery := `
+			WITH range_metrics AS (
+				SELECT
+					km.reference_id,
+					km.type,
+					km.value,
+					ch.code, 
+					-- Get First and Last value recorded INSIDE the window
+					ROW_NUMBER() OVER (PARTITION BY km.reference_id, km.type ORDER BY km.recorded_date ASC) as rn_first,
+					ROW_NUMBER() OVER (PARTITION BY km.reference_id, km.type ORDER BY km.recorded_date DESC) as rn_last
+				FROM kpi_metrics km
+				JOIN content_channels cc ON cc.id = km.reference_id
+				JOIN channels ch ON ch.id = cc.channel_id
+				WHERE cc.channel_id = ?
+				  AND km.reference_type = ?
+				  AND cc.auto_post_status = ?
+				  AND cc.published_at >= ? AND cc.published_at < ?
+				  AND km.recorded_date >= ? AND km.recorded_date < ?
+			),
+			first_last AS (
+				SELECT
+					reference_id,
 					type,
-					CASE 
-						-- Website Views/UniqueViews are incremental, use SUM
-						WHEN type IN ('VIEWS', 'UNIQUE_VIEWS') THEN sum_val
-						-- Other metrics are cumulative, use delta (last - first)
-						ELSE GREATEST(COALESCE(last_val, 0) - COALESCE(first_val, 0), 0)
-					END as delta
-				FROM first_last
-			`
-		} else {
-			// Social channels: All metrics are cumulative snapshots, calculate delta
-			deltaQuery = `
-				WITH range_metrics AS (
-					SELECT 
-						km.type,
-						km.value,
-						ROW_NUMBER() OVER (PARTITION BY km.type ORDER BY km.recorded_date ASC) as rn_first,
-						ROW_NUMBER() OVER (PARTITION BY km.type ORDER BY km.recorded_date DESC) as rn_last
-					FROM kpi_metrics km
-					WHERE km.reference_id = $1
-					  AND km.reference_type = $2
-					  AND km.recorded_date >= $3
-					  AND km.recorded_date < $4
-				),
-				first_last AS (
-					SELECT 
-						type,
-						MAX(CASE WHEN rn_first = 1 THEN value END) as first_val,
-						MAX(CASE WHEN rn_last = 1 THEN value END) as last_val
-					FROM range_metrics
-					GROUP BY type
-				)
-				SELECT 
-					type,
-					GREATEST(COALESCE(last_val, 0) - COALESCE(first_val, 0), 0) as delta
-				FROM first_last
-			`
-		}
+					code,
+					MAX(CASE WHEN rn_first = 1 THEN value END) as first_val,
+					MAX(CASE WHEN rn_last = 1 THEN value END) as last_val,
+					SUM(value) as sum_val
+				FROM range_metrics
+				GROUP BY reference_id, type, code
+			)
+			SELECT
+				type,
+				SUM(
+					CASE
+						-- Website Views/UniqueViews are incremental (1 row = 1 view), use SUM
+						WHEN (type IN ('VIEWS', 'UNIQUE_VIEWS') AND code = 'WEBSITE') THEN sum_val
+						
+						-- All other metrics are cumulative snapshots (Total Counter), use Delta
+						-- GREATEST(..., 0) ensures if a metric resets/drops, we don't show negative growth
+						ELSE GREATEST(last_val - first_val, 0)
+					END
+				) as delta
+			FROM first_last
+			GROUP BY type
+		`
 
+		// Fixed Arguments: Removed the extra startDate/endDate pair
 		if err := r.db.WithContext(ctx).Raw(deltaQuery,
 			channelID,
-			enum.KPIReferenceTypeChannel,
+			enum.KPIReferenceTypeContentChannel,
+			enum.AutoPostStatusPosted,
+			startDate, endDate,
 			startDate, endDate,
 		).Scan(&metrics).Error; err != nil {
-			zap.L().Warn("Failed to get channel delta metrics from kpi_metrics",
-				zap.String("channel_id", channelID.String()),
-				zap.Error(err))
+			zap.L().Warn("Failed to get channel delta metrics", zap.String("channel_id", channelID.String()), zap.Error(err))
 			continue
 		}
 
+		// Map metrics
 		for _, m := range metrics {
+			val := int64(m.Delta)
 			switch m.Type {
 			case enum.KPIValueTypeViews:
-				channels[i].TotalViews = int64(m.Delta)
+				channels[i].TotalViews = val
 			case enum.KPIValueTypeLikes:
-				channels[i].TotalLikes = int64(m.Delta)
+				channels[i].TotalLikes = val
 			case enum.KPIValueTypeComments:
-				channels[i].TotalComments = int64(m.Delta)
+				channels[i].TotalComments = val
 			case enum.KPIValueTypeShares:
-				channels[i].TotalShares = int64(m.Delta)
+				channels[i].TotalShares = val
 			case enum.KPIValueTypeEngagement:
-				channels[i].TotalEngagement = int64(m.Delta)
+				channels[i].TotalEngagement = val
 			case enum.KPIValueTypeReach:
-				channels[i].TotalReach = int64(m.Delta)
+				channels[i].TotalReach = val
 			}
 		}
 
-		// Calculate engagement if not set (fallback)
-		if channels[i].TotalEngagement == 0 {
-			channels[i].TotalEngagement = channels[i].TotalLikes + channels[i].TotalComments + channels[i].TotalShares
-		}
-
-		// Get clicks for CTR from affiliate links (Incremental -> SUM)
+		// C. Get Affiliate Clicks (Incremental -> SUM)
+		// Note: ensure metadata key matches your DB exactly
 		var clicks float64
-		r.db.WithContext(ctx).Raw(`
+		err := r.db.WithContext(ctx).Raw(`
 			SELECT COALESCE(SUM(km.value), 0)
 			FROM kpi_metrics km
 			JOIN affiliate_links al ON al.id = km.reference_id
-			WHERE (al.metadata ->> 'channel_id') = ?
+			WHERE ((al.metadata ->> 'channel_id') = ? OR al.channel_id = ?)
 			  AND km.reference_type = ?
 			  AND km.type = ?
 			  AND km.recorded_date >= ?
 			  AND km.recorded_date < ?
-		`, channelID.String(), enum.KPIReferenceTypeAffiliateLink, enum.KPIValueTypeClickThrough, startDate, endDate).Scan(&clicks)
+		`, channelID.String(), channelID.String(),
+			enum.KPIReferenceTypeAffiliateLink, enum.KPIValueTypeClickThrough,
+			startDate, endDate,
+		).Scan(&clicks).Error
+
+		if err != nil {
+			zap.L().Warn("Failed to get affiliate clicks", zap.Error(err))
+		}
 
 		channels[i].TotalClicks = int64(clicks)
 
-		// Calculate CTR: (Clicks / Views) * 100
+		// D. Calculate CTR
+		// Avoid division by zero
 		if channels[i].TotalViews > 0 {
 			channels[i].AverageCTR = (float64(channels[i].TotalClicks) / float64(channels[i].TotalViews)) * 100
 		}
@@ -577,23 +617,32 @@ func (r *contentStaffAnalyticsRepository) GetTopPostForChannel(ctx context.Conte
 func (r *contentStaffAnalyticsRepository) GetTrendData(ctx context.Context, startDate, endDate time.Time, granularity constant.TrendGranularity, channelID *uuid.UUID) ([]dtos.TrendDataPointDTO, error) {
 	var results []dtos.TrendDataPointDTO
 
-	// Use time_bucket for efficient aggregation
-	timeBucket := "time_bucket('1 day', km.recorded_date)"
+	// 1. Determine Lookback Interval and SQL Bucket logic
+	// We need to fetch data from BEFORE the startDate to calculate the delta for the first bucket.
+	var lookbackInterval time.Duration
+	var timeBucketExpr string
+
 	switch granularity {
 	case constant.TrendGranularityWeek:
-		timeBucket = "time_bucket('1 week', km.recorded_date)"
+		timeBucketExpr = "time_bucket('1 week', km.recorded_date)"
+		lookbackInterval = 7 * 24 * time.Hour
 	case constant.TrendGranularityMonth:
-		timeBucket = "time_bucket('30 days', km.recorded_date)" // time_bucket doesn't support '1 month' variable interval
+		// NOTE: time_bucket doesn't handle variable '1 month'.
+		// For accuracy with calendar months, prefer date_trunc over time_bucket('30 days').
+		timeBucketExpr = "date_trunc('month', km.recorded_date)"
+		lookbackInterval = 32 * 24 * time.Hour // Safe buffer for a month
+	default: // Day
+		timeBucketExpr = "time_bucket('1 day', km.recorded_date)"
+		lookbackInterval = 24 * time.Hour
 	}
 
-	// Build the query with CTEs for delta calculation
-	// 1. per_reference_metrics: Group by bucket, type, code, reference_id - get SUM and MAX
-	// 2. with_deltas: Calculate delta using LAG window function for cumulative metrics
-	// 3. Final: Aggregate deltas across all reference_ids per bucket
+	// Adjust the query start date to include the previous bucket
+	queryStartDate := startDate.Add(-lookbackInterval)
+
 	query := `
 		WITH per_reference_metrics AS (
 			SELECT
-				` + timeBucket + ` as bucket,
+				` + timeBucketExpr + ` as bucket,
 				km.type,
 				ch.code,
 				km.reference_id,
@@ -603,15 +652,17 @@ func (r *contentStaffAnalyticsRepository) GetTrendData(ctx context.Context, star
 			JOIN content_channels cc ON cc.id = km.reference_id
 			JOIN channels ch ON ch.id = cc.channel_id
 			WHERE km.reference_type = ?
-			  AND km.recorded_date >= ?
+			  AND km.recorded_date >= ?  -- Uses queryStartDate
 			  AND km.recorded_date < ?
 			  AND cc.auto_post_status = ?
+			  AND cc.published_at >= ? AND cc.published_at < ?
 	`
 	args := []any{
 		enum.KPIReferenceTypeContentChannel,
-		startDate,
+		queryStartDate, // Adjusted start date
 		endDate,
 		enum.AutoPostStatusPosted.String(),
+		startDate, endDate,
 	}
 
 	if channelID != nil {
@@ -619,9 +670,6 @@ func (r *contentStaffAnalyticsRepository) GetTrendData(ctx context.Context, star
 		args = append(args, *channelID)
 	}
 
-	// Add remaining CTEs and final SELECT
-	// For cumulative metrics, calculate delta = current_max - previous_bucket_max
-	// Use GREATEST(..., 0) to avoid negative deltas if metrics reset
 	query += `
 			GROUP BY bucket, km.type, ch.code, km.reference_id
 		),
@@ -630,12 +678,11 @@ func (r *contentStaffAnalyticsRepository) GetTrendData(ctx context.Context, star
 				bucket,
 				type,
 				code,
-				reference_id,
 				sum_val,
-				max_val,
-				max_val - COALESCE(
-					LAG(max_val) OVER (PARTITION BY reference_id, type ORDER BY bucket),
-					0
+				-- Calculate Delta
+				max_val - LAG(max_val) OVER (
+					PARTITION BY reference_id, type 
+					ORDER BY bucket
 				) as delta_val
 			FROM per_reference_metrics
 		)
@@ -644,23 +691,26 @@ func (r *contentStaffAnalyticsRepository) GetTrendData(ctx context.Context, star
 			type,
 			SUM(
 				CASE 
-					-- Website Views and UniqueViews are incremental (each row = 1), SUM gives count per bucket
+					-- Incremental metrics (WEBSITE views): Use the SUM of the specific bucket
 					WHEN (type = ? OR type = ?) AND code = 'WEBSITE' THEN sum_val
-					-- All other metrics are cumulative snapshots, use calculated delta
-					-- GREATEST ensures we don't show negative values if metrics reset
-					ELSE GREATEST(delta_val, 0)
+					
+					-- Cumulative metrics: Use the calculated Delta
+					-- If delta is NULL (which happens for the very first lookback bucket), treat as 0
+					-- GREATEST handles negative deltas (resets)
+					ELSE GREATEST(COALESCE(delta_val, 0), 0)
 				END
 			) as total
 		FROM with_deltas
+		-- CRITICAL: Filter out the lookback bucket here so the user only sees requested range
+		WHERE bucket >= ? 
 		GROUP BY bucket, type
 		ORDER BY bucket ASC
 	`
-	// Add VIEWS and UNIQUE_VIEWS type args for the CASE condition
-	args = append(args, enum.KPIValueTypeViews, enum.KPIValueTypeUniqueViews)
 
-	zap.L().Debug("GetTrendData query",
-		zap.String("granularity", string(granularity)),
-		zap.String("channel_id", utils.DerefPtr(channelID, uuid.Nil).String()))
+	// Add args for CASE Types
+	args = append(args, enum.KPIValueTypeViews, enum.KPIValueTypeUniqueViews)
+	// Add args for Final Where Clause (Original Start Date)
+	args = append(args, startDate)
 
 	type RawTrendData struct {
 		Date  time.Time
@@ -866,16 +916,14 @@ func (r *contentStaffAnalyticsRepository) getContentByPerformance(ctx context.Co
 			  %s
 		),
 		latest_clicks AS (
-			-- Get latest click count for affiliate links related to content channels
-			SELECT DISTINCT ON (al.channel_id)
-				al.channel_id as content_channel_id,
-				km.value as clicks
+			SELECT SUM(km.value) as clicks,
+			       (al.metadata ->> 'content_channel_id')::uuid as content_channel_id
 			FROM kpi_metrics km
 			JOIN affiliate_links al ON al.id = km.reference_id
 			WHERE km.reference_type = ?
 			  AND km.type = ?
 			  AND km.recorded_date >= ? AND km.recorded_date < ?
-			ORDER BY al.channel_id, km.recorded_date DESC
+			GROUP BY content_channel_id
 		)
 		SELECT 
 			ci.content_id,
@@ -960,83 +1008,96 @@ func (r *contentStaffAnalyticsRepository) GetChannelMappedMetrics(ctx context.Co
 
 	type MetricAggregate struct {
 		Type  string
-		Total float64
+		Delta float64
 	}
 	var results []MetricAggregate
 
-	// First, try to get pre-aggregated CHANNEL-level metrics (from poller job)
-	// Use delta logic: (last value in period) - (first value in period)
-	channelQuery := `
-		WITH range_metrics AS (
-			SELECT 
-				km.type,
-				km.value,
-				ROW_NUMBER() OVER (PARTITION BY km.type ORDER BY km.recorded_date ASC) as rn_first,
-				ROW_NUMBER() OVER (PARTITION BY km.type ORDER BY km.recorded_date DESC) as rn_last
-			FROM kpi_metrics km
-			WHERE km.reference_id = ?
-			  AND km.reference_type = ?
-			  AND km.recorded_date >= ?
-			  AND km.recorded_date < ?
-		),
-		first_last AS (
-			SELECT 
-				type,
-				MAX(CASE WHEN rn_first = 1 THEN value END) as first_val,
-				MAX(CASE WHEN rn_last = 1 THEN value END) as last_val
-			FROM range_metrics
-			GROUP BY type
-		)
-		SELECT type, GREATEST(COALESCE(last_val, 0) - COALESCE(first_val, 0), 0) as total
-		FROM first_last
-	`
-	if err := r.db.WithContext(ctx).Raw(channelQuery,
-		channelID,
-		enum.KPIReferenceTypeChannel.String(),
-		startDate, endDate,
-	).Scan(&results).Error; err != nil {
-		zap.L().Warn("Failed to get channel-level metrics", zap.Error(err))
-	}
-
-	// If we found CHANNEL-level metrics, use them
-	if len(results) > 0 {
-		for _, res := range results {
-			metrics[res.Type] = res.Total
+	/*
+		// First, try to get pre-aggregated CHANNEL-level metrics (from poller job)
+		// Use delta logic: (last value in period) - (first value in period)
+		channelQuery := `
+			WITH range_metrics AS (
+				SELECT
+					km.type,
+					km.value,
+					ROW_NUMBER() OVER (PARTITION BY km.type ORDER BY km.recorded_date ASC) as rn_first,
+					ROW_NUMBER() OVER (PARTITION BY km.type ORDER BY km.recorded_date DESC) as rn_last
+				FROM kpi_metrics km
+				WHERE km.reference_id = ?
+				  AND km.reference_type = ?
+				  AND km.recorded_date >= ?
+				  AND km.recorded_date < ?
+			),
+			first_last AS (
+				SELECT
+					type,
+					MAX(CASE WHEN rn_first = 1 THEN value END) as first_val,
+					MAX(CASE WHEN rn_last = 1 THEN value END) as last_val
+				FROM range_metrics
+				GROUP BY type
+			)
+			SELECT type, GREATEST(COALESCE(last_val, 0) - COALESCE(first_val, 0), 0) as total
+			FROM first_last
+		`
+		if err := r.db.WithContext(ctx).Raw(channelQuery,
+			channelID,
+			enum.KPIReferenceTypeChannel.String(),
+			startDate, endDate,
+		).Scan(&results).Error; err != nil {
+			zap.L().Warn("Failed to get channel-level metrics", zap.Error(err))
 		}
-		return metrics, nil
-	}
+
+		// If we found CHANNEL-level metrics, use them
+		if len(results) > 0 {
+			for _, res := range results {
+				metrics[res.Type] = res.Total
+			}
+			return metrics, nil
+		}
+	*/
 
 	// Fallback: Aggregate from CONTENT_CHANNEL level (for old data before poller fix)
 	// Use delta logic: For each content_channel, calculate (last - first), then SUM across all
 	fallbackQuery := `
-		WITH range_metrics AS (
-			SELECT 
-				km.reference_id,
-				km.type,
-				km.value,
-				ROW_NUMBER() OVER (PARTITION BY km.reference_id, km.type ORDER BY km.recorded_date ASC) as rn_first,
-				ROW_NUMBER() OVER (PARTITION BY km.reference_id, km.type ORDER BY km.recorded_date DESC) as rn_last
-			FROM kpi_metrics km
-			JOIN content_channels cc ON cc.id = km.reference_id
-			WHERE cc.channel_id = ?
-			  AND km.reference_type = ?
-			  AND cc.auto_post_status = ?
-			  AND cc.published_at >= ? AND cc.published_at < ?
-			  AND km.recorded_date >= ? AND km.recorded_date < ?
-		),
-		first_last AS (
-			SELECT 
-				reference_id,
+			WITH range_metrics AS (
+				SELECT
+					km.reference_id,
+					km.type,
+					km.value,
+					ch.code, 
+					ROW_NUMBER() OVER (PARTITION BY km.reference_id, km.type ORDER BY km.recorded_date ASC) as rn_first,
+					ROW_NUMBER() OVER (PARTITION BY km.reference_id, km.type ORDER BY km.recorded_date DESC) as rn_last
+				FROM kpi_metrics km
+					JOIN content_channels cc ON cc.id = km.reference_id
+					JOin channels ch ON ch.id = cc.channel_id
+				WHERE cc.channel_id = ?
+				  AND km.reference_type = ?
+				  AND cc.auto_post_status = ?
+				  AND km.recorded_date >= ? AND km.recorded_date < ?
+				  AND cc.published_at >= ? AND cc.published_at < ?
+			),
+			first_last AS (
+				SELECT
+					reference_id,
+					type,
+					code,
+					MAX(CASE WHEN rn_first = 1 THEN value END) as first_val,
+					MAX(CASE WHEN rn_last = 1 THEN value END) as last_val,
+					SUM(value) as sum_val
+				FROM range_metrics
+         		GROUP BY reference_id, type, code
+			)
+			SELECT
 				type,
-				MAX(CASE WHEN rn_first = 1 THEN value END) as first_val,
-				MAX(CASE WHEN rn_last = 1 THEN value END) as last_val
-			FROM range_metrics
-			GROUP BY reference_id, type
-		)
-		SELECT type, COALESCE(SUM(GREATEST(last_val - first_val, 0)), 0) as total
-		FROM first_last
-		GROUP BY type
-	`
+				SUM(
+					CASE
+						WHEN (type IN ('VIEWS', 'UNIQUE_VIEWS') AND code = 'WEBSITE') THEN sum_val
+						ELSE GREATEST(last_val - first_val, 0)
+					END
+				) as delta
+			FROM first_last
+			GROUP BY type
+		`
 
 	if err := r.db.WithContext(ctx).Raw(fallbackQuery,
 		channelID,
@@ -1050,7 +1111,7 @@ func (r *contentStaffAnalyticsRepository) GetChannelMappedMetrics(ctx context.Co
 	}
 
 	for _, res := range results {
-		metrics[res.Type] = res.Total
+		metrics[res.Type] = res.Delta
 	}
 
 	return metrics, nil
@@ -1076,4 +1137,25 @@ func (r *contentStaffAnalyticsRepository) GetChannelFollowers(ctx context.Contex
 	}
 
 	return int64(followers), nil
+}
+
+// GetAggregatedClicksFromKPIMetrics returns total clicks from affiliate links for a channel in date range
+func (r *contentStaffAnalyticsRepository) GetAggregatedClicksFromKPIMetrics(ctx context.Context, channelID *uuid.UUID, startDate, endDate *time.Time) (int64, error) {
+	var totalClicks float64
+	query := r.db.WithContext(ctx).Table("kpi_metrics km").
+		Joins("JOIN affiliate_links al ON al.id = km.reference_id").
+		Where("km.reference_type = ?", enum.KPIReferenceTypeAffiliateLink).
+		Where("km.type = ?", enum.KPIValueTypeClickThrough).
+		Where("km.recorded_date >= ?", *startDate).
+		Where("km.recorded_date < ?", *endDate)
+
+	if channelID != nil {
+		query = query.Where("(al.channel_id = ? OR al.metadata ->> 'channel_id' = ?)", *channelID, *channelID)
+	}
+
+	if err := query.Select("COALESCE(SUM(km.value), 0)").Scan(&totalClicks).Error; err != nil {
+		zap.L().Error("Failed to get aggregated clicks from kpi_metrics", zap.Error(err))
+		return 0, err
+	}
+	return int64(totalClicks), nil
 }
