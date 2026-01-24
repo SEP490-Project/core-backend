@@ -537,7 +537,55 @@ func (o *orderService) MarkAsReceivedAfterPickedUp(ctx context.Context, orderID,
 		return err
 	}
 	order.ConfirmationImage = &imageURL
-	return o.orderRepository.Update(ctx, order)
+
+	// Use transaction to ensure atomicity for order update and payment transaction creation
+	if err = helper.WithTransaction(ctx, o.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		if err = uow.Order().Update(ctx, order); err != nil {
+			zap.L().Error("Failed to update order during mark as received after picked up", zap.Error(err), zap.String("orderID", order.ID.String()))
+			return err
+		}
+
+		// For LIMITED orders, create a negative transaction record for shipping fee (KOL will be in charge of this fee)
+		if order.OrderType == enum.ProductTypeLimited.String() {
+			if !order.IsSelfPickedUp {
+				shippingFeeFloat := -float64(order.ShippingFee) // Negative amount for KOL deduction
+
+				// Create negative payment transaction for shipping fee
+				shippingFeeTransaction := &model.PaymentTransaction{
+					ReferenceID:     order.ID,
+					ReferenceType:   enum.PaymentTransactionReferenceTypeOrder,
+					Amount:          &shippingFeeFloat,
+					Status:          enum.PaymentTransactionStatusCompleted,
+					Method:          "SHIPPING_REFUND",
+					TransactionDate: time.Now(),
+					CreatedAt:       time.Now(),
+					UpdatedAt:       time.Now(),
+					PayerID:         utils.PtrOrNil(order.UserID),
+					ReceivedByID:    utils.PtrOrNil(uuid.UUID{}),
+				}
+
+				if err = uow.PaymentTransaction().Add(ctx, shippingFeeTransaction); err != nil {
+					zap.L().Error("Failed to add shipping fee transaction for LIMITED order after picked up",
+						zap.String("orderID", order.ID.String()),
+						zap.Error(err))
+					return err
+				}
+
+				zap.L().Info("Created shipping fee transaction for LIMITED order after picked up",
+					zap.String("orderID", order.ID.String()),
+					zap.Float64("shippingFee", shippingFeeFloat))
+			}
+		}
+
+		return nil
+	}); err != nil {
+		zap.L().Error("Transaction failed during mark as received after picked up",
+			zap.String("orderID", order.ID.String()),
+			zap.Error(err))
+		return err
+	}
+
+	return nil
 }
 
 func (o *orderService) MarkAsReadyToPickedUp(ctx context.Context, orderID, userID uuid.UUID) error {
@@ -586,8 +634,50 @@ func (o *orderService) MarkAsReceived(ctx context.Context, orderID, userID uuid.
 		return err
 	}
 
-	err = o.orderRepository.Update(ctx, order)
-	if err != nil {
+	// Use transaction to ensure atomicity for order update and payment transaction creation
+	if err = helper.WithTransaction(ctx, o.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		if err = uow.Order().Update(ctx, order); err != nil {
+			zap.L().Error("Failed to update order during mark as received", zap.Error(err), zap.String("orderID", order.ID.String()))
+			return err
+		}
+
+		// For LIMITED orders, create a negative transaction record for shipping fee (KOL will be in charge of this fee)
+		if order.OrderType == enum.ProductTypeLimited.String() {
+			if !order.IsSelfPickedUp {
+				shippingFeeFloat := -float64(order.ShippingFee) // Negative amount for KOL deduction
+
+				// Create negative payment transaction for shipping fee
+				shippingFeeTransaction := &model.PaymentTransaction{
+					ReferenceID:     order.ID,
+					ReferenceType:   enum.PaymentTransactionReferenceTypeOrder,
+					Amount:          &shippingFeeFloat,
+					Status:          enum.PaymentTransactionStatusCompleted,
+					Method:          "SHIPPING_REFUND",
+					TransactionDate: time.Now(),
+					CreatedAt:       time.Now(),
+					UpdatedAt:       time.Now(),
+					PayerID:         utils.PtrOrNil(order.UserID),
+					ReceivedByID:    utils.PtrOrNil(uuid.UUID{}),
+				}
+
+				if err = uow.PaymentTransaction().Add(ctx, shippingFeeTransaction); err != nil {
+					zap.L().Error("Failed to add shipping fee transaction for LIMITED order",
+						zap.String("orderID", order.ID.String()),
+						zap.Error(err))
+					return err
+				}
+
+				zap.L().Info("Created shipping fee transaction for LIMITED order",
+					zap.String("orderID", order.ID.String()),
+					zap.Float64("shippingFee", shippingFeeFloat))
+			}
+		}
+
+		return nil
+	}); err != nil {
+		zap.L().Error("Transaction failed during mark as received",
+			zap.String("orderID", order.ID.String()),
+			zap.Error(err))
 		return err
 	}
 
@@ -953,15 +1043,10 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 			return errors.New("order has no items")
 		}
 
-		// Determine order type and shipping fee to store
-		// For LIMITED orders: store the actual shipping fee for analytics (KOL revenue deduction)
-		// but customer doesn't pay it (handled in PayOrder by passing 0 for shipping)
 		orderType := enum.ProductTypeStandard
 		applyShippingFee := shippingPrice
 		if isOrderLimited || (prevItemCategory != nil && *prevItemCategory == -1) {
 			orderType = enum.ProductTypeLimited
-			// Keep the actual shipping fee for LIMITED orders (for KOL revenue analytics)
-			// Customer payment is handled separately in PayOrder with shippingFee = 0
 			applyShippingFee = shippingPrice
 		}
 
