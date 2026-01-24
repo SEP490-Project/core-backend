@@ -6,6 +6,7 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/domain/constant"
 	"core-backend/internal/domain/enum"
 	"core-backend/pkg/utils"
 	"sync"
@@ -434,4 +435,53 @@ func (s *brandPartnerAnalyticsService) GetBrandTopSoldProduct(ctx context.Contex
 		}
 	}
 	return topSold, nil
+}
+
+// GetBrandContractStatusDistribution returns contract status distribution for a brand
+func (s *brandPartnerAnalyticsService) GetBrandContractStatusDistribution(ctx context.Context, brandUserID uuid.UUID, filter *requests.DashboardFilterRequest) (*responses.ContractStatusDistributionResponse, error) {
+	return s.analyticsRepo.GetBrandContractStatusDistribution(ctx, brandUserID, filter)
+}
+
+// GetBrandTaskStatusDistribution returns task status distribution for a brand
+func (s *brandPartnerAnalyticsService) GetBrandTaskStatusDistribution(ctx context.Context, brandUserID uuid.UUID, filter *requests.DashboardFilterRequest) (*responses.TaskStatusDistributionResponse, error) {
+	return s.analyticsRepo.GetBrandTaskStatusDistribution(ctx, brandUserID, filter)
+}
+
+// GetBrandRevenueOverTime returns revenue trend over time for a brand (Limited Products only)
+func (s *brandPartnerAnalyticsService) GetBrandRevenueOverTime(ctx context.Context, brandUserID uuid.UUID, filter *requests.DashboardFilterRequest, granularity constant.TrendGranularity) (*responses.BrandRevenueOverTimeResponse, error) {
+	data, err := s.analyticsRepo.GetBrandLimitedProductRevenueOverTime(ctx, brandUserID, filter, granularity)
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate summary totals
+	var summary responses.BrandRevenueOverTimeSummary
+	for _, d := range data {
+		d.TotalRevenue = d.BrandLimitedRevenue + d.BrandAffiliateEarnings
+		summary.TotalBrandLimitedRevenue += d.BrandLimitedRevenue
+		summary.TotalBrandAffiliateEarnings += d.BrandAffiliateEarnings
+	}
+	summary.GrandTotalRevenue = summary.TotalBrandLimitedRevenue + summary.TotalBrandAffiliateEarnings
+
+	return &responses.BrandRevenueOverTimeResponse{
+		Data:        data,
+		Granularity: string(granularity),
+		Period:      filter.GetPeriodInfo(),
+		Summary:     summary,
+	}, nil
+}
+
+// GetBrandRefundViolationStats returns refund and contract violation stats for a brand
+func (s *brandPartnerAnalyticsService) GetBrandRefundViolationStats(ctx context.Context, brandUserID uuid.UUID, filter *requests.DashboardFilterRequest) (*responses.RefundViolationStatsResponse, error) {
+	return s.analyticsRepo.GetBrandRefundViolationStats(ctx, brandUserID, filter)
+}
+
+// GetBrandGrossIncome returns brand's gross income (limited product revenue × brand share percentage)
+func (s *brandPartnerAnalyticsService) GetBrandGrossIncome(ctx context.Context, brandUserID uuid.UUID, filter *requests.DashboardFilterRequest) (*responses.BrandIncomeResponse, error) {
+	return s.analyticsRepo.GetBrandGrossIncome(ctx, brandUserID, filter)
+}
+
+// GetBrandNetIncome returns brand's net income (gross income - paid contract payments)
+func (s *brandPartnerAnalyticsService) GetBrandNetIncome(ctx context.Context, brandUserID uuid.UUID, filter *requests.DashboardFilterRequest) (*responses.BrandNetIncomeResponse, error) {
+	return s.analyticsRepo.GetBrandNetIncome(ctx, brandUserID, filter)
 }
