@@ -147,24 +147,24 @@ func (OrderResponse) ToResponseListWithRevenue(source []model.Order, payments ma
 
 // * OrderItemResponse ============================== OrderItem.Response (Start) ==============================
 type OrderItemResponse struct {
-	ID               uuid.UUID  `json:"id"`
-	Quantity         int        `json:"quantity"`
-	Subtotal         float64    `json:"subtotal"`
-	UnitPrice        float64    `json:"unit_price"`
-	Capacity         *float64   `json:"capacity"`
-	CapacityUnit     string     `json:"capacity_unit"`
-	ContainerType    string     `json:"container_type"`
-	DispenserType    string     `json:"dispenser_type"`
-	Uses             *string    `json:"uses"`
-	ManufactureDate  *time.Time `json:"manufacturing_date"`
-	ExpiryDate       *time.Time `json:"expiry_date"`
-	Instructions     *string    `json:"instructions"`
-	Weight           int        `json:"weight"`
-	Height           int        `json:"height"`
-	Length           int        `json:"length"`
-	Width            int        `json:"width"`
-	IsReviewed       bool       `json:"is_reviewed"`
-	BrandPlaceHolder *string    `json:"brand_place_holder"`
+	ID              uuid.UUID  `json:"id"`
+	Quantity        int        `json:"quantity"`
+	Subtotal        float64    `json:"subtotal"`
+	UnitPrice       float64    `json:"unit_price"`
+	Capacity        *float64   `json:"capacity"`
+	CapacityUnit    string     `json:"capacity_unit"`
+	ContainerType   string     `json:"container_type"`
+	DispenserType   string     `json:"dispenser_type"`
+	Uses            *string    `json:"uses"`
+	ManufactureDate *time.Time `json:"manufacturing_date"`
+	ExpiryDate      *time.Time `json:"expiry_date"`
+	Instructions    *string    `json:"instructions"`
+	Weight          int        `json:"weight"`
+	Height          int        `json:"height"`
+	Length          int        `json:"length"`
+	Width           int        `json:"width"`
+	IsReviewed      bool       `json:"is_reviewed"`
+	BrandPlaceHolder *string     `json:"brand_place_holder"`
 
 	//product fields
 	ProductName       string                  `json:"product_name"`
