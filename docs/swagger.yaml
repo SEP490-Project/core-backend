@@ -1326,6 +1326,7 @@ definitions:
     - REJECTED
     - APPROVED
     - POSTED
+    - SCHEDULED
     - CANCELLED
     type: string
     x-enum-varnames:
@@ -1335,6 +1336,7 @@ definitions:
     - ContentStatusRejected
     - ContentStatusApproved
     - ContentStatusPosted
+    - ContentStatusScheduled
     - ContentStatusCancelled
   enum.ContentType:
     enum:
@@ -6106,6 +6108,9 @@ definitions:
         allOf:
         - $ref: '#/definitions/responses.DashboardPeriodInfo'
         description: Period information
+      published_contents_count:
+        description: Total published contents count
+        type: integer
       recent_content:
         description: Recent content for this channel
         items:
@@ -6201,14 +6206,14 @@ definitions:
         type: object
       post_count:
         type: integer
-      reach_growth:
-        type: number
       top_post:
         $ref: '#/definitions/responses.TopPostBrief'
       total_engagement:
         type: integer
-      total_reach:
+      total_views:
         type: integer
+      views_growth:
+        type: number
     type: object
   responses.ChannelMetricsResponse:
     properties:
@@ -6751,6 +6756,9 @@ definitions:
         type: boolean
       note:
         example: First installment payment
+        type: string
+      paid_at:
+        example: 2006-01-02T15:04:05Z07:00
         type: string
       pay_now:
         example: false
@@ -7572,6 +7580,8 @@ definitions:
     properties:
       brand:
         $ref: '#/definitions/responses.OrderItemBrandResponse'
+      brand_place_holder:
+        type: string
       capacity:
         type: number
       capacity_unit:
@@ -8069,6 +8079,8 @@ definitions:
         type: string
       brand:
         $ref: '#/definitions/responses.OrderItemBrandResponse'
+      brand_place_holder:
+        type: string
       capacity:
         description: Variant Info
         type: number
@@ -8104,6 +8116,8 @@ definitions:
         type: string
       ghn_district_id:
         type: integer
+      ghn_order_code:
+        type: string
       ghn_province_id:
         type: integer
       ghn_ward_code:
@@ -8142,6 +8156,8 @@ definitions:
       province_name:
         type: string
       quantity:
+        type: integer
+      shipping_fee:
         type: integer
       staff_resource:
         type: string
@@ -8906,6 +8922,51 @@ definitions:
         type: number
       total_revenue:
         example: 140000000
+        type: number
+    type: object
+  responses.RevenueOrderItemWithPayment:
+    properties:
+      created_at:
+        type: string
+      customer_email:
+        type: string
+      customer_id:
+        type: string
+      customer_name:
+        type: string
+      id:
+        type: string
+      kol_percent:
+        description: Only for LIMITED/PreOrder
+        type: number
+      net_amount:
+        description: Calculated based on revenue type (KOL net or refund amount)
+        type: number
+      order_type:
+        description: STANDARD or LIMITED
+        type: string
+      payment_transaction:
+        $ref: '#/definitions/responses.PaymentTransactionResponse'
+      shipping_fee:
+        type: number
+      source:
+        description: ORDER or PRE_ORDER
+        type: string
+      status:
+        type: string
+      total_amount:
+        type: number
+    type: object
+  responses.RevenueOrdersWithPaymentResponse:
+    properties:
+      orders:
+        items:
+          $ref: '#/definitions/responses.RevenueOrderItemWithPayment'
+        type: array
+      revenue_type:
+        description: LIMITED_NET, REFUNDED
+        type: string
+      total_revenue:
         type: number
     type: object
   responses.RevenueTrendPoint:
@@ -13278,6 +13339,337 @@ paths:
       summary: Get Revenue Growth
       tags:
       - Analytics.Sales
+  /api/v1/analytics/sales/financials/refunded/orders:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve paginated list of all refunded orders and preorders. Includes
+        payment transaction information.
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 10, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: From Date (YYYY-MM-DD)
+        in: query
+        name: from_date
+        type: string
+      - description: To Date (YYYY-MM-DD)
+        in: query
+        name: to_date
+        type: string
+      - description: Search by order ID or customer name
+        in: query
+        name: search
+        type: string
+      - description: Sort by (created_at, total_amount)
+        enum:
+        - created_at
+        - total_amount
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc, desc)
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.RevenueOrdersWithPaymentResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get all refunded orders and preorders
+      tags:
+      - Analytics.Sales
+  /api/v1/analytics/sales/financials/revenue/limited-net/orders:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve paginated list of LIMITED type orders and PreOrders with
+        KOL net revenue calculation. Includes payment transaction information.
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 10, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: From Date (YYYY-MM-DD)
+        in: query
+        name: from_date
+        type: string
+      - description: To Date (YYYY-MM-DD)
+        in: query
+        name: to_date
+        type: string
+      - description: Search by order ID or customer name
+        in: query
+        name: search
+        type: string
+      - description: Sort by (created_at, total_amount, net_amount)
+        enum:
+        - created_at
+        - total_amount
+        - net_amount
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc, desc)
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.RevenueOrdersWithPaymentResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get orders contributing to Limited Net Revenue (KOL Revenue)
+      tags:
+      - Analytics.Sales
+  /api/v1/analytics/sales/financials/revenue/limited/orders:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve paginated list of LIMITED type orders and PreOrders that
+        contribute to limited revenue
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 10, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: From Date (YYYY-MM-DD)
+        in: query
+        name: from_date
+        type: string
+      - description: To Date (YYYY-MM-DD)
+        in: query
+        name: to_date
+        type: string
+      - description: Search by order ID or customer name
+        in: query
+        name: search
+        type: string
+      - description: Sort by (created_at, total_amount)
+        enum:
+        - created_at
+        - total_amount
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc, desc)
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.RevenueOrdersWithPaymentResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get orders contributing to Limited Revenue
+      tags:
+      - Analytics.Sales
+  /api/v1/analytics/sales/financials/revenue/standard/orders:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve paginated list of STANDARD type orders that contribute
+        to standard revenue
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 10, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: From Date (YYYY-MM-DD)
+        in: query
+        name: from_date
+        type: string
+      - description: To Date (YYYY-MM-DD)
+        in: query
+        name: to_date
+        type: string
+      - description: Search by order ID or customer name
+        in: query
+        name: search
+        type: string
+      - description: Sort by (created_at, total_amount)
+        enum:
+        - created_at
+        - total_amount
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc, desc)
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.RevenueOrdersWithPaymentResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get orders contributing to Standard Revenue
+      tags:
+      - Analytics.Sales
+  /api/v1/analytics/sales/financials/revenue/total/orders:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve paginated list of all orders (both STANDARD and LIMITED)
+        and preorders that contribute to total revenue
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 10, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: From Date (YYYY-MM-DD)
+        in: query
+        name: from_date
+        type: string
+      - description: To Date (YYYY-MM-DD)
+        in: query
+        name: to_date
+        type: string
+      - description: Search by order ID or customer name
+        in: query
+        name: search
+        type: string
+      - description: Sort by (created_at, total_amount)
+        enum:
+        - created_at
+        - total_amount
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc, desc)
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.RevenueOrdersWithPaymentResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get orders contributing to Total Revenue
+      tags:
+      - Analytics.Sales
   /api/v1/analytics/sales/financials/trend:
     get:
       consumes:
@@ -16570,6 +16962,10 @@ paths:
         - PENDING
         - PAID
         - OVERDUE
+        - KOL_PENDING
+        - KOL_PROOF_SUBMITTED
+        - KOL_PROOF_REJECTED
+        - KOL_REFUND_APPROVED
         example: '"PAID"'
         in: query
         name: status
@@ -16907,6 +17303,10 @@ paths:
         - PENDING
         - PAID
         - OVERDUE
+        - KOL_PENDING
+        - KOL_PROOF_SUBMITTED
+        - KOL_PROOF_REJECTED
+        - KOL_REFUND_APPROVED
         example: '"PAID"'
         in: query
         name: status
@@ -20296,7 +20696,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a limited order
+      description: Create a limited order. Delivery fee is calculated from GHN but
+        paid by KOL system (deducted from KOL revenue), not the customer.
       parameters:
       - description: Place and pay payload
         in: body
@@ -20332,7 +20733,7 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Place an order and initiate payment
+      summary: Place a limited order and initiate payment
       tags:
       - Orders
   /api/v1/orders/received/{orderID}:
@@ -21800,6 +22201,30 @@ paths:
       description: Retrieve paginated preorders for staff, filterable by status and
         search (id) and address fields.
       parameters:
+      - description: |-
+          Brand ID filter
+          in: query
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        example: 550e8400-e29b-41d4-a716-446655440000
+        in: query
+        name: brand_id
+        type: string
+      - description: |-
+          Filter by start date (YYYY-MM-DD)
+          in: query
+          example: "2025-01-01"
+        example: "2025-01-01"
+        in: query
+        name: created_from
+        type: string
+      - description: |-
+          Filter by end date (YYYY-MM-DD)
+          in: query
+          example: "2025-12-31"
+        example: "2025-12-31"
+        in: query
+        name: created_to
+        type: string
       - description: |-
           GHN district id
           in: query

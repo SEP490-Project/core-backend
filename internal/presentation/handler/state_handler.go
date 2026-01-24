@@ -459,10 +459,10 @@ func (h *StateHandler) UpdateMilestoneState(c *gin.Context) {
 //	@Tags			Webhook
 //	@Accept			json
 //	@Produce		json
-//	@Param			status	query		string	true	"Order status"
-//	@Param			code	query		string	false	"Order code"
-//	@Param			orderType	query   string	true "Order type"
-//	@Success		200		{object}	map[string]interface{}
+//	@Param			status		query		string	true	"Order status"
+//	@Param			code		query		string	false	"Order code"
+//	@Param			orderType	query		string	true	"Order type"
+//	@Success		200			{object}	map[string]interface{}
 //	@Router			/api/v1/ghn/webhook [get]
 func (h *StateHandler) GHNOrderUpdateWebHook(c *gin.Context) {
 	ctx := c.Request.Context()
