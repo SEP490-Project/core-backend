@@ -933,11 +933,18 @@ func (r *Router) SetupMarketingAnalyticsRoutes(group *gin.RouterGroup) {
 			protectedGroup.GET("/active-brands", marketingAnalyticsHandler.GetActiveBrandsCount)
 			protectedGroup.GET("/active-campaigns", marketingAnalyticsHandler.GetActiveCampaignsCount)
 			protectedGroup.GET("/draft-campaigns", marketingAnalyticsHandler.GetDraftCampaignsCount)
-			protectedGroup.GET("/monthly-revenue", marketingAnalyticsHandler.GetMonthlyContractRevenue)
+			protectedGroup.GET("/gross-revenue", marketingAnalyticsHandler.GetGrossContractRevenue)
+			protectedGroup.GET("/net-revenue", marketingAnalyticsHandler.GetNetContractRevenue)
 			protectedGroup.GET("/top-brands", marketingAnalyticsHandler.GetTopBrandsByRevenue)
 			protectedGroup.GET("/revenue-by-type", marketingAnalyticsHandler.GetRevenueByContractType)
 			protectedGroup.GET("/upcoming-deadlines", marketingAnalyticsHandler.GetUpcomingDeadlineCampaigns)
 			protectedGroup.GET("/dashboard", marketingAnalyticsHandler.GetDashboard)
+			// New dashboard refactor endpoints
+			protectedGroup.GET("/contract-status-distribution", marketingAnalyticsHandler.GetContractStatusDistribution)
+			protectedGroup.GET("/task-status-distribution", marketingAnalyticsHandler.GetTaskStatusDistribution)
+			protectedGroup.GET("/revenue-over-time", marketingAnalyticsHandler.GetRevenueOverTime)
+			protectedGroup.GET("/refund-violation-stats", marketingAnalyticsHandler.GetRefundViolationStats)
+			protectedGroup.GET("/contract-revenue-breakdown", marketingAnalyticsHandler.GetContractRevenueBreakdown)
 		}
 	}
 }
@@ -986,6 +993,14 @@ func (r *Router) SetupBrandPartnerAnalyticsRoutes(group *gin.RouterGroup) {
 			protectedGroup.GET("/affiliates", brandAnalyticsHandler.GetAffiliateMetrics)
 			protectedGroup.GET("/contracts", brandAnalyticsHandler.GetContractDetails)
 			protectedGroup.GET("/top-rating-products", brandAnalyticsHandler.GetTopRatingProducts)
+
+			// New analytics endpoints with unified filter
+			protectedGroup.GET("/contract-status-distribution", brandAnalyticsHandler.GetContractStatusDistribution)
+			protectedGroup.GET("/task-status-distribution", brandAnalyticsHandler.GetTaskStatusDistribution)
+			protectedGroup.GET("/revenue-over-time", brandAnalyticsHandler.GetRevenueOverTime)
+			protectedGroup.GET("/refund-violation-stats", brandAnalyticsHandler.GetRefundViolationStats)
+			protectedGroup.GET("/gross-income", brandAnalyticsHandler.GetGrossIncome)
+			protectedGroup.GET("/net-income", brandAnalyticsHandler.GetNetIncome)
 		}
 	}
 }

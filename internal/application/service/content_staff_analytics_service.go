@@ -102,7 +102,7 @@ func (s *contentStaffAnalyticsService) GetDashboard(ctx context.Context, filter 
 
 		// Charts
 		func(ctx context.Context) error {
-			charts, err := s.getCharts(ctx, currentRange, filter.GetTrendGranularity(), channelID)
+			charts, err := s.getCharts(ctx, currentRange, filter.GetTrendGranularity())
 			if err != nil {
 				return err
 			}
@@ -309,12 +309,16 @@ func (s *contentStaffAnalyticsService) getChannelMetrics(
 	// Build response
 	result := make([]responses.ChannelMetricsCard, 0, len(currentMetrics))
 	for _, m := range currentMetrics {
+		if m.ChannelCode == "FACEBOOK" {
+			zap.L().Debug("Facebook Channel Metrics", zap.Any("metrics", m))
+		}
+
 		card := responses.ChannelMetricsCard{
 			ChannelID:       m.ChannelID,
 			ChannelName:     m.ChannelName,
 			ChannelCode:     m.ChannelCode,
 			PostCount:       m.PostCount,
-			TotalReach:      m.TotalReach,
+			TotalViews:      m.TotalViews,
 			TotalEngagement: m.TotalEngagement,
 			CTR:             m.AverageCTR,
 			FollowersCount:  m.FollowersCount,
@@ -353,7 +357,7 @@ func (s *contentStaffAnalyticsService) getChannelMetrics(
 
 		// Calculate growth compared to previous period
 		if prev, ok := previousMap[m.ChannelID]; ok {
-			card.ReachGrowth = calculateGrowth(m.TotalReach, prev.TotalReach)
+			card.ViewsGrowth = calculateGrowth(m.TotalViews, prev.TotalViews)
 			card.EngagementGrowth = calculateGrowth(m.TotalEngagement, prev.TotalEngagement)
 
 			// Calculate followers trend
@@ -390,7 +394,6 @@ func (s *contentStaffAnalyticsService) getCharts(
 	ctx context.Context,
 	currentRange constant.DateRange,
 	granularity constant.TrendGranularity,
-	channelID *uuid.UUID,
 ) (*responses.ChartsSection, error) {
 	charts := &responses.ChartsSection{}
 
@@ -416,7 +419,7 @@ func (s *contentStaffAnalyticsService) getCharts(
 
 		// Trend Data (line chart)
 		func(ctx context.Context) error {
-			trendData, _ := s.dashboardRepo.GetTrendData(ctx, currentRange.Start, currentRange.End, granularity, channelID)
+			trendData, _ := s.dashboardRepo.GetTrendData(ctx, currentRange.Start, currentRange.End, granularity, nil)
 			points := make([]responses.DashboardTimeSeriesPoint, 0, len(trendData))
 			for _, t := range trendData {
 				points = append(points, responses.DashboardTimeSeriesPoint{
@@ -763,6 +766,16 @@ func (s *contentStaffAnalyticsService) GetChannelDetails(
 			}
 			return nil
 		},
+		// Channel Published Contents
+		func(ctx context.Context) error {
+			if channelPublishedContents, err := s.dashboardRepo.GetPostCountByDateRange(ctx, currentRange.Start, currentRange.End, &channelID); err == nil {
+				mu.Lock()
+				response.PublishedContentsCount = channelPublishedContents
+				mu.Unlock()
+			}
+
+			return nil
+		},
 		// Content Trend
 		func(ctx context.Context) error {
 			trend, err := s.getChannelContentTrend(ctx, channelID, currentRange.Start, currentRange.End)
@@ -860,7 +873,7 @@ func (s *contentStaffAnalyticsService) GetChannelDetails(
 }
 
 // getChannelMappedMetrics aggregates KPI metrics for a channel from content_channels
-// Uses the repository method with DISTINCT ON to get LATEST values
+// Uses delta logic: (last value in period) - (first value in period)
 func (s *contentStaffAnalyticsService) getChannelMappedMetrics(
 	ctx context.Context,
 	channelID uuid.UUID,
@@ -1014,10 +1027,24 @@ func (s *contentStaffAnalyticsService) getChannelAffiliateStats(
 	// Get views for content that has affiliate links in this channel
 	var ctr any = "N/A"
 	if hasLinks {
-		// Get total views for this channel in the date range
-		totalViews, _ := s.dashboardRepo.GetTotalViews(ctx, startDate, endDate, &channelID)
+		var totalViews, aggregatedClicks int64
+		if err := utils.RunParallel(ctx, 2,
+			// Get total views for this channel in the date range
+			func(ctx context.Context) error {
+				var tempErr error
+				totalViews, tempErr = s.dashboardRepo.GetTotalViews(ctx, startDate, endDate, &channelID)
+				return tempErr
+			},
+			// Get aggregated clicks for contents with affiliate links from kpi_metrics
+			func(ctx context.Context) error {
+				var tempErr error
+				aggregatedClicks, tempErr = s.dashboardRepo.GetAggregatedClicksFromKPIMetrics(ctx, &channelID, &startDate, &endDate)
+				return tempErr
+			}); err != nil {
+			return nil, err
+		}
 		if totalViews > 0 {
-			ctr = (float64(totalClicks) / float64(totalViews)) * 100
+			ctr = (float64(aggregatedClicks) / float64(totalViews)) * 100
 		}
 	}
 

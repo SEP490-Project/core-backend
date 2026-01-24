@@ -106,10 +106,10 @@ func (g TrendGranularity) IsValid() bool {
 // GetPostgreSQLInterval returns the PostgreSQL interval string for time_bucket
 func (g TrendGranularity) GetPostgreSQLInterval() string {
 	intervals := map[TrendGranularity]string{
-		TrendGranularityHour:  "1 hour",
-		TrendGranularityDay:   "1 day",
-		TrendGranularityWeek:  "1 week",
-		TrendGranularityMonth: "1 month",
+		TrendGranularityHour:  "hour",
+		TrendGranularityDay:   "day",
+		TrendGranularityWeek:  "week",
+		TrendGranularityMonth: "month",
 	}
 	return intervals[g]
 }

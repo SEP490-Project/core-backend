@@ -589,8 +589,8 @@ func (s *notificationService) BroadcastToRoleWithRequest(ctx context.Context, us
 	userIDs, err := s.userRepo.GetUserIDsByFilter(ctx, func(db *gorm.DB) *gorm.DB {
 		return db.
 			Where("is_active = ?", true).
-			Where("is_deleted = ?", false).
-			Where("role = ?", userRoles)
+			Where("deleted_at IS NULL").
+			Where("role IN ?", userRoles)
 	})
 	if err != nil {
 		zap.L().Error("Failed to fetch user IDs for broadcast", zap.Error(err))

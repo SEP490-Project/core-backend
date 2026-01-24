@@ -1326,6 +1326,7 @@ definitions:
     - REJECTED
     - APPROVED
     - POSTED
+    - SCHEDULED
     - CANCELLED
     type: string
     x-enum-varnames:
@@ -1335,6 +1336,7 @@ definitions:
     - ContentStatusRejected
     - ContentStatusApproved
     - ContentStatusPosted
+    - ContentStatusScheduled
     - ContentStatusCancelled
   enum.ContentType:
     enum:
@@ -1726,6 +1728,18 @@ definitions:
         type: string
     required:
     - reason
+    type: object
+  handler.NetRevenueResponse:
+    properties:
+      gross_revenue:
+        example: 100000000
+        type: number
+      net_revenue:
+        example: 85000000
+        type: number
+      total_refunds:
+        example: 15000000
+        type: number
     type: object
   handler.UpdateGHNDeliveryStatusRequest:
     properties:
@@ -3530,6 +3544,23 @@ definitions:
     - amount
     - reference_id
     - reference_type
+    type: object
+  requests.PeriodInfo:
+    properties:
+      comparison_label:
+        description: e.g., "vs Last Month"
+        type: string
+      end_date:
+        type: string
+      preset_label:
+        description: e.g., "This Month"
+        type: string
+      previous_end:
+        type: string
+      previous_start:
+        type: string
+      start_date:
+        type: string
     type: object
   requests.PlaceAndPayRequest:
     properties:
@@ -5529,6 +5560,32 @@ definitions:
       website:
         type: string
     type: object
+  responses.BrandIncomeResponse:
+    properties:
+      change_direction:
+        description: '"up", "down", "unchanged"'
+        type: string
+      gross_income:
+        type: number
+      order_revenue:
+        description: Revenue from completed orders (LIMITED products)
+        type: number
+      payment_refunds:
+        description: Refunds from KOL_REFUND_APPROVED payments
+        type: number
+      percentage_change:
+        type: number
+      period:
+        $ref: '#/definitions/requests.PeriodInfo'
+      preorder_revenue:
+        description: Revenue from completed pre-orders
+        type: number
+      previous_gross_income:
+        type: number
+      violation_refunds:
+        description: Refunds from resolved KOL violations
+        type: number
+    type: object
   responses.BrandInfoResponse:
     properties:
       id:
@@ -5539,6 +5596,39 @@ definitions:
         type: string
       status:
         type: string
+    type: object
+  responses.BrandNetIncomeResponse:
+    properties:
+      change_direction:
+        description: '"up", "down", "unchanged"'
+        type: string
+      gross_income:
+        type: number
+      net_income:
+        type: number
+      order_revenue:
+        description: Revenue from completed orders (LIMITED products)
+        type: number
+      payment_refunds:
+        description: Refunds from KOL_REFUND_APPROVED payments
+        type: number
+      percentage_change:
+        type: number
+      period:
+        $ref: '#/definitions/requests.PeriodInfo'
+      preorder_revenue:
+        description: Revenue from completed pre-orders
+        type: number
+      previous_gross_income:
+        type: number
+      previous_net_income:
+        type: number
+      total_contract_payments:
+        description: Total paid contract payments (deducted)
+        type: number
+      violation_refunds:
+        description: Refunds from resolved KOL violations
+        type: number
     type: object
   responses.BrandOverviewMetrics:
     properties:
@@ -5673,6 +5763,39 @@ definitions:
         type: string
       website:
         type: string
+    type: object
+  responses.BrandRevenueOverTimePoint:
+    properties:
+      brand_affiliate_earnings:
+        type: number
+      brand_limited_revenue:
+        type: number
+      date:
+        type: string
+      total_revenue:
+        type: number
+    type: object
+  responses.BrandRevenueOverTimeResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/responses.BrandRevenueOverTimePoint'
+        type: array
+      granularity:
+        type: string
+      period:
+        $ref: '#/definitions/requests.PeriodInfo'
+      summary:
+        $ref: '#/definitions/responses.BrandRevenueOverTimeSummary'
+    type: object
+  responses.BrandRevenueOverTimeSummary:
+    properties:
+      grand_total_revenue:
+        type: number
+      total_brand_affiliate_earnings:
+        type: number
+      total_brand_limited_revenue:
+        type: number
     type: object
   responses.BrandRevenueResponse:
     properties:
@@ -6106,6 +6229,9 @@ definitions:
         allOf:
         - $ref: '#/definitions/responses.DashboardPeriodInfo'
         description: Period information
+      published_contents_count:
+        description: Total published contents count
+        type: integer
       recent_content:
         description: Recent content for this channel
         items:
@@ -6201,14 +6327,14 @@ definitions:
         type: object
       post_count:
         type: integer
-      reach_growth:
-        type: number
       top_post:
         $ref: '#/definitions/responses.TopPostBrief'
       total_engagement:
         type: integer
-      total_reach:
+      total_views:
         type: integer
+      views_growth:
+        type: number
     type: object
   responses.ChannelMetricsResponse:
     properties:
@@ -6752,6 +6878,9 @@ definitions:
       note:
         example: First installment payment
         type: string
+      paid_at:
+        example: 2006-01-02T15:04:05Z07:00
+        type: string
       pay_now:
         example: false
         type: boolean
@@ -6916,6 +7045,76 @@ definitions:
         allOf:
         - $ref: '#/definitions/responses.ViolationResponse'
         description: Violation Info (populated if contract is in violation status)
+    type: object
+  responses.ContractRevenueBreakdownPoint:
+    properties:
+      affiliate_revenue:
+        description: 'Line 2: Tiered click revenue'
+        type: number
+      contract_base_cost:
+        description: 'Line 1: Base cost from contract payments'
+        type: number
+      date:
+        type: string
+      limited_product_brand_share:
+        description: 'Line 3: Brand''s share (company_percent)'
+        type: number
+      limited_product_system_share:
+        description: 'Line 4: System''s share (kol_percent)'
+        type: number
+      total_contract_revenue:
+        description: 'Bar: Total paid to system'
+        type: number
+    type: object
+  responses.ContractRevenueBreakdownResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/responses.ContractRevenueBreakdownPoint'
+        type: array
+      granularity:
+        type: string
+      period:
+        $ref: '#/definitions/requests.PeriodInfo'
+      summary:
+        $ref: '#/definitions/responses.ContractRevenueBreakdownSummary'
+    type: object
+  responses.ContractRevenueBreakdownSummary:
+    properties:
+      grand_total_revenue:
+        type: number
+      refunds_paid:
+        description: CO_PRODUCING refunds (subtracted)
+        type: number
+      total_affiliate_revenue:
+        type: number
+      total_contract_base_cost:
+        type: number
+      total_limited_product_brand_share:
+        description: Brand's total share
+        type: number
+      total_limited_product_system_share:
+        description: System's total share
+        type: number
+    type: object
+  responses.ContractStatusDistributionResponse:
+    properties:
+      active:
+        type: integer
+      brand_violations:
+        type: integer
+      completed:
+        type: integer
+      draft:
+        type: integer
+      kol_violations:
+        type: integer
+      period:
+        $ref: '#/definitions/requests.PeriodInfo'
+      terminated:
+        type: integer
+      total:
+        type: integer
     type: object
   responses.ContractSummary:
     properties:
@@ -7365,8 +7564,14 @@ definitions:
       draft_campaigns:
         example: 5
         type: integer
-      monthly_revenue:
-        description: Revenue for specified month (or current month)
+      gross_revenue:
+        description: |-
+          Revenue for specified period
+          GrossRevenue = sum of all PAID payments + sum of all KOL_REFUND_APPROVED payments (before refund deduction)
+        example: 100000000
+        type: number
+      net_revenue:
+        description: NetRevenue = PAID amounts + (KOL_REFUND_APPROVED amounts - refund_amount)
         example: 85000000
         type: number
       revenue_by_type:
@@ -7375,13 +7580,19 @@ definitions:
         example: 11
         type: integer
       revenue_year:
+        description: Period metadata
         example: 2024
         type: integer
       top_brands:
-        description: Top performers (for the same month as revenue)
+        description: Top performers (for the same period as revenue)
         items:
           $ref: '#/definitions/responses.BrandRevenueResponse'
         type: array
+      total_refunds:
+        description: TotalRefunds = sum of refund_amount from KOL_REFUND_APPROVED
+          payments
+        example: 15000000
+        type: number
       upcoming_deadlines:
         description: Upcoming deadlines (always relative to current date)
         items:
@@ -7572,6 +7783,8 @@ definitions:
     properties:
       brand:
         $ref: '#/definitions/responses.OrderItemBrandResponse'
+      brand_place_holder:
+        type: string
       capacity:
         type: number
       capacity_unit:
@@ -8069,6 +8282,8 @@ definitions:
         type: string
       brand:
         $ref: '#/definitions/responses.OrderItemBrandResponse'
+      brand_place_holder:
+        type: string
       capacity:
         description: Variant Info
         type: number
@@ -8104,6 +8319,8 @@ definitions:
         type: string
       ghn_district_id:
         type: integer
+      ghn_order_code:
+        type: string
       ghn_province_id:
         type: integer
       ghn_ward_code:
@@ -8142,6 +8359,8 @@ definitions:
       province_name:
         type: string
       quantity:
+        type: integer
+      shipping_fee:
         type: integer
       staff_resource:
         type: string
@@ -8868,6 +9087,47 @@ definitions:
       timestamp:
         type: string
     type: object
+  responses.RefundViolationStatsResponse:
+    properties:
+      brand_violations_paid:
+        type: integer
+      brand_violations_paid_amount:
+        type: number
+      brand_violations_pending:
+        description: Brand Violations (brand pays penalty)
+        type: integer
+      brand_violations_pending_amount:
+        type: number
+      co_producing_amount_paid:
+        type: number
+      co_producing_amount_pending:
+        type: number
+      co_producing_refunds_approved:
+        type: integer
+      co_producing_refunds_pending:
+        description: CO_PRODUCING Refunds (system owes brand when NetAmount < 0)
+        type: integer
+      compensation_paid:
+        type: number
+      compensation_pending:
+        type: number
+      kol_violations_pending:
+        description: KOL Violations (KOL pays refund to brand)
+        type: integer
+      kol_violations_pending_amount:
+        type: number
+      kol_violations_resolved:
+        type: integer
+      kol_violations_resolved_amount:
+        type: number
+      period:
+        $ref: '#/definitions/requests.PeriodInfo'
+      total_refund_amount:
+        type: number
+      total_violation_count:
+        description: Totals
+        type: integer
+    type: object
   responses.RevenueByCategory:
     properties:
       category_name:
@@ -8906,6 +9166,88 @@ definitions:
         type: number
       total_revenue:
         example: 140000000
+        type: number
+    type: object
+  responses.RevenueOrderItemWithPayment:
+    properties:
+      created_at:
+        type: string
+      customer_email:
+        type: string
+      customer_id:
+        type: string
+      customer_name:
+        type: string
+      id:
+        type: string
+      kol_percent:
+        description: Only for LIMITED/PreOrder
+        type: number
+      net_amount:
+        description: Calculated based on revenue type (KOL net or refund amount)
+        type: number
+      order_type:
+        description: STANDARD or LIMITED
+        type: string
+      payment_transaction:
+        $ref: '#/definitions/responses.PaymentTransactionResponse'
+      shipping_fee:
+        type: number
+      source:
+        description: ORDER or PRE_ORDER
+        type: string
+      status:
+        type: string
+      total_amount:
+        type: number
+    type: object
+  responses.RevenueOrdersWithPaymentResponse:
+    properties:
+      orders:
+        items:
+          $ref: '#/definitions/responses.RevenueOrderItemWithPayment'
+        type: array
+      revenue_type:
+        description: LIMITED_NET, REFUNDED
+        type: string
+      total_revenue:
+        type: number
+    type: object
+  responses.RevenueOverTimePoint:
+    properties:
+      affiliate_revenue:
+        type: number
+      contract_base_revenue:
+        type: number
+      date:
+        type: string
+      limited_product_revenue:
+        type: number
+      total_revenue:
+        type: number
+    type: object
+  responses.RevenueOverTimeResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/responses.RevenueOverTimePoint'
+        type: array
+      granularity:
+        type: string
+      period:
+        $ref: '#/definitions/requests.PeriodInfo'
+      summary:
+        $ref: '#/definitions/responses.RevenueOverTimeSummary'
+    type: object
+  responses.RevenueOverTimeSummary:
+    properties:
+      grand_total_revenue:
+        type: number
+      total_affiliate_revenue:
+        type: number
+      total_contract_base_revenue:
+        type: number
+      total_limited_product_revenue:
         type: number
     type: object
   responses.RevenueTrendPoint:
@@ -9426,6 +9768,21 @@ definitions:
       updated_by_name:
         example: John Doe
         type: string
+    type: object
+  responses.TaskStatusDistributionResponse:
+    properties:
+      cancelled:
+        type: integer
+      done:
+        type: integer
+      in_progress:
+        type: integer
+      period:
+        $ref: '#/definitions/requests.PeriodInfo'
+      todo:
+        type: integer
+      total:
+        type: integer
     type: object
   responses.TimeSeriesDataResponse:
     properties:
@@ -12465,6 +12822,69 @@ paths:
       summary: Get Brand's Content Metrics
       tags:
       - Analytics.BrandPartner
+  /api/v1/analytics/brand-partner/contract-status-distribution:
+    get:
+      consumes:
+      - application/json
+      description: Returns contract status distribution pie chart data for the brand
+        partner
+      parameters:
+      - description: Period preset (TODAY, THIS_WEEK, THIS_MONTH, THIS_QUARTER, THIS_YEAR,
+          LAST_7_DAYS, LAST_30_DAYS, LAST_90_DAYS, LAST_YEAR)
+        enum:
+        - TODAY
+        - YESTERDAY
+        - THIS_WEEK
+        - LAST_WEEK
+        - THIS_MONTH
+        - LAST_MONTH
+        - THIS_QUARTER
+        - LAST_QUARTER
+        - THIS_YEAR
+        - LAST_YEAR
+        - LAST_7_DAYS
+        - LAST_30_DAYS
+        - CUSTOM
+        in: query
+        name: period
+        type: string
+      - description: Custom start date (ISO 8601 format)
+        in: query
+        name: start_date
+        type: string
+      - description: Custom end date (ISO 8601 format)
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContractStatusDistributionResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Brand's Contract Status Distribution
+      tags:
+      - Analytics.BrandPartner
   /api/v1/analytics/brand-partner/contracts:
     get:
       consumes:
@@ -12556,6 +12976,262 @@ paths:
       summary: Get Brand Partner Dashboard
       tags:
       - Analytics.BrandPartner
+  /api/v1/analytics/brand-partner/gross-income:
+    get:
+      consumes:
+      - application/json
+      description: Returns gross income calculated from limited product revenue multiplied
+        by brand share percentage
+      parameters:
+      - description: Period preset (TODAY, THIS_WEEK, THIS_MONTH, THIS_QUARTER, THIS_YEAR,
+          LAST_7_DAYS, LAST_30_DAYS, LAST_90_DAYS, LAST_YEAR)
+        enum:
+        - TODAY
+        - YESTERDAY
+        - THIS_WEEK
+        - LAST_WEEK
+        - THIS_MONTH
+        - LAST_MONTH
+        - THIS_QUARTER
+        - LAST_QUARTER
+        - THIS_YEAR
+        - LAST_YEAR
+        - LAST_7_DAYS
+        - LAST_30_DAYS
+        - CUSTOM
+        in: query
+        name: period
+        type: string
+      - description: Custom start date (ISO 8601 format)
+        in: query
+        name: start_date
+        type: string
+      - description: Custom end date (ISO 8601 format)
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.BrandIncomeResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Brand's Gross Income
+      tags:
+      - Analytics.BrandPartner
+  /api/v1/analytics/brand-partner/net-income:
+    get:
+      consumes:
+      - application/json
+      description: Returns net income calculated as gross income minus paid contract
+        payments (base cost + affiliate fees)
+      parameters:
+      - description: Period preset (TODAY, THIS_WEEK, THIS_MONTH, THIS_QUARTER, THIS_YEAR,
+          LAST_7_DAYS, LAST_30_DAYS, LAST_90_DAYS, LAST_YEAR)
+        enum:
+        - TODAY
+        - YESTERDAY
+        - THIS_WEEK
+        - LAST_WEEK
+        - THIS_MONTH
+        - LAST_MONTH
+        - THIS_QUARTER
+        - LAST_QUARTER
+        - THIS_YEAR
+        - LAST_YEAR
+        - LAST_7_DAYS
+        - LAST_30_DAYS
+        - CUSTOM
+        in: query
+        name: period
+        type: string
+      - description: Custom start date (ISO 8601 format)
+        in: query
+        name: start_date
+        type: string
+      - description: Custom end date (ISO 8601 format)
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.BrandNetIncomeResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Brand's Net Income
+      tags:
+      - Analytics.BrandPartner
+  /api/v1/analytics/brand-partner/refund-violation-stats:
+    get:
+      consumes:
+      - application/json
+      description: Returns refund and contract violation statistics for the brand
+        partner
+      parameters:
+      - description: Period preset (TODAY, THIS_WEEK, THIS_MONTH, THIS_QUARTER, THIS_YEAR,
+          LAST_7_DAYS, LAST_30_DAYS, LAST_90_DAYS, LAST_YEAR)
+        enum:
+        - TODAY
+        - YESTERDAY
+        - THIS_WEEK
+        - LAST_WEEK
+        - THIS_MONTH
+        - LAST_MONTH
+        - THIS_QUARTER
+        - LAST_QUARTER
+        - THIS_YEAR
+        - LAST_YEAR
+        - LAST_7_DAYS
+        - LAST_30_DAYS
+        - CUSTOM
+        in: query
+        name: period
+        type: string
+      - description: Custom start date (ISO 8601 format)
+        in: query
+        name: start_date
+        type: string
+      - description: Custom end date (ISO 8601 format)
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.RefundViolationStatsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Brand's Refund & Violation Stats
+      tags:
+      - Analytics.BrandPartner
+  /api/v1/analytics/brand-partner/revenue-over-time:
+    get:
+      consumes:
+      - application/json
+      description: Returns revenue time-series data for the brand partner (Limited
+        Products only)
+      parameters:
+      - description: Period preset (TODAY, THIS_WEEK, THIS_MONTH, THIS_QUARTER, THIS_YEAR,
+          LAST_7_DAYS, LAST_30_DAYS, LAST_90_DAYS, LAST_YEAR)
+        enum:
+        - TODAY
+        - YESTERDAY
+        - THIS_WEEK
+        - LAST_WEEK
+        - THIS_MONTH
+        - LAST_MONTH
+        - THIS_QUARTER
+        - LAST_QUARTER
+        - THIS_YEAR
+        - LAST_YEAR
+        - LAST_7_DAYS
+        - LAST_30_DAYS
+        - CUSTOM
+        in: query
+        name: period
+        type: string
+      - description: Custom start date (ISO 8601 format)
+        in: query
+        name: start_date
+        type: string
+      - description: Custom end date (ISO 8601 format)
+        in: query
+        name: end_date
+        type: string
+      - description: Granularity (HOUR, DAY, WEEK, MONTH)
+        in: query
+        name: trend_granularity
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.BrandRevenueOverTimeResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Brand's Revenue Over Time
+      tags:
+      - Analytics.BrandPartner
   /api/v1/analytics/brand-partner/revenue-trend:
     get:
       consumes:
@@ -12603,6 +13279,68 @@ paths:
       security:
       - BearerAuth: []
       summary: Get Brand's Revenue Trend
+      tags:
+      - Analytics.BrandPartner
+  /api/v1/analytics/brand-partner/task-status-distribution:
+    get:
+      consumes:
+      - application/json
+      description: Returns task status distribution pie chart data for the brand partner
+      parameters:
+      - description: Period preset (TODAY, THIS_WEEK, THIS_MONTH, THIS_QUARTER, THIS_YEAR,
+          LAST_7_DAYS, LAST_30_DAYS, LAST_90_DAYS, LAST_YEAR)
+        enum:
+        - TODAY
+        - YESTERDAY
+        - THIS_WEEK
+        - LAST_WEEK
+        - THIS_MONTH
+        - LAST_MONTH
+        - THIS_QUARTER
+        - LAST_QUARTER
+        - THIS_YEAR
+        - LAST_YEAR
+        - LAST_7_DAYS
+        - LAST_30_DAYS
+        - CUSTOM
+        in: query
+        name: period
+        type: string
+      - description: Custom start date (ISO 8601 format)
+        in: query
+        name: start_date
+        type: string
+      - description: Custom end date (ISO 8601 format)
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.TaskStatusDistributionResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Brand's Task Status Distribution
       tags:
       - Analytics.BrandPartner
   /api/v1/analytics/brand-partner/top-products:
@@ -12879,6 +13617,134 @@ paths:
       summary: Get active campaigns count
       tags:
       - Analytics.Marketing
+  /api/v1/analytics/marketing/contract-revenue-breakdown:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Returns detailed breakdown of contract revenue for ComposedChart visualization
+        Components: Base Cost (Line), Affiliate Revenue (Line), Limited Product Brand/System Shares (Lines), Total (Bar)
+      parameters:
+      - description: Period preset
+        enum:
+        - TODAY
+        - YESTERDAY
+        - THIS_WEEK
+        - LAST_WEEK
+        - THIS_MONTH
+        - LAST_MONTH
+        - THIS_QUARTER
+        - LAST_QUARTER
+        - THIS_YEAR
+        - LAST_YEAR
+        - LAST_7_DAYS
+        - LAST_30_DAYS
+        - CUSTOM
+        in: query
+        name: period
+        type: string
+      - description: Start date (when period=CUSTOM)
+        format: date
+        in: query
+        name: from_date
+        type: string
+      - description: End date (when period=CUSTOM)
+        format: date
+        in: query
+        name: to_date
+        type: string
+      - description: Chart granularity
+        enum:
+        - HOUR
+        - DAY
+        - WEEK
+        - MONTH
+        in: query
+        name: trend_granularity
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContractRevenueBreakdownResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get contract revenue breakdown over time
+      tags:
+      - Analytics.Marketing
+  /api/v1/analytics/marketing/contract-status-distribution:
+    get:
+      description: Returns contracts grouped by status (Draft, Active, Completed,
+        Terminated, Brand Violations, KOL Violations)
+      parameters:
+      - description: Period preset
+        enum:
+        - TODAY
+        - YESTERDAY
+        - THIS_WEEK
+        - LAST_WEEK
+        - THIS_MONTH
+        - LAST_MONTH
+        - THIS_QUARTER
+        - LAST_QUARTER
+        - THIS_YEAR
+        - LAST_YEAR
+        - LAST_7_DAYS
+        - LAST_30_DAYS
+        - CUSTOM
+        in: query
+        name: period
+        type: string
+      - description: Start date (when period=CUSTOM)
+        format: date
+        in: query
+        name: from_date
+        type: string
+      - description: End date (when period=CUSTOM)
+        format: date
+        in: query
+        name: to_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContractStatusDistributionResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get contract status distribution
+      tags:
+      - Analytics.Marketing
   /api/v1/analytics/marketing/dashboard:
     get:
       consumes:
@@ -12886,17 +13752,39 @@ paths:
       description: Returns aggregated analytics data including counts, revenue, top
         brands, and upcoming deadlines
       parameters:
-      - description: Year (defaults to current)
+      - description: Period preset (defaults to THIS_MONTH)
+        enum:
+        - TODAY
+        - YESTERDAY
+        - THIS_WEEK
+        - LAST_WEEK
+        - THIS_MONTH
+        - LAST_MONTH
+        - THIS_QUARTER
+        - LAST_QUARTER
+        - THIS_YEAR
+        - LAST_YEAR
+        - LAST_7_DAYS
+        - LAST_30_DAYS
+        - CUSTOM
         in: query
-        maximum: 2100
-        minimum: 2000
-        name: year
-        type: integer
-      - description: Month (defaults to current)
+        name: period
+        type: string
+      - description: Start date (when period=CUSTOM)
+        format: date
         in: query
-        maximum: 12
+        name: from_date
+        type: string
+      - description: End date (when period=CUSTOM)
+        format: date
+        in: query
+        name: to_date
+        type: string
+      - description: 'Limit for top-N queries (default: 5)'
+        in: query
+        maximum: 50
         minimum: 1
-        name: month
+        name: limit
         type: integer
       produces:
       - application/json
@@ -12949,27 +13837,41 @@ paths:
       summary: Get draft campaigns count
       tags:
       - Analytics.Marketing
-  /api/v1/analytics/marketing/monthly-revenue:
+  /api/v1/analytics/marketing/gross-revenue:
     get:
       consumes:
       - application/json
-      description: Returns total revenue from paid contract payments for specified
-        month
+      description: Returns total gross revenue from paid contract payments (before
+        refund deductions)
       parameters:
-      - description: Year (e.g., 2024)
+      - description: Period preset
+        enum:
+        - TODAY
+        - YESTERDAY
+        - THIS_WEEK
+        - LAST_WEEK
+        - THIS_MONTH
+        - LAST_MONTH
+        - THIS_QUARTER
+        - LAST_QUARTER
+        - THIS_YEAR
+        - LAST_YEAR
+        - LAST_7_DAYS
+        - LAST_30_DAYS
+        - CUSTOM
         in: query
-        maximum: 2100
-        minimum: 2000
-        name: year
-        required: true
-        type: integer
-      - description: Month (1-12)
+        name: period
+        type: string
+      - description: Start date (when period=CUSTOM)
+        format: date
         in: query
-        maximum: 12
-        minimum: 1
-        name: month
-        required: true
-        type: integer
+        name: from_date
+        type: string
+      - description: End date (when period=CUSTOM)
+        format: date
+        in: query
+        name: to_date
+        type: string
       produces:
       - application/json
       responses:
@@ -12993,7 +13895,124 @@ paths:
             $ref: '#/definitions/responses.APIResponse'
       security:
       - BearerAuth: []
-      summary: Get monthly contract revenue
+      summary: Get gross contract revenue for period
+      tags:
+      - Analytics.Marketing
+  /api/v1/analytics/marketing/net-revenue:
+    get:
+      consumes:
+      - application/json
+      description: Returns net revenue (gross - refunds) from contract payments including
+        breakdown
+      parameters:
+      - description: Period preset
+        enum:
+        - TODAY
+        - YESTERDAY
+        - THIS_WEEK
+        - LAST_WEEK
+        - THIS_MONTH
+        - LAST_MONTH
+        - THIS_QUARTER
+        - LAST_QUARTER
+        - THIS_YEAR
+        - LAST_YEAR
+        - LAST_7_DAYS
+        - LAST_30_DAYS
+        - CUSTOM
+        in: query
+        name: period
+        type: string
+      - description: Start date (when period=CUSTOM)
+        format: date
+        in: query
+        name: from_date
+        type: string
+      - description: End date (when period=CUSTOM)
+        format: date
+        in: query
+        name: to_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.NetRevenueResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get net contract revenue for period
+      tags:
+      - Analytics.Marketing
+  /api/v1/analytics/marketing/refund-violation-stats:
+    get:
+      description: Returns system-wide refund and violation statistics
+      parameters:
+      - description: Period preset
+        enum:
+        - TODAY
+        - YESTERDAY
+        - THIS_WEEK
+        - LAST_WEEK
+        - THIS_MONTH
+        - LAST_MONTH
+        - THIS_QUARTER
+        - LAST_QUARTER
+        - THIS_YEAR
+        - LAST_YEAR
+        - LAST_7_DAYS
+        - LAST_30_DAYS
+        - CUSTOM
+        in: query
+        name: period
+        type: string
+      - description: Start date (when period=CUSTOM)
+        format: date
+        in: query
+        name: from_date
+        type: string
+      - description: End date (when period=CUSTOM)
+        format: date
+        in: query
+        name: to_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.RefundViolationStatsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get refund and violation statistics
       tags:
       - Analytics.Marketing
   /api/v1/analytics/marketing/revenue-by-type:
@@ -13003,34 +14022,34 @@ paths:
       description: Returns revenue breakdown by 4 contract types (ADVERTISING, AFFILIATE,
         BRAND_AMBASSADOR, CO_PRODUCING) + standard products
       parameters:
-      - description: Filter type
+      - description: Period preset
         enum:
-        - MONTH
-        - QUARTER
-        - YEAR
+        - TODAY
+        - YESTERDAY
+        - THIS_WEEK
+        - LAST_WEEK
+        - THIS_MONTH
+        - LAST_MONTH
+        - THIS_QUARTER
+        - LAST_QUARTER
+        - THIS_YEAR
+        - LAST_YEAR
+        - LAST_7_DAYS
+        - LAST_30_DAYS
+        - CUSTOM
         in: query
-        name: filter_type
-        required: true
+        name: period
         type: string
-      - description: Year (e.g., 2024)
+      - description: Start date (when period=CUSTOM)
+        format: date
         in: query
-        maximum: 2100
-        minimum: 2000
-        name: year
-        required: true
-        type: integer
-      - description: Month (required for MONTH filter)
+        name: from_date
+        type: string
+      - description: End date (when period=CUSTOM)
+        format: date
         in: query
-        maximum: 12
-        minimum: 1
-        name: month
-        type: integer
-      - description: Quarter (required for QUARTER filter)
-        in: query
-        maximum: 4
-        minimum: 1
-        name: quarter
-        type: integer
+        name: to_date
+        type: string
       produces:
       - application/json
       responses:
@@ -13056,40 +14075,169 @@ paths:
       summary: Get revenue breakdown by contract type
       tags:
       - Analytics.Marketing
+  /api/v1/analytics/marketing/revenue-over-time:
+    get:
+      description: Returns revenue breakdown by source over time for combo chart visualization
+      parameters:
+      - description: Period preset
+        enum:
+        - TODAY
+        - YESTERDAY
+        - THIS_WEEK
+        - LAST_WEEK
+        - THIS_MONTH
+        - LAST_MONTH
+        - THIS_QUARTER
+        - LAST_QUARTER
+        - THIS_YEAR
+        - LAST_YEAR
+        - LAST_7_DAYS
+        - LAST_30_DAYS
+        - CUSTOM
+        in: query
+        name: period
+        type: string
+      - description: Start date (when period=CUSTOM)
+        format: date
+        in: query
+        name: from_date
+        type: string
+      - description: End date (when period=CUSTOM)
+        format: date
+        in: query
+        name: to_date
+        type: string
+      - description: Chart granularity
+        enum:
+        - HOUR
+        - DAY
+        - WEEK
+        - MONTH
+        in: query
+        name: trend_granularity
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.RevenueOverTimeResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get revenue over time
+      tags:
+      - Analytics.Marketing
+  /api/v1/analytics/marketing/task-status-distribution:
+    get:
+      description: Returns tasks grouped by status (ToDo, InProgress, Done, Cancelled)
+      parameters:
+      - description: Period preset
+        enum:
+        - TODAY
+        - YESTERDAY
+        - THIS_WEEK
+        - LAST_WEEK
+        - THIS_MONTH
+        - LAST_MONTH
+        - THIS_QUARTER
+        - LAST_QUARTER
+        - THIS_YEAR
+        - LAST_YEAR
+        - LAST_7_DAYS
+        - LAST_30_DAYS
+        - CUSTOM
+        in: query
+        name: period
+        type: string
+      - description: Start date (when period=CUSTOM)
+        format: date
+        in: query
+        name: from_date
+        type: string
+      - description: End date (when period=CUSTOM)
+        format: date
+        in: query
+        name: to_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.TaskStatusDistributionResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get task status distribution
+      tags:
+      - Analytics.Marketing
   /api/v1/analytics/marketing/top-brands:
     get:
       consumes:
       - application/json
-      description: Returns top 4 brands by total revenue (contract payments + standard
+      description: Returns top brands by total revenue (contract payments + standard
         product sales)
       parameters:
-      - description: Filter type
+      - description: Period preset
         enum:
-        - MONTH
-        - QUARTER
-        - YEAR
+        - TODAY
+        - YESTERDAY
+        - THIS_WEEK
+        - LAST_WEEK
+        - THIS_MONTH
+        - LAST_MONTH
+        - THIS_QUARTER
+        - LAST_QUARTER
+        - THIS_YEAR
+        - LAST_YEAR
+        - LAST_7_DAYS
+        - LAST_30_DAYS
+        - CUSTOM
         in: query
-        name: filter_type
-        required: true
+        name: period
         type: string
-      - description: Year (e.g., 2024)
+      - description: Start date (when period=CUSTOM)
+        format: date
         in: query
-        maximum: 2100
-        minimum: 2000
-        name: year
-        required: true
-        type: integer
-      - description: Month (required for MONTH filter)
+        name: from_date
+        type: string
+      - description: End date (when period=CUSTOM)
+        format: date
         in: query
-        maximum: 12
+        name: to_date
+        type: string
+      - description: 'Number of top brands to return (default: 5)'
+        in: query
+        maximum: 50
         minimum: 1
-        name: month
-        type: integer
-      - description: Quarter (required for QUARTER filter)
-        in: query
-        maximum: 4
-        minimum: 1
-        name: quarter
+        name: limit
         type: integer
       produces:
       - application/json
@@ -13276,6 +14424,337 @@ paths:
       security:
       - BearerAuth: []
       summary: Get Revenue Growth
+      tags:
+      - Analytics.Sales
+  /api/v1/analytics/sales/financials/refunded/orders:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve paginated list of all refunded orders and preorders. Includes
+        payment transaction information.
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 10, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: From Date (YYYY-MM-DD)
+        in: query
+        name: from_date
+        type: string
+      - description: To Date (YYYY-MM-DD)
+        in: query
+        name: to_date
+        type: string
+      - description: Search by order ID or customer name
+        in: query
+        name: search
+        type: string
+      - description: Sort by (created_at, total_amount)
+        enum:
+        - created_at
+        - total_amount
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc, desc)
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.RevenueOrdersWithPaymentResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get all refunded orders and preorders
+      tags:
+      - Analytics.Sales
+  /api/v1/analytics/sales/financials/revenue/limited-net/orders:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve paginated list of LIMITED type orders and PreOrders with
+        KOL net revenue calculation. Includes payment transaction information.
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 10, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: From Date (YYYY-MM-DD)
+        in: query
+        name: from_date
+        type: string
+      - description: To Date (YYYY-MM-DD)
+        in: query
+        name: to_date
+        type: string
+      - description: Search by order ID or customer name
+        in: query
+        name: search
+        type: string
+      - description: Sort by (created_at, total_amount, net_amount)
+        enum:
+        - created_at
+        - total_amount
+        - net_amount
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc, desc)
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.RevenueOrdersWithPaymentResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get orders contributing to Limited Net Revenue (KOL Revenue)
+      tags:
+      - Analytics.Sales
+  /api/v1/analytics/sales/financials/revenue/limited/orders:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve paginated list of LIMITED type orders and PreOrders that
+        contribute to limited revenue
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 10, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: From Date (YYYY-MM-DD)
+        in: query
+        name: from_date
+        type: string
+      - description: To Date (YYYY-MM-DD)
+        in: query
+        name: to_date
+        type: string
+      - description: Search by order ID or customer name
+        in: query
+        name: search
+        type: string
+      - description: Sort by (created_at, total_amount)
+        enum:
+        - created_at
+        - total_amount
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc, desc)
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.RevenueOrdersWithPaymentResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get orders contributing to Limited Revenue
+      tags:
+      - Analytics.Sales
+  /api/v1/analytics/sales/financials/revenue/standard/orders:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve paginated list of STANDARD type orders that contribute
+        to standard revenue
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 10, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: From Date (YYYY-MM-DD)
+        in: query
+        name: from_date
+        type: string
+      - description: To Date (YYYY-MM-DD)
+        in: query
+        name: to_date
+        type: string
+      - description: Search by order ID or customer name
+        in: query
+        name: search
+        type: string
+      - description: Sort by (created_at, total_amount)
+        enum:
+        - created_at
+        - total_amount
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc, desc)
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.RevenueOrdersWithPaymentResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get orders contributing to Standard Revenue
+      tags:
+      - Analytics.Sales
+  /api/v1/analytics/sales/financials/revenue/total/orders:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve paginated list of all orders (both STANDARD and LIMITED)
+        and preorders that contribute to total revenue
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 10, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: From Date (YYYY-MM-DD)
+        in: query
+        name: from_date
+        type: string
+      - description: To Date (YYYY-MM-DD)
+        in: query
+        name: to_date
+        type: string
+      - description: Search by order ID or customer name
+        in: query
+        name: search
+        type: string
+      - description: Sort by (created_at, total_amount)
+        enum:
+        - created_at
+        - total_amount
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc, desc)
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.RevenueOrdersWithPaymentResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get orders contributing to Total Revenue
       tags:
       - Analytics.Sales
   /api/v1/analytics/sales/financials/trend:
@@ -16570,6 +18049,10 @@ paths:
         - PENDING
         - PAID
         - OVERDUE
+        - KOL_PENDING
+        - KOL_PROOF_SUBMITTED
+        - KOL_PROOF_REJECTED
+        - KOL_REFUND_APPROVED
         example: '"PAID"'
         in: query
         name: status
@@ -16907,6 +18390,10 @@ paths:
         - PENDING
         - PAID
         - OVERDUE
+        - KOL_PENDING
+        - KOL_PROOF_SUBMITTED
+        - KOL_PROOF_REJECTED
+        - KOL_REFUND_APPROVED
         example: '"PAID"'
         in: query
         name: status
@@ -20296,7 +21783,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a limited order
+      description: Create a limited order. Delivery fee is calculated from GHN but
+        paid by KOL system (deducted from KOL revenue), not the customer.
       parameters:
       - description: Place and pay payload
         in: body
@@ -20332,7 +21820,7 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Place an order and initiate payment
+      summary: Place a limited order and initiate payment
       tags:
       - Orders
   /api/v1/orders/received/{orderID}:
@@ -21800,6 +23288,30 @@ paths:
       description: Retrieve paginated preorders for staff, filterable by status and
         search (id) and address fields.
       parameters:
+      - description: |-
+          Brand ID filter
+          in: query
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        example: 550e8400-e29b-41d4-a716-446655440000
+        in: query
+        name: brand_id
+        type: string
+      - description: |-
+          Filter by start date (YYYY-MM-DD)
+          in: query
+          example: "2025-01-01"
+        example: "2025-01-01"
+        in: query
+        name: created_from
+        type: string
+      - description: |-
+          Filter by end date (YYYY-MM-DD)
+          in: query
+          example: "2025-12-31"
+        example: "2025-12-31"
+        in: query
+        name: created_to
+        type: string
       - description: |-
           GHN district id
           in: query

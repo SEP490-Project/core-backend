@@ -3936,6 +3936,99 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/analytics/brand-partner/contract-status-distribution": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns contract status distribution pie chart data for the brand partner",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics.BrandPartner"
+                ],
+                "summary": "Get Brand's Contract Status Distribution",
+                "parameters": [
+                    {
+                        "enum": [
+                            "TODAY",
+                            "YESTERDAY",
+                            "THIS_WEEK",
+                            "LAST_WEEK",
+                            "THIS_MONTH",
+                            "LAST_MONTH",
+                            "THIS_QUARTER",
+                            "LAST_QUARTER",
+                            "THIS_YEAR",
+                            "LAST_YEAR",
+                            "LAST_7_DAYS",
+                            "LAST_30_DAYS",
+                            "CUSTOM"
+                        ],
+                        "type": "string",
+                        "description": "Period preset (TODAY, THIS_WEEK, THIS_MONTH, THIS_QUARTER, THIS_YEAR, LAST_7_DAYS, LAST_30_DAYS, LAST_90_DAYS, LAST_YEAR)",
+                        "name": "period",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Custom start date (ISO 8601 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Custom end date (ISO 8601 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ContractStatusDistributionResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/analytics/brand-partner/contracts": {
             "get": {
                 "security": [
@@ -4083,6 +4176,384 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/analytics/brand-partner/gross-income": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns gross income calculated from limited product revenue multiplied by brand share percentage",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics.BrandPartner"
+                ],
+                "summary": "Get Brand's Gross Income",
+                "parameters": [
+                    {
+                        "enum": [
+                            "TODAY",
+                            "YESTERDAY",
+                            "THIS_WEEK",
+                            "LAST_WEEK",
+                            "THIS_MONTH",
+                            "LAST_MONTH",
+                            "THIS_QUARTER",
+                            "LAST_QUARTER",
+                            "THIS_YEAR",
+                            "LAST_YEAR",
+                            "LAST_7_DAYS",
+                            "LAST_30_DAYS",
+                            "CUSTOM"
+                        ],
+                        "type": "string",
+                        "description": "Period preset (TODAY, THIS_WEEK, THIS_MONTH, THIS_QUARTER, THIS_YEAR, LAST_7_DAYS, LAST_30_DAYS, LAST_90_DAYS, LAST_YEAR)",
+                        "name": "period",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Custom start date (ISO 8601 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Custom end date (ISO 8601 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.BrandIncomeResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/brand-partner/net-income": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns net income calculated as gross income minus paid contract payments (base cost + affiliate fees)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics.BrandPartner"
+                ],
+                "summary": "Get Brand's Net Income",
+                "parameters": [
+                    {
+                        "enum": [
+                            "TODAY",
+                            "YESTERDAY",
+                            "THIS_WEEK",
+                            "LAST_WEEK",
+                            "THIS_MONTH",
+                            "LAST_MONTH",
+                            "THIS_QUARTER",
+                            "LAST_QUARTER",
+                            "THIS_YEAR",
+                            "LAST_YEAR",
+                            "LAST_7_DAYS",
+                            "LAST_30_DAYS",
+                            "CUSTOM"
+                        ],
+                        "type": "string",
+                        "description": "Period preset (TODAY, THIS_WEEK, THIS_MONTH, THIS_QUARTER, THIS_YEAR, LAST_7_DAYS, LAST_30_DAYS, LAST_90_DAYS, LAST_YEAR)",
+                        "name": "period",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Custom start date (ISO 8601 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Custom end date (ISO 8601 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.BrandNetIncomeResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/brand-partner/refund-violation-stats": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns refund and contract violation statistics for the brand partner",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics.BrandPartner"
+                ],
+                "summary": "Get Brand's Refund \u0026 Violation Stats",
+                "parameters": [
+                    {
+                        "enum": [
+                            "TODAY",
+                            "YESTERDAY",
+                            "THIS_WEEK",
+                            "LAST_WEEK",
+                            "THIS_MONTH",
+                            "LAST_MONTH",
+                            "THIS_QUARTER",
+                            "LAST_QUARTER",
+                            "THIS_YEAR",
+                            "LAST_YEAR",
+                            "LAST_7_DAYS",
+                            "LAST_30_DAYS",
+                            "CUSTOM"
+                        ],
+                        "type": "string",
+                        "description": "Period preset (TODAY, THIS_WEEK, THIS_MONTH, THIS_QUARTER, THIS_YEAR, LAST_7_DAYS, LAST_30_DAYS, LAST_90_DAYS, LAST_YEAR)",
+                        "name": "period",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Custom start date (ISO 8601 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Custom end date (ISO 8601 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.RefundViolationStatsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/brand-partner/revenue-over-time": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns revenue time-series data for the brand partner (Limited Products only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics.BrandPartner"
+                ],
+                "summary": "Get Brand's Revenue Over Time",
+                "parameters": [
+                    {
+                        "enum": [
+                            "TODAY",
+                            "YESTERDAY",
+                            "THIS_WEEK",
+                            "LAST_WEEK",
+                            "THIS_MONTH",
+                            "LAST_MONTH",
+                            "THIS_QUARTER",
+                            "LAST_QUARTER",
+                            "THIS_YEAR",
+                            "LAST_YEAR",
+                            "LAST_7_DAYS",
+                            "LAST_30_DAYS",
+                            "CUSTOM"
+                        ],
+                        "type": "string",
+                        "description": "Period preset (TODAY, THIS_WEEK, THIS_MONTH, THIS_QUARTER, THIS_YEAR, LAST_7_DAYS, LAST_30_DAYS, LAST_90_DAYS, LAST_YEAR)",
+                        "name": "period",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Custom start date (ISO 8601 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Custom end date (ISO 8601 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Granularity (HOUR, DAY, WEEK, MONTH)",
+                        "name": "trend_granularity",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.BrandRevenueOverTimeResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/analytics/brand-partner/revenue-trend": {
             "get": {
                 "security": [
@@ -4137,6 +4608,99 @@ const docTemplate = `{
                                             "items": {
                                                 "$ref": "#/definitions/responses.BrandRevenueTrendPoint"
                                             }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/brand-partner/task-status-distribution": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns task status distribution pie chart data for the brand partner",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics.BrandPartner"
+                ],
+                "summary": "Get Brand's Task Status Distribution",
+                "parameters": [
+                    {
+                        "enum": [
+                            "TODAY",
+                            "YESTERDAY",
+                            "THIS_WEEK",
+                            "LAST_WEEK",
+                            "THIS_MONTH",
+                            "LAST_MONTH",
+                            "THIS_QUARTER",
+                            "LAST_QUARTER",
+                            "THIS_YEAR",
+                            "LAST_YEAR",
+                            "LAST_7_DAYS",
+                            "LAST_30_DAYS",
+                            "CUSTOM"
+                        ],
+                        "type": "string",
+                        "description": "Period preset (TODAY, THIS_WEEK, THIS_MONTH, THIS_QUARTER, THIS_YEAR, LAST_7_DAYS, LAST_30_DAYS, LAST_90_DAYS, LAST_YEAR)",
+                        "name": "period",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Custom start date (ISO 8601 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Custom end date (ISO 8601 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.TaskStatusDistributionResponse"
                                         }
                                     }
                                 }
@@ -4612,6 +5176,193 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/analytics/marketing/contract-revenue-breakdown": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns detailed breakdown of contract revenue for ComposedChart visualization\nComponents: Base Cost (Line), Affiliate Revenue (Line), Limited Product Brand/System Shares (Lines), Total (Bar)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics.Marketing"
+                ],
+                "summary": "Get contract revenue breakdown over time",
+                "parameters": [
+                    {
+                        "enum": [
+                            "TODAY",
+                            "YESTERDAY",
+                            "THIS_WEEK",
+                            "LAST_WEEK",
+                            "THIS_MONTH",
+                            "LAST_MONTH",
+                            "THIS_QUARTER",
+                            "LAST_QUARTER",
+                            "THIS_YEAR",
+                            "LAST_YEAR",
+                            "LAST_7_DAYS",
+                            "LAST_30_DAYS",
+                            "CUSTOM"
+                        ],
+                        "type": "string",
+                        "description": "Period preset",
+                        "name": "period",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Start date (when period=CUSTOM)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "End date (when period=CUSTOM)",
+                        "name": "to_date",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "HOUR",
+                            "DAY",
+                            "WEEK",
+                            "MONTH"
+                        ],
+                        "type": "string",
+                        "description": "Chart granularity",
+                        "name": "trend_granularity",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ContractRevenueBreakdownResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/marketing/contract-status-distribution": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns contracts grouped by status (Draft, Active, Completed, Terminated, Brand Violations, KOL Violations)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics.Marketing"
+                ],
+                "summary": "Get contract status distribution",
+                "parameters": [
+                    {
+                        "enum": [
+                            "TODAY",
+                            "YESTERDAY",
+                            "THIS_WEEK",
+                            "LAST_WEEK",
+                            "THIS_MONTH",
+                            "LAST_MONTH",
+                            "THIS_QUARTER",
+                            "LAST_QUARTER",
+                            "THIS_YEAR",
+                            "LAST_YEAR",
+                            "LAST_7_DAYS",
+                            "LAST_30_DAYS",
+                            "CUSTOM"
+                        ],
+                        "type": "string",
+                        "description": "Period preset",
+                        "name": "period",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Start date (when period=CUSTOM)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "End date (when period=CUSTOM)",
+                        "name": "to_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ContractStatusDistributionResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/analytics/marketing/dashboard": {
             "get": {
                 "security": [
@@ -4632,19 +5383,46 @@ const docTemplate = `{
                 "summary": "Get marketing analytics dashboard",
                 "parameters": [
                     {
-                        "maximum": 2100,
-                        "minimum": 2000,
-                        "type": "integer",
-                        "description": "Year (defaults to current)",
-                        "name": "year",
+                        "enum": [
+                            "TODAY",
+                            "YESTERDAY",
+                            "THIS_WEEK",
+                            "LAST_WEEK",
+                            "THIS_MONTH",
+                            "LAST_MONTH",
+                            "THIS_QUARTER",
+                            "LAST_QUARTER",
+                            "THIS_YEAR",
+                            "LAST_YEAR",
+                            "LAST_7_DAYS",
+                            "LAST_30_DAYS",
+                            "CUSTOM"
+                        ],
+                        "type": "string",
+                        "description": "Period preset (defaults to THIS_MONTH)",
+                        "name": "period",
                         "in": "query"
                     },
                     {
-                        "maximum": 12,
+                        "type": "string",
+                        "format": "date",
+                        "description": "Start date (when period=CUSTOM)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "End date (when period=CUSTOM)",
+                        "name": "to_date",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 50,
                         "minimum": 1,
                         "type": "integer",
-                        "description": "Month (defaults to current)",
-                        "name": "month",
+                        "description": "Limit for top-N queries (default: 5)",
+                        "name": "limit",
                         "in": "query"
                     }
                 ],
@@ -4726,14 +5504,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/analytics/marketing/monthly-revenue": {
+        "/api/v1/analytics/marketing/gross-revenue": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns total revenue from paid contract payments for specified month",
+                "description": "Returns total gross revenue from paid contract payments (before refund deductions)",
                 "consumes": [
                     "application/json"
                 ],
@@ -4743,25 +5521,42 @@ const docTemplate = `{
                 "tags": [
                     "Analytics.Marketing"
                 ],
-                "summary": "Get monthly contract revenue",
+                "summary": "Get gross contract revenue for period",
                 "parameters": [
                     {
-                        "maximum": 2100,
-                        "minimum": 2000,
-                        "type": "integer",
-                        "description": "Year (e.g., 2024)",
-                        "name": "year",
-                        "in": "query",
-                        "required": true
+                        "enum": [
+                            "TODAY",
+                            "YESTERDAY",
+                            "THIS_WEEK",
+                            "LAST_WEEK",
+                            "THIS_MONTH",
+                            "LAST_MONTH",
+                            "THIS_QUARTER",
+                            "LAST_QUARTER",
+                            "THIS_YEAR",
+                            "LAST_YEAR",
+                            "LAST_7_DAYS",
+                            "LAST_30_DAYS",
+                            "CUSTOM"
+                        ],
+                        "type": "string",
+                        "description": "Period preset",
+                        "name": "period",
+                        "in": "query"
                     },
                     {
-                        "maximum": 12,
-                        "minimum": 1,
-                        "type": "integer",
-                        "description": "Month (1-12)",
-                        "name": "month",
-                        "in": "query",
-                        "required": true
+                        "type": "string",
+                        "format": "date",
+                        "description": "Start date (when period=CUSTOM)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "End date (when period=CUSTOM)",
+                        "name": "to_date",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -4778,6 +5573,181 @@ const docTemplate = `{
                                         "data": {
                                             "type": "number",
                                             "format": "float64"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/marketing/net-revenue": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns net revenue (gross - refunds) from contract payments including breakdown",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics.Marketing"
+                ],
+                "summary": "Get net contract revenue for period",
+                "parameters": [
+                    {
+                        "enum": [
+                            "TODAY",
+                            "YESTERDAY",
+                            "THIS_WEEK",
+                            "LAST_WEEK",
+                            "THIS_MONTH",
+                            "LAST_MONTH",
+                            "THIS_QUARTER",
+                            "LAST_QUARTER",
+                            "THIS_YEAR",
+                            "LAST_YEAR",
+                            "LAST_7_DAYS",
+                            "LAST_30_DAYS",
+                            "CUSTOM"
+                        ],
+                        "type": "string",
+                        "description": "Period preset",
+                        "name": "period",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Start date (when period=CUSTOM)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "End date (when period=CUSTOM)",
+                        "name": "to_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/handler.NetRevenueResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/marketing/refund-violation-stats": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns system-wide refund and violation statistics",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics.Marketing"
+                ],
+                "summary": "Get refund and violation statistics",
+                "parameters": [
+                    {
+                        "enum": [
+                            "TODAY",
+                            "YESTERDAY",
+                            "THIS_WEEK",
+                            "LAST_WEEK",
+                            "THIS_MONTH",
+                            "LAST_MONTH",
+                            "THIS_QUARTER",
+                            "LAST_QUARTER",
+                            "THIS_YEAR",
+                            "LAST_YEAR",
+                            "LAST_7_DAYS",
+                            "LAST_30_DAYS",
+                            "CUSTOM"
+                        ],
+                        "type": "string",
+                        "description": "Period preset",
+                        "name": "period",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Start date (when period=CUSTOM)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "End date (when period=CUSTOM)",
+                        "name": "to_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.RefundViolationStatsResponse"
                                         }
                                     }
                                 }
@@ -4820,39 +5790,37 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "enum": [
-                            "MONTH",
-                            "QUARTER",
-                            "YEAR"
+                            "TODAY",
+                            "YESTERDAY",
+                            "THIS_WEEK",
+                            "LAST_WEEK",
+                            "THIS_MONTH",
+                            "LAST_MONTH",
+                            "THIS_QUARTER",
+                            "LAST_QUARTER",
+                            "THIS_YEAR",
+                            "LAST_YEAR",
+                            "LAST_7_DAYS",
+                            "LAST_30_DAYS",
+                            "CUSTOM"
                         ],
                         "type": "string",
-                        "description": "Filter type",
-                        "name": "filter_type",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "maximum": 2100,
-                        "minimum": 2000,
-                        "type": "integer",
-                        "description": "Year (e.g., 2024)",
-                        "name": "year",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "maximum": 12,
-                        "minimum": 1,
-                        "type": "integer",
-                        "description": "Month (required for MONTH filter)",
-                        "name": "month",
+                        "description": "Period preset",
+                        "name": "period",
                         "in": "query"
                     },
                     {
-                        "maximum": 4,
-                        "minimum": 1,
-                        "type": "integer",
-                        "description": "Quarter (required for QUARTER filter)",
-                        "name": "quarter",
+                        "type": "string",
+                        "format": "date",
+                        "description": "Start date (when period=CUSTOM)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "End date (when period=CUSTOM)",
+                        "name": "to_date",
                         "in": "query"
                     }
                 ],
@@ -4890,6 +5858,190 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/analytics/marketing/revenue-over-time": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns revenue breakdown by source over time for combo chart visualization",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics.Marketing"
+                ],
+                "summary": "Get revenue over time",
+                "parameters": [
+                    {
+                        "enum": [
+                            "TODAY",
+                            "YESTERDAY",
+                            "THIS_WEEK",
+                            "LAST_WEEK",
+                            "THIS_MONTH",
+                            "LAST_MONTH",
+                            "THIS_QUARTER",
+                            "LAST_QUARTER",
+                            "THIS_YEAR",
+                            "LAST_YEAR",
+                            "LAST_7_DAYS",
+                            "LAST_30_DAYS",
+                            "CUSTOM"
+                        ],
+                        "type": "string",
+                        "description": "Period preset",
+                        "name": "period",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Start date (when period=CUSTOM)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "End date (when period=CUSTOM)",
+                        "name": "to_date",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "HOUR",
+                            "DAY",
+                            "WEEK",
+                            "MONTH"
+                        ],
+                        "type": "string",
+                        "description": "Chart granularity",
+                        "name": "trend_granularity",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.RevenueOverTimeResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/marketing/task-status-distribution": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns tasks grouped by status (ToDo, InProgress, Done, Cancelled)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics.Marketing"
+                ],
+                "summary": "Get task status distribution",
+                "parameters": [
+                    {
+                        "enum": [
+                            "TODAY",
+                            "YESTERDAY",
+                            "THIS_WEEK",
+                            "LAST_WEEK",
+                            "THIS_MONTH",
+                            "LAST_MONTH",
+                            "THIS_QUARTER",
+                            "LAST_QUARTER",
+                            "THIS_YEAR",
+                            "LAST_YEAR",
+                            "LAST_7_DAYS",
+                            "LAST_30_DAYS",
+                            "CUSTOM"
+                        ],
+                        "type": "string",
+                        "description": "Period preset",
+                        "name": "period",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Start date (when period=CUSTOM)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "End date (when period=CUSTOM)",
+                        "name": "to_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.TaskStatusDistributionResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/analytics/marketing/top-brands": {
             "get": {
                 "security": [
@@ -4897,7 +6049,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns top 4 brands by total revenue (contract payments + standard product sales)",
+                "description": "Returns top brands by total revenue (contract payments + standard product sales)",
                 "consumes": [
                     "application/json"
                 ],
@@ -4911,39 +6063,45 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "enum": [
-                            "MONTH",
-                            "QUARTER",
-                            "YEAR"
+                            "TODAY",
+                            "YESTERDAY",
+                            "THIS_WEEK",
+                            "LAST_WEEK",
+                            "THIS_MONTH",
+                            "LAST_MONTH",
+                            "THIS_QUARTER",
+                            "LAST_QUARTER",
+                            "THIS_YEAR",
+                            "LAST_YEAR",
+                            "LAST_7_DAYS",
+                            "LAST_30_DAYS",
+                            "CUSTOM"
                         ],
                         "type": "string",
-                        "description": "Filter type",
-                        "name": "filter_type",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "maximum": 2100,
-                        "minimum": 2000,
-                        "type": "integer",
-                        "description": "Year (e.g., 2024)",
-                        "name": "year",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "maximum": 12,
-                        "minimum": 1,
-                        "type": "integer",
-                        "description": "Month (required for MONTH filter)",
-                        "name": "month",
+                        "description": "Period preset",
+                        "name": "period",
                         "in": "query"
                     },
                     {
-                        "maximum": 4,
+                        "type": "string",
+                        "format": "date",
+                        "description": "Start date (when period=CUSTOM)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "End date (when period=CUSTOM)",
+                        "name": "to_date",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 50,
                         "minimum": 1,
                         "type": "integer",
-                        "description": "Quarter (required for QUARTER filter)",
-                        "name": "quarter",
+                        "description": "Number of top brands to return (default: 5)",
+                        "name": "limit",
                         "in": "query"
                     }
                 ],
@@ -5215,6 +6373,527 @@ const docTemplate = `{
                                         "data": {
                                             "type": "number",
                                             "format": "float64"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/sales/financials/refunded/orders": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve paginated list of all refunded orders and preorders. Includes payment transaction information.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics.Sales"
+                ],
+                "summary": "Get all refunded orders and preorders",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 10, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "From Date (YYYY-MM-DD)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "To Date (YYYY-MM-DD)",
+                        "name": "to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by order ID or customer name",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "created_at",
+                            "total_amount"
+                        ],
+                        "type": "string",
+                        "description": "Sort by (created_at, total_amount)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "description": "Sort order (asc, desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.RevenueOrdersWithPaymentResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/sales/financials/revenue/limited-net/orders": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve paginated list of LIMITED type orders and PreOrders with KOL net revenue calculation. Includes payment transaction information.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics.Sales"
+                ],
+                "summary": "Get orders contributing to Limited Net Revenue (KOL Revenue)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 10, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "From Date (YYYY-MM-DD)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "To Date (YYYY-MM-DD)",
+                        "name": "to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by order ID or customer name",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "created_at",
+                            "total_amount",
+                            "net_amount"
+                        ],
+                        "type": "string",
+                        "description": "Sort by (created_at, total_amount, net_amount)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "description": "Sort order (asc, desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.RevenueOrdersWithPaymentResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/sales/financials/revenue/limited/orders": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve paginated list of LIMITED type orders and PreOrders that contribute to limited revenue",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics.Sales"
+                ],
+                "summary": "Get orders contributing to Limited Revenue",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 10, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "From Date (YYYY-MM-DD)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "To Date (YYYY-MM-DD)",
+                        "name": "to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by order ID or customer name",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "created_at",
+                            "total_amount"
+                        ],
+                        "type": "string",
+                        "description": "Sort by (created_at, total_amount)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "description": "Sort order (asc, desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.RevenueOrdersWithPaymentResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/sales/financials/revenue/standard/orders": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve paginated list of STANDARD type orders that contribute to standard revenue",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics.Sales"
+                ],
+                "summary": "Get orders contributing to Standard Revenue",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 10, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "From Date (YYYY-MM-DD)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "To Date (YYYY-MM-DD)",
+                        "name": "to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by order ID or customer name",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "created_at",
+                            "total_amount"
+                        ],
+                        "type": "string",
+                        "description": "Sort by (created_at, total_amount)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "description": "Sort order (asc, desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.RevenueOrdersWithPaymentResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/sales/financials/revenue/total/orders": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve paginated list of all orders (both STANDARD and LIMITED) and preorders that contribute to total revenue",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics.Sales"
+                ],
+                "summary": "Get orders contributing to Total Revenue",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 10, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "From Date (YYYY-MM-DD)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "To Date (YYYY-MM-DD)",
+                        "name": "to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by order ID or customer name",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "created_at",
+                            "total_amount"
+                        ],
+                        "type": "string",
+                        "description": "Sort by (created_at, total_amount)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "description": "Sort order (asc, desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.RevenueOrdersWithPaymentResponse"
                                         }
                                     }
                                 }
@@ -10441,7 +12120,11 @@ const docTemplate = `{
                         "enum": [
                             "PENDING",
                             "PAID",
-                            "OVERDUE"
+                            "OVERDUE",
+                            "KOL_PENDING",
+                            "KOL_PROOF_SUBMITTED",
+                            "KOL_PROOF_REJECTED",
+                            "KOL_REFUND_APPROVED"
                         ],
                         "type": "string",
                         "example": "\"PAID\"",
@@ -10652,7 +12335,11 @@ const docTemplate = `{
                         "enum": [
                             "PENDING",
                             "PAID",
-                            "OVERDUE"
+                            "OVERDUE",
+                            "KOL_PENDING",
+                            "KOL_PROOF_SUBMITTED",
+                            "KOL_PROOF_REJECTED",
+                            "KOL_REFUND_APPROVED"
                         ],
                         "type": "string",
                         "example": "\"PAID\"",
@@ -16083,7 +17770,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create a limited order",
+                "description": "Create a limited order. Delivery fee is calculated from GHN but paid by KOL system (deducted from KOL revenue), not the customer.",
                 "consumes": [
                     "application/json"
                 ],
@@ -16093,7 +17780,7 @@ const docTemplate = `{
                 "tags": [
                     "Orders"
                 ],
-                "summary": "Place an order and initiate payment",
+                "summary": "Place a limited order and initiate payment",
                 "parameters": [
                     {
                         "description": "Place and pay payload",
@@ -18317,6 +20004,27 @@ const docTemplate = `{
                 ],
                 "summary": "Get staff-available preorders with pagination",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "example": "550e8400-e29b-41d4-a716-446655440000",
+                        "description": "Brand ID filter\nin: query\nexample: \"550e8400-e29b-41d4-a716-446655440000\"",
+                        "name": "brand_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "2025-01-01",
+                        "description": "Filter by start date (YYYY-MM-DD)\nin: query\nexample: \"2025-01-01\"",
+                        "name": "created_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "2025-12-31",
+                        "description": "Filter by end date (YYYY-MM-DD)\nin: query\nexample: \"2025-12-31\"",
+                        "name": "created_to",
+                        "in": "query"
+                    },
                     {
                         "type": "string",
                         "example": "10",
@@ -26767,6 +28475,7 @@ const docTemplate = `{
                 "REJECTED",
                 "APPROVED",
                 "POSTED",
+                "SCHEDULED",
                 "CANCELLED"
             ],
             "x-enum-varnames": [
@@ -26776,6 +28485,7 @@ const docTemplate = `{
                 "ContentStatusRejected",
                 "ContentStatusApproved",
                 "ContentStatusPosted",
+                "ContentStatusScheduled",
                 "ContentStatusCancelled"
             ]
         },
@@ -27247,6 +28957,23 @@ const docTemplate = `{
                 "reason": {
                     "description": "Reason for cancelling the order. Required when action=CANCEL\nin: body\nexample: \"Customer requested cancellation due to wrong size\"",
                     "type": "string"
+                }
+            }
+        },
+        "handler.NetRevenueResponse": {
+            "type": "object",
+            "properties": {
+                "gross_revenue": {
+                    "type": "number",
+                    "example": 100000000
+                },
+                "net_revenue": {
+                    "type": "number",
+                    "example": 85000000
+                },
+                "total_refunds": {
+                    "type": "number",
+                    "example": 15000000
                 }
             }
         },
@@ -29770,6 +31497,31 @@ const docTemplate = `{
                 },
                 "return_url": {
                     "description": "URLs",
+                    "type": "string"
+                }
+            }
+        },
+        "requests.PeriodInfo": {
+            "type": "object",
+            "properties": {
+                "comparison_label": {
+                    "description": "e.g., \"vs Last Month\"",
+                    "type": "string"
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "preset_label": {
+                    "description": "e.g., \"This Month\"",
+                    "type": "string"
+                },
+                "previous_end": {
+                    "type": "string"
+                },
+                "previous_start": {
+                    "type": "string"
+                },
+                "start_date": {
                     "type": "string"
                 }
             }
@@ -32553,6 +34305,43 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.BrandIncomeResponse": {
+            "type": "object",
+            "properties": {
+                "change_direction": {
+                    "description": "\"up\", \"down\", \"unchanged\"",
+                    "type": "string"
+                },
+                "gross_income": {
+                    "type": "number"
+                },
+                "order_revenue": {
+                    "description": "Revenue from completed orders (LIMITED products)",
+                    "type": "number"
+                },
+                "payment_refunds": {
+                    "description": "Refunds from KOL_REFUND_APPROVED payments",
+                    "type": "number"
+                },
+                "percentage_change": {
+                    "type": "number"
+                },
+                "period": {
+                    "$ref": "#/definitions/requests.PeriodInfo"
+                },
+                "preorder_revenue": {
+                    "description": "Revenue from completed pre-orders",
+                    "type": "number"
+                },
+                "previous_gross_income": {
+                    "type": "number"
+                },
+                "violation_refunds": {
+                    "description": "Refunds from resolved KOL violations",
+                    "type": "number"
+                }
+            }
+        },
         "responses.BrandInfoResponse": {
             "type": "object",
             "properties": {
@@ -32567,6 +34356,53 @@ const docTemplate = `{
                 },
                 "status": {
                     "type": "string"
+                }
+            }
+        },
+        "responses.BrandNetIncomeResponse": {
+            "type": "object",
+            "properties": {
+                "change_direction": {
+                    "description": "\"up\", \"down\", \"unchanged\"",
+                    "type": "string"
+                },
+                "gross_income": {
+                    "type": "number"
+                },
+                "net_income": {
+                    "type": "number"
+                },
+                "order_revenue": {
+                    "description": "Revenue from completed orders (LIMITED products)",
+                    "type": "number"
+                },
+                "payment_refunds": {
+                    "description": "Refunds from KOL_REFUND_APPROVED payments",
+                    "type": "number"
+                },
+                "percentage_change": {
+                    "type": "number"
+                },
+                "period": {
+                    "$ref": "#/definitions/requests.PeriodInfo"
+                },
+                "preorder_revenue": {
+                    "description": "Revenue from completed pre-orders",
+                    "type": "number"
+                },
+                "previous_gross_income": {
+                    "type": "number"
+                },
+                "previous_net_income": {
+                    "type": "number"
+                },
+                "total_contract_payments": {
+                    "description": "Total paid contract payments (deducted)",
+                    "type": "number"
+                },
+                "violation_refunds": {
+                    "description": "Refunds from resolved KOL violations",
+                    "type": "number"
                 }
             }
         },
@@ -32769,6 +34605,57 @@ const docTemplate = `{
                 },
                 "website": {
                     "type": "string"
+                }
+            }
+        },
+        "responses.BrandRevenueOverTimePoint": {
+            "type": "object",
+            "properties": {
+                "brand_affiliate_earnings": {
+                    "type": "number"
+                },
+                "brand_limited_revenue": {
+                    "type": "number"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "total_revenue": {
+                    "type": "number"
+                }
+            }
+        },
+        "responses.BrandRevenueOverTimeResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.BrandRevenueOverTimePoint"
+                    }
+                },
+                "granularity": {
+                    "type": "string"
+                },
+                "period": {
+                    "$ref": "#/definitions/requests.PeriodInfo"
+                },
+                "summary": {
+                    "$ref": "#/definitions/responses.BrandRevenueOverTimeSummary"
+                }
+            }
+        },
+        "responses.BrandRevenueOverTimeSummary": {
+            "type": "object",
+            "properties": {
+                "grand_total_revenue": {
+                    "type": "number"
+                },
+                "total_brand_affiliate_earnings": {
+                    "type": "number"
+                },
+                "total_brand_limited_revenue": {
+                    "type": "number"
                 }
             }
         },
@@ -33386,6 +35273,10 @@ const docTemplate = `{
                         }
                     ]
                 },
+                "published_contents_count": {
+                    "description": "Total published contents count",
+                    "type": "integer"
+                },
                 "recent_content": {
                     "description": "Recent content for this channel",
                     "type": "array",
@@ -33527,17 +35418,17 @@ const docTemplate = `{
                 "post_count": {
                     "type": "integer"
                 },
-                "reach_growth": {
-                    "type": "number"
-                },
                 "top_post": {
                     "$ref": "#/definitions/responses.TopPostBrief"
                 },
                 "total_engagement": {
                     "type": "integer"
                 },
-                "total_reach": {
+                "total_views": {
                     "type": "integer"
+                },
+                "views_growth": {
+                    "type": "number"
                 }
             }
         },
@@ -34341,6 +36232,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "First installment payment"
                 },
+                "paid_at": {
+                    "type": "string",
+                    "example": "2006-01-02T15:04:05Z07:00"
+                },
                 "pay_now": {
                     "type": "boolean",
                     "example": false
@@ -34568,6 +36463,109 @@ const docTemplate = `{
                             "$ref": "#/definitions/responses.ViolationResponse"
                         }
                     ]
+                }
+            }
+        },
+        "responses.ContractRevenueBreakdownPoint": {
+            "type": "object",
+            "properties": {
+                "affiliate_revenue": {
+                    "description": "Line 2: Tiered click revenue",
+                    "type": "number"
+                },
+                "contract_base_cost": {
+                    "description": "Line 1: Base cost from contract payments",
+                    "type": "number"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "limited_product_brand_share": {
+                    "description": "Line 3: Brand's share (company_percent)",
+                    "type": "number"
+                },
+                "limited_product_system_share": {
+                    "description": "Line 4: System's share (kol_percent)",
+                    "type": "number"
+                },
+                "total_contract_revenue": {
+                    "description": "Bar: Total paid to system",
+                    "type": "number"
+                }
+            }
+        },
+        "responses.ContractRevenueBreakdownResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ContractRevenueBreakdownPoint"
+                    }
+                },
+                "granularity": {
+                    "type": "string"
+                },
+                "period": {
+                    "$ref": "#/definitions/requests.PeriodInfo"
+                },
+                "summary": {
+                    "$ref": "#/definitions/responses.ContractRevenueBreakdownSummary"
+                }
+            }
+        },
+        "responses.ContractRevenueBreakdownSummary": {
+            "type": "object",
+            "properties": {
+                "grand_total_revenue": {
+                    "type": "number"
+                },
+                "refunds_paid": {
+                    "description": "CO_PRODUCING refunds (subtracted)",
+                    "type": "number"
+                },
+                "total_affiliate_revenue": {
+                    "type": "number"
+                },
+                "total_contract_base_cost": {
+                    "type": "number"
+                },
+                "total_limited_product_brand_share": {
+                    "description": "Brand's total share",
+                    "type": "number"
+                },
+                "total_limited_product_system_share": {
+                    "description": "System's total share",
+                    "type": "number"
+                }
+            }
+        },
+        "responses.ContractStatusDistributionResponse": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "integer"
+                },
+                "brand_violations": {
+                    "type": "integer"
+                },
+                "completed": {
+                    "type": "integer"
+                },
+                "draft": {
+                    "type": "integer"
+                },
+                "kol_violations": {
+                    "type": "integer"
+                },
+                "period": {
+                    "$ref": "#/definitions/requests.PeriodInfo"
+                },
+                "terminated": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
@@ -35234,8 +37232,13 @@ const docTemplate = `{
                     "type": "integer",
                     "example": 5
                 },
-                "monthly_revenue": {
-                    "description": "Revenue for specified month (or current month)",
+                "gross_revenue": {
+                    "description": "Revenue for specified period\nGrossRevenue = sum of all PAID payments + sum of all KOL_REFUND_APPROVED payments (before refund deduction)",
+                    "type": "number",
+                    "example": 100000000
+                },
+                "net_revenue": {
+                    "description": "NetRevenue = PAID amounts + (KOL_REFUND_APPROVED amounts - refund_amount)",
                     "type": "number",
                     "example": 85000000
                 },
@@ -35247,15 +37250,21 @@ const docTemplate = `{
                     "example": 11
                 },
                 "revenue_year": {
+                    "description": "Period metadata",
                     "type": "integer",
                     "example": 2024
                 },
                 "top_brands": {
-                    "description": "Top performers (for the same month as revenue)",
+                    "description": "Top performers (for the same period as revenue)",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/responses.BrandRevenueResponse"
                     }
+                },
+                "total_refunds": {
+                    "description": "TotalRefunds = sum of refund_amount from KOL_REFUND_APPROVED payments",
+                    "type": "number",
+                    "example": 15000000
                 },
                 "upcoming_deadlines": {
                     "description": "Upcoming deadlines (always relative to current date)",
@@ -35541,6 +37550,9 @@ const docTemplate = `{
             "properties": {
                 "brand": {
                     "$ref": "#/definitions/responses.OrderItemBrandResponse"
+                },
+                "brand_place_holder": {
+                    "type": "string"
                 },
                 "capacity": {
                     "type": "number"
@@ -36289,6 +38301,9 @@ const docTemplate = `{
                 "brand": {
                     "$ref": "#/definitions/responses.OrderItemBrandResponse"
                 },
+                "brand_place_holder": {
+                    "type": "string"
+                },
                 "capacity": {
                     "description": "Variant Info",
                     "type": "number"
@@ -36339,6 +38354,9 @@ const docTemplate = `{
                 },
                 "ghn_district_id": {
                     "type": "integer"
+                },
+                "ghn_order_code": {
+                    "type": "string"
                 },
                 "ghn_province_id": {
                     "type": "integer"
@@ -36396,6 +38414,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "quantity": {
+                    "type": "integer"
+                },
+                "shipping_fee": {
                     "type": "integer"
                 },
                 "staff_resource": {
@@ -37488,6 +39509,66 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.RefundViolationStatsResponse": {
+            "type": "object",
+            "properties": {
+                "brand_violations_paid": {
+                    "type": "integer"
+                },
+                "brand_violations_paid_amount": {
+                    "type": "number"
+                },
+                "brand_violations_pending": {
+                    "description": "Brand Violations (brand pays penalty)",
+                    "type": "integer"
+                },
+                "brand_violations_pending_amount": {
+                    "type": "number"
+                },
+                "co_producing_amount_paid": {
+                    "type": "number"
+                },
+                "co_producing_amount_pending": {
+                    "type": "number"
+                },
+                "co_producing_refunds_approved": {
+                    "type": "integer"
+                },
+                "co_producing_refunds_pending": {
+                    "description": "CO_PRODUCING Refunds (system owes brand when NetAmount \u003c 0)",
+                    "type": "integer"
+                },
+                "compensation_paid": {
+                    "type": "number"
+                },
+                "compensation_pending": {
+                    "type": "number"
+                },
+                "kol_violations_pending": {
+                    "description": "KOL Violations (KOL pays refund to brand)",
+                    "type": "integer"
+                },
+                "kol_violations_pending_amount": {
+                    "type": "number"
+                },
+                "kol_violations_resolved": {
+                    "type": "integer"
+                },
+                "kol_violations_resolved_amount": {
+                    "type": "number"
+                },
+                "period": {
+                    "$ref": "#/definitions/requests.PeriodInfo"
+                },
+                "total_refund_amount": {
+                    "type": "number"
+                },
+                "total_violation_count": {
+                    "description": "Totals",
+                    "type": "integer"
+                }
+            }
+        },
         "responses.RevenueByCategory": {
             "type": "object",
             "properties": {
@@ -37543,6 +39624,129 @@ const docTemplate = `{
                 "total_revenue": {
                     "type": "number",
                     "example": 140000000
+                }
+            }
+        },
+        "responses.RevenueOrderItemWithPayment": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "customer_email": {
+                    "type": "string"
+                },
+                "customer_id": {
+                    "type": "string"
+                },
+                "customer_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "kol_percent": {
+                    "description": "Only for LIMITED/PreOrder",
+                    "type": "number"
+                },
+                "net_amount": {
+                    "description": "Calculated based on revenue type (KOL net or refund amount)",
+                    "type": "number"
+                },
+                "order_type": {
+                    "description": "STANDARD or LIMITED",
+                    "type": "string"
+                },
+                "payment_transaction": {
+                    "$ref": "#/definitions/responses.PaymentTransactionResponse"
+                },
+                "shipping_fee": {
+                    "type": "number"
+                },
+                "source": {
+                    "description": "ORDER or PRE_ORDER",
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
+                }
+            }
+        },
+        "responses.RevenueOrdersWithPaymentResponse": {
+            "type": "object",
+            "properties": {
+                "orders": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.RevenueOrderItemWithPayment"
+                    }
+                },
+                "revenue_type": {
+                    "description": "LIMITED_NET, REFUNDED",
+                    "type": "string"
+                },
+                "total_revenue": {
+                    "type": "number"
+                }
+            }
+        },
+        "responses.RevenueOverTimePoint": {
+            "type": "object",
+            "properties": {
+                "affiliate_revenue": {
+                    "type": "number"
+                },
+                "contract_base_revenue": {
+                    "type": "number"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "limited_product_revenue": {
+                    "type": "number"
+                },
+                "total_revenue": {
+                    "type": "number"
+                }
+            }
+        },
+        "responses.RevenueOverTimeResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.RevenueOverTimePoint"
+                    }
+                },
+                "granularity": {
+                    "type": "string"
+                },
+                "period": {
+                    "$ref": "#/definitions/requests.PeriodInfo"
+                },
+                "summary": {
+                    "$ref": "#/definitions/responses.RevenueOverTimeSummary"
+                }
+            }
+        },
+        "responses.RevenueOverTimeSummary": {
+            "type": "object",
+            "properties": {
+                "grand_total_revenue": {
+                    "type": "number"
+                },
+                "total_affiliate_revenue": {
+                    "type": "number"
+                },
+                "total_contract_base_revenue": {
+                    "type": "number"
+                },
+                "total_limited_product_revenue": {
+                    "type": "number"
                 }
             }
         },
@@ -38297,6 +40501,29 @@ const docTemplate = `{
                 "updated_by_name": {
                     "type": "string",
                     "example": "John Doe"
+                }
+            }
+        },
+        "responses.TaskStatusDistributionResponse": {
+            "type": "object",
+            "properties": {
+                "cancelled": {
+                    "type": "integer"
+                },
+                "done": {
+                    "type": "integer"
+                },
+                "in_progress": {
+                    "type": "integer"
+                },
+                "period": {
+                    "$ref": "#/definitions/requests.PeriodInfo"
+                },
+                "todo": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },

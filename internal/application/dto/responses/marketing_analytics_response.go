@@ -35,12 +35,18 @@ type MarketingDashboardResponse struct {
 	ActiveCampaigns int64 `json:"active_campaigns" example:"12"`
 	DraftCampaigns  int64 `json:"draft_campaigns" example:"5"`
 
-	// Revenue for specified month (or current month)
-	MonthlyRevenue float64 `json:"monthly_revenue" example:"85000000.00"`
-	RevenueYear    int     `json:"revenue_year" example:"2024"`
-	RevenueMonth   int     `json:"revenue_month" example:"11"`
+	// Revenue for specified period
+	// GrossRevenue = sum of all PAID payments + sum of all KOL_REFUND_APPROVED payments (before refund deduction)
+	GrossRevenue float64 `json:"gross_revenue" example:"100000000.00"`
+	// NetRevenue = PAID amounts + (KOL_REFUND_APPROVED amounts - refund_amount)
+	NetRevenue float64 `json:"net_revenue" example:"85000000.00"`
+	// TotalRefunds = sum of refund_amount from KOL_REFUND_APPROVED payments
+	TotalRefunds float64 `json:"total_refunds" example:"15000000.00"`
+	// Period metadata
+	RevenueYear  int `json:"revenue_year" example:"2024"`
+	RevenueMonth int `json:"revenue_month" example:"11"`
 
-	// Top performers (for the same month as revenue)
+	// Top performers (for the same period as revenue)
 	TopBrands     []BrandRevenueResponse `json:"top_brands"`
 	RevenueByType RevenueByTypeResponse  `json:"revenue_by_type"`
 
