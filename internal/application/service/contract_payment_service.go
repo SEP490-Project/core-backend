@@ -82,11 +82,11 @@ func (c *contractPaymentService) CreatePaymentLinkFromContractPayment(
 		return nil, fmt.Errorf("payment link can only be generated for pending payments, current status: %s", contractPayment.Status)
 	}
 
-	// 3. Validate due date - payment link can only be generated after the due date
-	now := time.Now()
-	if now.After(contractPayment.DueDate) {
-		return nil, fmt.Errorf("payment link can only be generated after the due date (%s)", contractPayment.DueDate.Format("2006-01-02"))
-	}
+	// // 3. Validate due date - payment link can only be generated after the due date
+	// now := time.Now()
+	// if now.After(contractPayment.DueDate) {
+	// 	return nil, fmt.Errorf("payment link can only be generated after the due date (%s)", contractPayment.DueDate.Format("2006-01-02"))
+	// }
 
 	// 4. For AFFILIATE/CO_PRODUCING contracts, lock the calculated amount
 	//    This ensures new clicks/revenue go to the next payment period
@@ -234,7 +234,7 @@ func (c *contractPaymentService) CreateContractPaymentsFromContract(
 
 	contractRepo := uow.Contracts()
 	contractPaymentRepo := uow.ContractPayments()
-	minimumDayBeforeDueDate := c.config.MinimumDayBeforeContractPaymentDue
+	// minimumDayBeforeDueDate := c.config.MinimumDayBeforeContractPaymentDue
 
 	contract, err := contractRepo.GetByID(ctx, contractID, []string{"Brand"})
 	if err != nil {
@@ -245,7 +245,7 @@ func (c *contractPaymentService) CreateContractPaymentsFromContract(
 		return fmt.Errorf("contract with ID %s not found", contractID)
 	}
 
-	contractPaymentsSlice, err := c.processPaymentDateFromContract(minimumDayBeforeDueDate, userID, contract)
+	contractPaymentsSlice, err := c.processPaymentDateFromContract(0, userID, contract)
 	if err != nil {
 		return err
 	}
@@ -281,7 +281,7 @@ func NewContractPaymentService(
 // region: ================ Helper functions ================
 
 func (c *contractPaymentService) processPaymentDateFromContract(
-	minimumDayBeforeDueDate int,
+	_ int,
 	userID uuid.UUID,
 	contract *model.Contract,
 ) (contractPaymentsSlice []*model.ContractPayment, err error) {
@@ -405,7 +405,7 @@ func (c *contractPaymentService) processPaymentDateFromContract(
 			contract.StartDate,
 			contract.EndDate,
 			affiliateFinancialTerms.PaymentDate,
-			minimumDayBeforeDueDate,
+			0,
 		)
 		if err != nil {
 			zap.L().Error("Failed to calculate affiliate payment dates", zap.Error(err))
@@ -465,7 +465,7 @@ Further performance cost will be calculated during the payment link creation pha
 			contract.StartDate,
 			contract.EndDate,
 			coProducingFinancialTerms.ProfitDistributionDate,
-			minimumDayBeforeDueDate,
+			0,
 		)
 		if err != nil {
 			zap.L().Error("Failed to calculate co-producing payment dates", zap.Error(err))
@@ -758,6 +758,7 @@ func (c *contractPaymentService) calculateTieredPayment(
 
 		breakdown[i] = dtos.LevelPaymentBreakdown{
 			Level:        level.Level,
+			MaxClicks:    level.MaxClicks,
 			ClicksInTier: clicksInTier,
 			Multiplier:   level.Multiplier,
 			RatePerClick: ratePerClick,

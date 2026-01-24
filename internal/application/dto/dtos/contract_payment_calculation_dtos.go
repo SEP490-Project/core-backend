@@ -29,6 +29,7 @@ type AffiliatePaymentCalculation struct {
 // This implements electricity-style tiered billing.
 type LevelPaymentBreakdown struct {
 	Level        int     `json:"level"`          // Level number (1, 2, 3...)
+	MaxClicks    int64   `json:"max_clicks"`     // Maximum clicks for this tier (cumulative)
 	ClicksInTier int64   `json:"clicks_in_tier"` // Number of clicks in this tier
 	Multiplier   float32 `json:"multiplier"`     // Rate multiplier for this tier
 	RatePerClick float64 `json:"rate_per_click"` // Multiplied Amount Per Click: base_per_click × multiplier
