@@ -43,6 +43,7 @@ type ProductService interface {
 
 	// Update Limited Product
 	UpdateLimitedProduct(ctx context.Context, productID uuid.UUID, update requests.UpdateLimitedProductRequest) (*model.Product, error)
+	SetPremiereDateToToday(ctx context.Context, productID uuid.UUID) (*model.Product, error)
 
 	// Variants
 	CreateProductVariance(ctx context.Context, userID uuid.UUID, productID uuid.UUID, variant requests.CreateProductVariantRequest, unitOfWork irepository.UnitOfWork) (*model.ProductVariant, error)

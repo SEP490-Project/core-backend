@@ -331,6 +331,53 @@ func (p productService) UpdateLimitedProduct(ctx context.Context, productID uuid
 	return saved, nil
 }
 
+// SetPremiereDateToToday sets the premiere date of a limited product to today (start of day in local time)
+func (p productService) SetPremiereDateToToday(ctx context.Context, productID uuid.UUID) (*model.Product, error) {
+	// Load existing product with Limited relation
+	product, err := p.repository.GetByID(ctx, productID, []string{"Limited"})
+	if err != nil {
+		zap.L().Info("failed to get product by id", zap.String("product_id", productID.String()), zap.Error(err))
+		return nil, err
+	}
+	if product == nil {
+		return nil, errors.New("product not found")
+	}
+
+	// Only limited products can have premiere date set
+	if product.Type != enum.ProductTypeLimited {
+		return nil, errors.New("product is not of type LIMITED")
+	}
+
+	// Ensure Limited entity exists
+	if product.Limited == nil {
+		return nil, errors.New("limited product attributes not found")
+	}
+
+	// Set premiere date to today at start of day (00:00:00)
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	product.Limited.PremiereDate = today
+
+	// Persist limited entity
+	if err := p.limitedProductRepo.Update(ctx, product.Limited); err != nil {
+		zap.L().Error("failed to update limited product premiere date", zap.String("product_id", productID.String()), zap.Error(err))
+		return nil, err
+	}
+
+	zap.L().Info("Successfully set premiere date to today",
+		zap.String("product_id", productID.String()),
+		zap.Time("premiere_date", today))
+
+	// Reload product with relations for response
+	saved, err := p.repository.GetByID(ctx, productID, []string{"Brand", "Category", "Variants", "Limited"})
+	if err != nil {
+		zap.L().Warn("updated premiere date but failed to reload with relations", zap.Error(err))
+		return product, nil
+	}
+
+	return saved, nil
+}
+
 func (p productService) PublishProduct(productID uuid.UUID, isActive bool) (*responses.ProductResponseV2, error) {
 	product, err := p.repository.GetByID(context.Background(), productID, nil)
 	if err != nil {
