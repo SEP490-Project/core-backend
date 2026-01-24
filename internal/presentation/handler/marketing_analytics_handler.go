@@ -96,57 +96,110 @@ func (h *MarketingAnalyticsHandler) GetDraftCampaignsCount(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// GetMonthlyContractRevenue godoc
+// GetGrossContractRevenue godoc
 //
-//	@Summary		Get monthly contract revenue
-//	@Description	Returns total revenue from paid contract payments for specified month
+//	@Summary		Get gross contract revenue for period
+//	@Description	Returns total gross revenue from paid contract payments (before refund deductions)
 //	@Tags			Analytics.Marketing
 //	@Accept			json
 //	@Produce		json
-//	@Param			year	query		int	true	"Year (e.g., 2024)"	minimum(2000)	maximum(2100)
-//	@Param			month	query		int	true	"Month (1-12)"		minimum(1)		maximum(12)
-//	@Success		200		{object}	responses.APIResponse{data=float64}
-//	@Failure		400		{object}	responses.APIResponse
-//	@Failure		500		{object}	responses.APIResponse
+//	@Param			period		query		string	false	"Period preset"						Enums(TODAY, YESTERDAY, THIS_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, THIS_QUARTER, LAST_QUARTER, THIS_YEAR, LAST_YEAR, LAST_7_DAYS, LAST_30_DAYS, CUSTOM)
+//	@Param			from_date	query		string	false	"Start date (when period=CUSTOM)"	Format(date)
+//	@Param			to_date		query		string	false	"End date (when period=CUSTOM)"		Format(date)
+//	@Success		200			{object}	responses.APIResponse{data=float64}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
 //	@Security		BearerAuth
-//	@Router			/api/v1/analytics/marketing/monthly-revenue [get]
-func (h *MarketingAnalyticsHandler) GetMonthlyContractRevenue(c *gin.Context) {
+//	@Router			/api/v1/analytics/marketing/gross-revenue [get]
+func (h *MarketingAnalyticsHandler) GetGrossContractRevenue(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	var req requests.MonthlyRevenueRequest
-	if err := c.ShouldBindQuery(&req); err != nil {
+	var filter requests.DashboardFilterRequest
+	if err := c.ShouldBindQuery(&filter); err != nil {
 		zap.L().Error("Invalid request parameters", zap.Error(err))
 		response := responses.ErrorResponse("Invalid request parameters", http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
-	revenue, err := h.marketingAnalyticsService.GetMonthlyContractRevenue(ctx, &req)
+	revenue, err := h.marketingAnalyticsService.GetGrossContractRevenue(ctx, &filter)
 	if err != nil {
-		zap.L().Error("Failed to get monthly contract revenue",
-			zap.Int("year", req.Year),
-			zap.Int("month", req.Month),
+		zap.L().Error("Failed to get gross contract revenue",
+			zap.String("period", filter.GetPresetLabel()),
 			zap.Error(err))
-		response := responses.ErrorResponse("Failed to retrieve monthly contract revenue", http.StatusInternalServerError)
+		response := responses.ErrorResponse("Failed to retrieve gross contract revenue", http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
 		return
 	}
 
-	response := responses.SuccessResponse("Monthly contract revenue retrieved successfully", nil, revenue)
+	response := responses.SuccessResponse("Gross contract revenue retrieved successfully", nil, revenue)
+	c.JSON(http.StatusOK, response)
+}
+
+// NetRevenueResponse represents the net revenue with breakdown
+type NetRevenueResponse struct {
+	GrossRevenue float64 `json:"gross_revenue" example:"100000000.00"`
+	NetRevenue   float64 `json:"net_revenue" example:"85000000.00"`
+	TotalRefunds float64 `json:"total_refunds" example:"15000000.00"`
+}
+
+// GetNetContractRevenue godoc
+//
+//	@Summary		Get net contract revenue for period
+//	@Description	Returns net revenue (gross - refunds) from contract payments including breakdown
+//	@Tags			Analytics.Marketing
+//	@Accept			json
+//	@Produce		json
+//	@Param			period		query		string	false	"Period preset"						Enums(TODAY, YESTERDAY, THIS_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, THIS_QUARTER, LAST_QUARTER, THIS_YEAR, LAST_YEAR, LAST_7_DAYS, LAST_30_DAYS, CUSTOM)
+//	@Param			from_date	query		string	false	"Start date (when period=CUSTOM)"	Format(date)
+//	@Param			to_date		query		string	false	"End date (when period=CUSTOM)"		Format(date)
+//	@Success		200			{object}	responses.APIResponse{data=NetRevenueResponse}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/marketing/net-revenue [get]
+func (h *MarketingAnalyticsHandler) GetNetContractRevenue(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	var filter requests.DashboardFilterRequest
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		zap.L().Error("Invalid request parameters", zap.Error(err))
+		response := responses.ErrorResponse("Invalid request parameters", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	gross, net, refunds, err := h.marketingAnalyticsService.GetNetContractRevenue(ctx, &filter)
+	if err != nil {
+		zap.L().Error("Failed to get net contract revenue",
+			zap.String("period", filter.GetPresetLabel()),
+			zap.Error(err))
+		response := responses.ErrorResponse("Failed to retrieve net contract revenue", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	result := NetRevenueResponse{
+		GrossRevenue: gross,
+		NetRevenue:   net,
+		TotalRefunds: refunds,
+	}
+
+	response := responses.SuccessResponse("Net contract revenue retrieved successfully", nil, result)
 	c.JSON(http.StatusOK, response)
 }
 
 // GetTopBrandsByRevenue godoc
 //
 //	@Summary		Get top brands by revenue
-//	@Description	Returns top 4 brands by total revenue (contract payments + standard product sales)
+//	@Description	Returns top brands by total revenue (contract payments + standard product sales)
 //	@Tags			Analytics.Marketing
 //	@Accept			json
 //	@Produce		json
-//	@Param			filter_type	query		string	true	"Filter type"							Enums(MONTH, QUARTER, YEAR)
-//	@Param			year		query		int		true	"Year (e.g., 2024)"						minimum(2000)	maximum(2100)
-//	@Param			month		query		int		false	"Month (required for MONTH filter)"		minimum(1)		maximum(12)
-//	@Param			quarter		query		int		false	"Quarter (required for QUARTER filter)"	minimum(1)		maximum(4)
+//	@Param			period		query		string	false	"Period preset"									Enums(TODAY, YESTERDAY, THIS_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, THIS_QUARTER, LAST_QUARTER, THIS_YEAR, LAST_YEAR, LAST_7_DAYS, LAST_30_DAYS, CUSTOM)
+//	@Param			from_date	query		string	false	"Start date (when period=CUSTOM)"				Format(date)
+//	@Param			to_date		query		string	false	"End date (when period=CUSTOM)"					Format(date)
+//	@Param			limit		query		int		false	"Number of top brands to return (default: 5)"	minimum(1)	maximum(50)
 //	@Success		200			{object}	responses.APIResponse{data=[]responses.BrandRevenueResponse}
 //	@Failure		400			{object}	responses.APIResponse
 //	@Failure		500			{object}	responses.APIResponse
@@ -155,7 +208,7 @@ func (h *MarketingAnalyticsHandler) GetMonthlyContractRevenue(c *gin.Context) {
 func (h *MarketingAnalyticsHandler) GetTopBrandsByRevenue(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	var filter requests.TimeFilter
+	var filter requests.DashboardFilterRequest
 	if err := c.ShouldBindQuery(&filter); err != nil {
 		zap.L().Error("Invalid request parameters", zap.Error(err))
 		response := responses.ErrorResponse("Invalid request parameters", http.StatusBadRequest)
@@ -166,7 +219,7 @@ func (h *MarketingAnalyticsHandler) GetTopBrandsByRevenue(c *gin.Context) {
 	brands, err := h.marketingAnalyticsService.GetTopBrandsByRevenue(ctx, &filter)
 	if err != nil {
 		zap.L().Error("Failed to get top brands by revenue",
-			zap.String("filter_type", filter.FilterType),
+			zap.String("period", filter.GetPresetLabel()),
 			zap.Error(err))
 		response := responses.ErrorResponse("Failed to retrieve top brands", http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
@@ -184,10 +237,9 @@ func (h *MarketingAnalyticsHandler) GetTopBrandsByRevenue(c *gin.Context) {
 //	@Tags			Analytics.Marketing
 //	@Accept			json
 //	@Produce		json
-//	@Param			filter_type	query		string	true	"Filter type"							Enums(MONTH, QUARTER, YEAR)
-//	@Param			year		query		int		true	"Year (e.g., 2024)"						minimum(2000)	maximum(2100)
-//	@Param			month		query		int		false	"Month (required for MONTH filter)"		minimum(1)		maximum(12)
-//	@Param			quarter		query		int		false	"Quarter (required for QUARTER filter)"	minimum(1)		maximum(4)
+//	@Param			period		query		string	false	"Period preset"						Enums(TODAY, YESTERDAY, THIS_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, THIS_QUARTER, LAST_QUARTER, THIS_YEAR, LAST_YEAR, LAST_7_DAYS, LAST_30_DAYS, CUSTOM)
+//	@Param			from_date	query		string	false	"Start date (when period=CUSTOM)"	Format(date)
+//	@Param			to_date		query		string	false	"End date (when period=CUSTOM)"		Format(date)
 //	@Success		200			{object}	responses.APIResponse{data=responses.RevenueByTypeResponse}
 //	@Failure		400			{object}	responses.APIResponse
 //	@Failure		500			{object}	responses.APIResponse
@@ -196,7 +248,7 @@ func (h *MarketingAnalyticsHandler) GetTopBrandsByRevenue(c *gin.Context) {
 func (h *MarketingAnalyticsHandler) GetRevenueByContractType(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	var filter requests.TimeFilter
+	var filter requests.DashboardFilterRequest
 	if err := c.ShouldBindQuery(&filter); err != nil {
 		zap.L().Error("Invalid request parameters", zap.Error(err))
 		response := responses.ErrorResponse("Invalid request parameters", http.StatusBadRequest)
@@ -207,7 +259,7 @@ func (h *MarketingAnalyticsHandler) GetRevenueByContractType(c *gin.Context) {
 	revenueBreakdown, err := h.marketingAnalyticsService.GetRevenueByContractType(ctx, &filter)
 	if err != nil {
 		zap.L().Error("Failed to get revenue by contract type",
-			zap.String("filter_type", filter.FilterType),
+			zap.String("period", filter.GetPresetLabel()),
 			zap.Error(err))
 		response := responses.ErrorResponse("Failed to retrieve revenue breakdown", http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
@@ -261,17 +313,19 @@ func (h *MarketingAnalyticsHandler) GetUpcomingDeadlineCampaigns(c *gin.Context)
 //	@Tags			Analytics.Marketing
 //	@Accept			json
 //	@Produce		json
-//	@Param			year	query		int	false	"Year (defaults to current)"	minimum(2000)	maximum(2100)
-//	@Param			month	query		int	false	"Month (defaults to current)"	minimum(1)		maximum(12)
-//	@Success		200		{object}	responses.APIResponse{data=responses.MarketingDashboardResponse}
-//	@Failure		400		{object}	responses.APIResponse
-//	@Failure		500		{object}	responses.APIResponse
+//	@Param			period		query		string	false	"Period preset (defaults to THIS_MONTH)"	Enums(TODAY, YESTERDAY, THIS_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, THIS_QUARTER, LAST_QUARTER, THIS_YEAR, LAST_YEAR, LAST_7_DAYS, LAST_30_DAYS, CUSTOM)
+//	@Param			from_date	query		string	false	"Start date (when period=CUSTOM)"			Format(date)
+//	@Param			to_date		query		string	false	"End date (when period=CUSTOM)"				Format(date)
+//	@Param			limit		query		int		false	"Limit for top-N queries (default: 5)"		minimum(1)	maximum(50)
+//	@Success		200			{object}	responses.APIResponse{data=responses.MarketingDashboardResponse}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/analytics/marketing/dashboard [get]
 func (h *MarketingAnalyticsHandler) GetDashboard(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	var filter requests.DashboardFilter
+	var filter requests.DashboardFilterRequest
 	if err := c.ShouldBindQuery(&filter); err != nil {
 		zap.L().Error("Invalid request parameters", zap.Error(err))
 		response := responses.ErrorResponse("Invalid request parameters", http.StatusBadRequest)
@@ -288,5 +342,197 @@ func (h *MarketingAnalyticsHandler) GetDashboard(c *gin.Context) {
 	}
 
 	response := responses.SuccessResponse("Dashboard data retrieved successfully", nil, dashboard)
+	c.JSON(http.StatusOK, response)
+}
+
+// GetContractStatusDistribution godoc
+//
+//	@Summary		Get contract status distribution
+//	@Description	Returns contracts grouped by status (Draft, Active, Completed, Terminated, Brand Violations, KOL Violations)
+//	@Tags			Analytics.Marketing
+//	@Produce		json
+//	@Param			period		query		string	false	"Period preset"						Enums(TODAY, YESTERDAY, THIS_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, THIS_QUARTER, LAST_QUARTER, THIS_YEAR, LAST_YEAR, LAST_7_DAYS, LAST_30_DAYS, CUSTOM)
+//	@Param			from_date	query		string	false	"Start date (when period=CUSTOM)"	Format(date)
+//	@Param			to_date		query		string	false	"End date (when period=CUSTOM)"		Format(date)
+//	@Success		200			{object}	responses.APIResponse{data=responses.ContractStatusDistributionResponse}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/marketing/contract-status-distribution [get]
+func (h *MarketingAnalyticsHandler) GetContractStatusDistribution(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	var filter requests.DashboardFilterRequest
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		zap.L().Error("Invalid request parameters", zap.Error(err))
+		response := responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	result, err := h.marketingAnalyticsService.GetContractStatusDistribution(ctx, &filter)
+	if err != nil {
+		zap.L().Error("Failed to get contract status distribution", zap.Error(err))
+		response := responses.ErrorResponse("Failed to get contract status distribution: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := responses.SuccessResponse("Contract status distribution retrieved successfully", nil, result)
+	c.JSON(http.StatusOK, response)
+}
+
+// GetTaskStatusDistribution godoc
+//
+//	@Summary		Get task status distribution
+//	@Description	Returns tasks grouped by status (ToDo, InProgress, Done, Cancelled)
+//	@Tags			Analytics.Marketing
+//	@Produce		json
+//	@Param			period		query		string	false	"Period preset"						Enums(TODAY, YESTERDAY, THIS_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, THIS_QUARTER, LAST_QUARTER, THIS_YEAR, LAST_YEAR, LAST_7_DAYS, LAST_30_DAYS, CUSTOM)
+//	@Param			from_date	query		string	false	"Start date (when period=CUSTOM)"	Format(date)
+//	@Param			to_date		query		string	false	"End date (when period=CUSTOM)"		Format(date)
+//	@Success		200			{object}	responses.APIResponse{data=responses.TaskStatusDistributionResponse}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/marketing/task-status-distribution [get]
+func (h *MarketingAnalyticsHandler) GetTaskStatusDistribution(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	var filter requests.DashboardFilterRequest
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		zap.L().Error("Invalid request parameters", zap.Error(err))
+		response := responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	result, err := h.marketingAnalyticsService.GetTaskStatusDistribution(ctx, &filter)
+	if err != nil {
+		zap.L().Error("Failed to get task status distribution", zap.Error(err))
+		response := responses.ErrorResponse("Failed to get task status distribution: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := responses.SuccessResponse("Task status distribution retrieved successfully", nil, result)
+	c.JSON(http.StatusOK, response)
+}
+
+// GetRevenueOverTime godoc
+//
+//	@Summary		Get revenue over time
+//	@Description	Returns revenue breakdown by source over time for combo chart visualization
+//	@Tags			Analytics.Marketing
+//	@Produce		json
+//	@Param			period				query		string	false	"Period preset"						Enums(TODAY, YESTERDAY, THIS_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, THIS_QUARTER, LAST_QUARTER, THIS_YEAR, LAST_YEAR, LAST_7_DAYS, LAST_30_DAYS, CUSTOM)
+//	@Param			from_date			query		string	false	"Start date (when period=CUSTOM)"	Format(date)
+//	@Param			to_date				query		string	false	"End date (when period=CUSTOM)"		Format(date)
+//	@Param			trend_granularity	query		string	false	"Chart granularity"					Enums(HOUR, DAY, WEEK, MONTH)
+//	@Success		200					{object}	responses.APIResponse{data=responses.RevenueOverTimeResponse}
+//	@Failure		400					{object}	responses.APIResponse
+//	@Failure		500					{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/marketing/revenue-over-time [get]
+func (h *MarketingAnalyticsHandler) GetRevenueOverTime(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	var filter requests.DashboardFilterRequest
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		zap.L().Error("Invalid request parameters", zap.Error(err))
+		response := responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	result, err := h.marketingAnalyticsService.GetRevenueOverTime(ctx, &filter)
+	if err != nil {
+		zap.L().Error("Failed to get revenue over time", zap.Error(err))
+		response := responses.ErrorResponse("Failed to get revenue over time: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := responses.SuccessResponse("Revenue over time retrieved successfully", nil, result)
+	c.JSON(http.StatusOK, response)
+}
+
+// GetRefundViolationStats godoc
+//
+//	@Summary		Get refund and violation statistics
+//	@Description	Returns system-wide refund and violation statistics
+//	@Tags			Analytics.Marketing
+//	@Produce		json
+//	@Param			period		query		string	false	"Period preset"						Enums(TODAY, YESTERDAY, THIS_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, THIS_QUARTER, LAST_QUARTER, THIS_YEAR, LAST_YEAR, LAST_7_DAYS, LAST_30_DAYS, CUSTOM)
+//	@Param			from_date	query		string	false	"Start date (when period=CUSTOM)"	Format(date)
+//	@Param			to_date		query		string	false	"End date (when period=CUSTOM)"		Format(date)
+//	@Success		200			{object}	responses.APIResponse{data=responses.RefundViolationStatsResponse}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/marketing/refund-violation-stats [get]
+func (h *MarketingAnalyticsHandler) GetRefundViolationStats(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	var filter requests.DashboardFilterRequest
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		zap.L().Error("Invalid request parameters", zap.Error(err))
+		response := responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	result, err := h.marketingAnalyticsService.GetRefundViolationStats(ctx, &filter)
+	if err != nil {
+		zap.L().Error("Failed to get refund violation stats", zap.Error(err))
+		response := responses.ErrorResponse("Failed to get refund violation stats: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := responses.SuccessResponse("Refund violation stats retrieved successfully", nil, result)
+	c.JSON(http.StatusOK, response)
+}
+
+// GetContractRevenueBreakdown godoc
+//
+//	@Summary		Get contract revenue breakdown over time
+//	@Description	Returns detailed breakdown of contract revenue for ComposedChart visualization
+//	@Description	Components: Base Cost (Line), Affiliate Revenue (Line), Limited Product Brand/System Shares (Lines), Total (Bar)
+//	@Tags			Analytics.Marketing
+//	@Accept			json
+//	@Produce		json
+//	@Param			period				query		string	false	"Period preset"						Enums(TODAY, YESTERDAY, THIS_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, THIS_QUARTER, LAST_QUARTER, THIS_YEAR, LAST_YEAR, LAST_7_DAYS, LAST_30_DAYS, CUSTOM)
+//	@Param			from_date			query		string	false	"Start date (when period=CUSTOM)"	Format(date)
+//	@Param			to_date				query		string	false	"End date (when period=CUSTOM)"		Format(date)
+//	@Param			trend_granularity	query		string	false	"Chart granularity"					Enums(HOUR, DAY, WEEK, MONTH)
+//	@Success		200					{object}	responses.APIResponse{data=responses.ContractRevenueBreakdownResponse}
+//	@Failure		400					{object}	responses.APIResponse
+//	@Failure		500					{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/marketing/contract-revenue-breakdown [get]
+func (h *MarketingAnalyticsHandler) GetContractRevenueBreakdown(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	var filter requests.DashboardFilterRequest
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		zap.L().Error("Invalid request parameters", zap.Error(err))
+		response := responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Get granularity from filter (defaults to DAY)
+	granularity := filter.GetTrendGranularity()
+
+	result, err := h.marketingAnalyticsService.GetContractRevenueBreakdown(ctx, &filter, granularity)
+	if err != nil {
+		zap.L().Error("Failed to get contract revenue breakdown", zap.Error(err))
+		response := responses.ErrorResponse("Failed to get contract revenue breakdown: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := responses.SuccessResponse("Contract revenue breakdown retrieved successfully", nil, result)
 	c.JSON(http.StatusOK, response)
 }
