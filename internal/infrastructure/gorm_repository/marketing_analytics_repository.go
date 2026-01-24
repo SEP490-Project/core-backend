@@ -94,7 +94,6 @@ func (r *MarketingAnalyticsRepository) GetGrossContractRevenue(ctx context.Conte
 				SELECT COALESCE(SUM(penalty_amount), 0) as total_penalty_amount
 				FROM contract_violations
 				WHERE type = ?
-				  AND proof_status = ?
 				  AND deleted_at IS NULL
 				  AND resolved_at >= ?
 				  AND resolved_at < ?
