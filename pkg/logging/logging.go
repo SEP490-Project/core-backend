@@ -3,11 +3,11 @@ package logging
 
 import (
 	"context"
+	"core-backend/config"
 	"fmt"
 	"log"
 	"os"
 	"strings"
-	"core-backend/config"
 	"time"
 
 	"go.opentelemetry.io/contrib/bridges/otelzap"
@@ -40,9 +40,10 @@ func InitLogger() error {
 	}
 
 	teeCore := zapcore.NewTee(cores...)
+	contextAwareCore := NewContextAwareCore(teeCore)
 
 	logLeveler := zap.New(
-		teeCore,
+		contextAwareCore,
 		zap.AddCaller(),
 		zap.AddStacktrace(zapcore.ErrorLevel),
 	)
@@ -93,8 +94,19 @@ func createConsoleCore(logLevel zapcore.Level) zapcore.Core {
 		encoder = zapcore.NewConsoleEncoder(encoderConfig)
 	} else {
 		encoderConfig := zap.NewProductionEncoderConfig()
+		encoderConfig.TimeKey = "ts"
+		encoderConfig.LevelKey = "level"
+		encoderConfig.NameKey = "logger"
+		encoderConfig.CallerKey = "caller"
+		encoderConfig.MessageKey = "msg"
+		encoderConfig.StacktraceKey = "stack"
+		encoderConfig.FunctionKey = "func"
 		encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-		encoder = zapcore.NewConsoleEncoder(encoderConfig)
+		encoderConfig.EncodeDuration = zapcore.MillisDurationEncoder
+		encoderConfig.EncodeLevel = zapcore.LowercaseLevelEncoder
+		// 5. Caller Format: Short path (main.go:10) vs Full path (/app/main.go:10)
+		encoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
+		encoder = zapcore.NewJSONEncoder(encoderConfig)
 	}
 	return zapcore.NewCore(encoder, zapcore.Lock(os.Stdout), logLevel)
 }

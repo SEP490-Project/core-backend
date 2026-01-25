@@ -9,17 +9,136 @@ import (
 )
 
 type DatabaseRegistry struct {
-	UserRepository          irepository.UserRepository
-	LoggedSessionRepository irepository.LoggedSessionRepository
-	ProductRepository       irepository.GenericRepository[model.Product]
-	BrandRepository         irepository.GenericRepository[model.Brand]
+	GormDatabase                *gorm.DB
+	UserRepository              irepository.UserRepository
+	LoggedSessionRepository     irepository.GenericRepository[model.LoggedSession]
+	ProductRepository           irepository.GenericRepository[model.Product]
+	ProductVariantRepository    irepository.GenericRepository[model.ProductVariant]
+	BrandRepository             irepository.GenericRepository[model.Brand]
+	ProductCategoryRepository   irepository.GenericRepository[model.ProductCategory]
+	ContractRepository          irepository.ContractRepository
+	ContractPaymentRepository   irepository.ContractPaymentRepository
+	ContractViolationRepository irepository.ContractViolationRepository
+	CampaignRepository          irepository.GenericRepository[model.Campaign]
+	MilestoneRepository         irepository.GenericRepository[model.Milestone]
+	TaskRepository              irepository.TaskRepository
+	ChannelRepository           irepository.GenericRepository[model.Channel]
+	ContentRepository           irepository.ContentRepository
+	ContentChannelRepository    irepository.ContentChannelsRepository
+	ContentCommentRepository    irepository.GenericRepository[model.ContentComment]
+	BlogRepository              irepository.GenericRepository[model.Blog]
+	ModifiedHistoryRepository   irepository.GenericRepository[model.ModifiedHistory]
+	AdminConfigRepository       irepository.GenericRepository[model.Config]
+	TagRepository               irepository.TagRepository
+
+	//Limited Product and Concept
+	LimitedProductRepository   irepository.GenericRepository[model.LimitedProduct]
+	ConceptRepository          irepository.GenericRepository[model.Concept]
+	VariantAttributeRepository irepository.GenericRepository[model.VariantAttribute]
+
+	//Orders & Payment
+	OrderRepository              irepository.OrderRepository
+	OrderItemRepository          irepository.GenericRepository[model.OrderItem]
+	PaymentTransactionRepository irepository.PaymentTransactionRepository
+
+	//PreOrders
+	PreOrderRepository irepository.PreOrderRepository
+
+	//Notifications
+	NotificationRepository irepository.NotificationRepository
+	DeviceTokenRepository  irepository.DeviceTokenRepository
+
+	//Location
+	ShippingAddressRepository irepository.GenericRepository[model.ShippingAddress]
+	ProvinceRepository        irepository.GenericRepository[model.Province]
+	DistrictRepository        irepository.GenericRepository[model.District]
+	WardRepository            irepository.GenericRepository[model.Ward]
+
+	//Affiliate Link Tracking
+	AffiliateLinkRepository irepository.AffiliateLinkRepository
+	ClickEventRepository    irepository.ClickEventRepository
+	KPIMetricsRepository    irepository.KPIMetricsRepository
+
+	//Marketing Analytics
+	MarketingAnalyticsRepository irepository.MarketingAnalyticsRepository
+
+	//Contract Payment Calculation
+	ContractPaymentCalculationRepository irepository.ContractPaymentCalculationRepository
+
+	//Sales Staff Analytics
+	SalesStaffAnalyticsRepository irepository.SalesStaffAnalyticsRepository
+
+	//Content Staff Analytics
+	ContentStaffAnalyticsRepository irepository.ContentStaffAnalyticsRepository
+
+	//Brand Partner Analytics
+	BrandPartnerAnalyticsRepository irepository.BrandPartnerAnalyticsRepository
+
+	//Admin Analytics
+	AdminAnalyticsRepository irepository.AdminAnalyticsRepository
+
+	FileRepository irepository.GenericRepository[model.File]
+	// Reviews
+	ReviewRepository irepository.GenericRepository[model.ProductReview]
+	// Webhooks
+	WebhookDataRepository   irepository.GenericRepository[model.WebhookData]
+	VariantImageRepository  irepository.GenericRepository[model.VariantImage]
+	SystemAlertRepository   irepository.SystemAlertRepository
+	ScheduleRepository      irepository.ScheduleRepository
+	ProductOptionRepository irepository.ProductOptionRepository
 }
 
 func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 	return &DatabaseRegistry{
-		UserRepository:          newUserRepository(db),
-		LoggedSessionRepository: newLoggedSessionRepository(db),
-		ProductRepository:       NewGenericRepository[model.Product](db),
-		BrandRepository:         NewGenericRepository[model.Brand](db),
+		GormDatabase:                         db,
+		UserRepository:                       NewUserRepository(db),
+		LoggedSessionRepository:              NewGenericRepository[model.LoggedSession](db),
+		ProductRepository:                    NewGenericRepository[model.Product](db),
+		ProductVariantRepository:             NewGenericRepository[model.ProductVariant](db),
+		BrandRepository:                      NewGenericRepository[model.Brand](db),
+		ProductCategoryRepository:            NewGenericRepository[model.ProductCategory](db),
+		ContractRepository:                   NewContractRepository(db),
+		ContractPaymentRepository:            NewContractPaymentRepository(db),
+		ContractViolationRepository:          NewContractViolationRepository(db),
+		CampaignRepository:                   NewGenericRepository[model.Campaign](db),
+		MilestoneRepository:                  NewGenericRepository[model.Milestone](db),
+		TaskRepository:                       NewTaskRepository(db),
+		ModifiedHistoryRepository:            NewGenericRepository[model.ModifiedHistory](db),
+		LimitedProductRepository:             NewGenericRepository[model.LimitedProduct](db),
+		ConceptRepository:                    NewGenericRepository[model.Concept](db),
+		AdminConfigRepository:                NewGenericRepository[model.Config](db),
+		VariantAttributeRepository:           NewGenericRepository[model.VariantAttribute](db),
+		ChannelRepository:                    NewGenericRepository[model.Channel](db),
+		ContentRepository:                    NewContentRepository(db),
+		ContentChannelRepository:             NewContentChannelsRepository(db),
+		ContentCommentRepository:             NewGenericRepository[model.ContentComment](db),
+		BlogRepository:                       NewGenericRepository[model.Blog](db),
+		TagRepository:                        NewTagRepository(db),
+		OrderRepository:                      NewOrderRepository(db),
+		OrderItemRepository:                  NewGenericRepository[model.OrderItem](db),
+		PaymentTransactionRepository:         NewPaymentTransactionRepository(db),
+		NotificationRepository:               NewNotificationRepository(db),
+		DeviceTokenRepository:                NewDeviceTokenRepository(db),
+		ShippingAddressRepository:            NewGenericRepository[model.ShippingAddress](db),
+		ProvinceRepository:                   NewGenericRepository[model.Province](db),
+		DistrictRepository:                   NewGenericRepository[model.District](db),
+		WardRepository:                       NewGenericRepository[model.Ward](db),
+		AffiliateLinkRepository:              NewAffiliateLinkRepository(db),
+		ClickEventRepository:                 NewClickEventRepository(db),
+		KPIMetricsRepository:                 NewKPIMetricsRepository(db),
+		PreOrderRepository:                   NewPreOrderRepository(db),
+		MarketingAnalyticsRepository:         NewMarketingAnalyticsRepository(db),
+		ContractPaymentCalculationRepository: NewContractPaymentCalculationRepository(db),
+		SalesStaffAnalyticsRepository:        NewSalesStaffAnalyticsRepository(db),
+		ContentStaffAnalyticsRepository:      NewContentStaffAnalyticsRepository(db),
+		BrandPartnerAnalyticsRepository:      NewBrandPartnerAnalyticsRepository(db),
+		AdminAnalyticsRepository:             NewAdminAnalyticsRepository(db),
+		FileRepository:                       NewGenericRepository[model.File](db),
+		ReviewRepository:                     NewGenericRepository[model.ProductReview](db),
+		WebhookDataRepository:                NewGenericRepository[model.WebhookData](db),
+		VariantImageRepository:               NewGenericRepository[model.VariantImage](db),
+		ScheduleRepository:                   NewScheduleRepository(db),
+		SystemAlertRepository:                NewSystemAlertRepository(db),
+		ProductOptionRepository:              NewProductOptionRepository(db),
 	}
 }

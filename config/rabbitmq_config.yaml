@@ -1,0 +1,454 @@
+topology:
+  exchanges:
+    - name: exchange.notification
+      type: topic
+      durable: true
+      autoDelete: false
+      queues:
+        - name: queue.notification.email
+          routingKey: notification.email
+          additionalBindings:
+            - notification.all
+          durable: true
+          autoDelete: false
+          prefetch: 10
+          retry:
+            enabled: true
+            suffix: retry
+            ttlMs: 60000
+            maxAttempts: 3
+            exponentialMultiply: 2
+            exchange: exchange.notification
+          dlq:
+            enabled: true
+            suffix: dlq
+            exchange: exchange.notification
+        - name: queue.notification.push
+          routingKey: notification.push
+          additionalBindings:
+            - notification.all
+          durable: true
+          autoDelete: false
+          prefetch: 50
+          retry:
+            enabled: true
+            ttlMs: 60000
+            maxAttempts: 3
+            exponentialMultiply: 2
+          dlq:
+            enabled: true
+        - name: queue.notification.in_app
+          routingKey: notification.in_app
+          additionalBindings:
+            - notification.all
+          durable: true
+          autoDelete: false
+          prefetch: 50
+          retry:
+            enabled: true
+            ttlMs: 60000
+            maxAttempts: 3
+            exponentialMultiply: 2
+          dlq:
+            enabled: true
+    - name: exchange.excel_import
+      type: topic
+      durable: true
+      autoDelete: false
+      queues:
+        - name: queue.excel_import.products
+          routingKey: excel_import.products
+          durable: true
+          autoDelete: false
+          prefetch: 1
+          retry:
+            enabled: true
+            ttlMs: 60000
+            maxAttempts: 3
+            exponentialMultiply: 1.5
+          dlq:
+            enabled: true
+    - name: exchange.contract
+      type: topic
+      durable: true
+      autoDelete: false
+      queues:
+        - name: queue.contract.create
+          routingKey: contract.create
+          durable: true
+          autoDelete: false
+          prefetch: 1
+          retry:
+            enabled: true
+            ttlMs: 60000
+            maxAttempts: 3
+            exponentialMultiply: 1.5
+          dlq:
+            enabled: true
+        - name: queue.contract.create_payment
+          routingKey: contract.create_payment
+          durable: true
+          autoDelete: false
+          prefetch: 1
+          retry:
+            enabled: true
+            ttlMs: 60000
+            maxAttempts: 3
+            exponentialMultiply: 1.5
+          dlq:
+            enabled: true
+    - name: exchange.campaign
+      type: topic
+      durable: true
+      autoDelete: false
+      queues:
+        - name: queue.campaign.create
+          routingKey: campaign.create
+          durable: true
+          autoDelete: false
+          prefetch: 1
+          retry:
+            enabled: true
+            ttlMs: 60000
+            maxAttempts: 3
+            exponentialMultiply: 1.5
+          dlq:
+            enabled: true
+    - name: exchange.video_upload
+      type: topic
+      durable: true
+      autoDelete: false
+      queues:
+        - name: queue.video.upload
+          routingKey: video.upload
+          durable: true
+          autoDelete: false
+          prefetch: 1
+          retry:
+            enabled: true
+            ttlMs: 60000
+            maxAttempts: 3
+            exponentialMultiply: 1.5
+          dlq:
+            enabled: true
+    - name: exchange.affiliate_link
+      type: topic
+      durable: true
+      autoDelete: false
+      queues:
+        - name: queue.affiliate_link.click
+          routingKey: affiliate_link.click
+          durable: true
+          autoDelete: false
+          prefetch: 50
+          retry:
+            enabled: true
+            ttlMs: 60000
+            maxAttempts: 3
+            exponentialMultiply: 2
+          dlq:
+            enabled: true
+    - name: exchange.content_publishing
+      type: topic
+      durable: true
+      autoDelete: false
+      queues:
+        - name: queue.content.publish
+          routingKey: content.publish
+          durable: true
+          autoDelete: false
+          prefetch: 1
+          retry:
+            enabled: true
+            ttlMs: 5000
+            maxAttempts: 3
+            exponentialMultiply: 2
+          dlq:
+            enabled: true
+        - name: queue.content.publish_all
+          routingKey: content.publish_all
+          durable: true
+          autoDelete: false
+          prefetch: 1
+          retry:
+            enabled: true
+            ttlMs: 5000
+            maxAttempts: 3
+            exponentialMultiply: 2
+          dlq:
+            enabled: true
+    # Delayed message exchange for scheduled content publishing
+    # Requires rabbitmq_delayed_message_exchange plugin to be enabled
+    - name: exchange.content.schedule.delayed
+      type: x-delayed-message
+      durable: true
+      autoDelete: false
+      arguments:
+        x-delayed-type: direct
+      queues:
+        - name: queue.content.schedule.publish
+          routingKey: content.schedule.publish
+          durable: true
+          autoDelete: false
+          prefetch: 1
+          dlq:
+            enabled: true
+    - name: exchange.content_analytics
+      type: topic
+      durable: true
+      autoDelete: false
+      queues:
+        - name: queue.content.view
+          routingKey: content.view
+          durable: true
+          autoDelete: false
+          prefetch: 50
+          retry:
+            enabled: true
+            ttlMs: 30000
+            maxAttempts: 3
+            exponentialMultiply: 2
+          dlq:
+            enabled: true
+
+producers:
+  - name: notification-email-producer
+    exchange: exchange.notification
+    routingKey: notification.email
+    confirm: true
+    mandatory: false
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 3
+      backoffMs: 1000
+      exponentialMultiply: 2.0
+  - name: notification-push-producer
+    exchange: exchange.notification
+    routingKey: notification.push
+    confirm: true
+    mandatory: false
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 3
+      backoffMs: 1000
+      exponentialMultiply: 2.0
+  - name: excel-import-producer
+    exchange: exchange.excel_import
+    routingKey: excel_import.products
+    confirm: true
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 5
+      backoffMs: 2000
+      exponentialMultiply: 2.0
+  - name: notification-in-app-producer
+    exchange: exchange.notification
+    routingKey: notification.in_app
+    confirm: true
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 3
+      backoffMs: 2000
+      exponentialMultiply: 2.0
+  - name: notification-all-producer
+    exchange: exchange.notification
+    routingKey: notification.all
+    confirm: true
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 3
+      backoffMs: 2000
+      exponentialMultiply: 2.0
+  - name: contract-create-producer
+    exchange: exchange.contract
+    routingKey: contract.create
+    confirm: true
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 5
+      backoffMs: 2000
+      exponentialMultiply: 2.0
+  - name: contract-create-payment-producer
+    exchange: exchange.contract
+    routingKey: contract.create_payment
+    confirm: true
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 5
+      backoffMs: 2000
+      exponentialMultiply: 2.0
+  - name: video-upload-producer
+    exchange: exchange.video_upload
+    routingKey: video.upload
+    confirm: true
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 5
+      backoffMs: 2000
+      exponentialMultiply: 2.0
+  - name: affiliate-link-click-producer
+    exchange: exchange.affiliate_link
+    routingKey: affiliate_link.click
+    confirm: true
+    mandatory: false
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 3
+      backoffMs: 1000
+      exponentialMultiply: 2.0
+  - name: content-publish-producer
+    exchange: exchange.content_publishing
+    routingKey: content.publish
+    confirm: true
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 3
+      backoffMs: 2000
+      exponentialMultiply: 2.0
+  - name: content-publish-all-producer
+    exchange: exchange.content_publishing
+    routingKey: content.publish_all
+    confirm: true
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 3
+      backoffMs: 2000
+      exponentialMultiply: 2.0
+  # Producer for scheduled content publishing (delayed messages)
+  - name: content-schedule-producer
+    exchange: exchange.content.schedule.delayed
+    routingKey: content.schedule.publish
+    confirm: true
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 3
+      backoffMs: 2000
+      exponentialMultiply: 2.0
+  - name: campaign-create-producer
+    exchange: exchange.campaign
+    routingKey: campaign.create
+    confirm: true
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 3
+      backoffMs: 2000
+      exponentialMultiply: 2.0
+  - name: content-view-producer
+    exchange: exchange.content_analytics
+    routingKey: content.view
+    confirm: true
+    mandatory: false
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 3
+      backoffMs: 1000
+      exponentialMultiply: 2.0
+
+consumers:
+  - name: notification-email-consumer
+    queue: queue.notification.email
+    prefetch: 1
+    concurrency: 3
+    autoAck: false
+    requeueOnError: false
+    backoffMs: 2000
+    exponentialMultiply: 1.5
+  - name: notification-push-consumer
+    queue: queue.notification.push
+    prefetch: 1
+    concurrency: 3
+    autoAck: false
+    requeueOnError: false
+    backoffMs: 2000
+  - name: notification-in-app-consumer
+    queue: queue.notification.in_app
+    prefetch: 1
+    concurrency: 3
+    autoAck: false
+    requeueOnError: false
+    backoffMs: 2000
+  - name: excel-import-products-consumer
+    queue: queue.excel_import.products
+    prefetch: 1
+    concurrency: 2
+    autoAck: false
+    requeueOnError: false
+    backoffMs: 5000
+  - name: contract-create-consumer
+    queue: queue.contract.create
+    prefetch: 1
+    concurrency: 1
+    autoAck: false
+    requeueOnError: false
+    backoffMs: 5000
+  - name: contract-create-payment-consumer
+    queue: queue.contract.create_payment
+    prefetch: 1
+    concurrency: 1
+    autoAck: false
+    requeueOnError: false
+    backoffMs: 5000
+  - name: video-upload-consumer
+    queue: queue.video.upload
+    prefetch: 1
+    concurrency: 2
+    autoAck: false
+    requeueOnError: false
+    backoffMs: 5000
+  - name: affiliate-link-click-consumer
+    queue: queue.affiliate_link.click
+    prefetch: 50
+    concurrency: 3
+    autoAck: false
+    requeueOnError: false
+    backoffMs: 2000
+  - name: content-publish-consumer
+    queue: queue.content.publish
+    prefetch: 1
+    concurrency: 2
+    autoAck: false
+    requeueOnError: false
+    backoffMs: 5000
+  - name: content-publish-all-consumer
+    queue: queue.content.publish_all
+    prefetch: 1
+    concurrency: 1
+    autoAck: false
+    requeueOnError: false
+    backoffMs: 5000
+  # Consumer for scheduled content publishing (processes delayed messages)
+  - name: content-schedule-consumer
+    queue: queue.content.schedule.publish
+    prefetch: 1
+    concurrency: 2
+    autoAck: false
+    requeueOnError: false
+    backoffMs: 5000
+  - name: campaign-create-consumer
+    queue: queue.campaign.create
+    prefetch: 1
+    concurrency: 1
+    autoAck: false
+    requeueOnError: false
+    backoffMs: 5000
+  - name: content-view-consumer
+    queue: queue.content.view
+    prefetch: 50
+    concurrency: 3
+    autoAck: false
+    requeueOnError: false
+    backoffMs: 2000

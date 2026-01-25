@@ -10,49 +10,61 @@ import (
 )
 
 type Contract struct {
-	ID              uuid.UUID           `json:"id" gorm:"type:uuid;column:id;primaryKey;default"`
-	BrandID         uuid.UUID           `json:"brand_id" gorm:"type:uuid;column:brand_id;not null"`
-	StaffID         uuid.UUID           `json:"staff_id" gorm:"type:uuid;column:staff_id;not null"`
-	Title           string              `json:"title" gorm:"type:varchar(255);column:title;not null"`
-	Type            enum.ContractType   `json:"type" gorm:"type:varchar(50);column:type;not null"`
-	StartDate       time.Time           `json:"start_date" gorm:"type:timestamp;column:start_date;not null"`
-	EndDate         time.Time           `json:"end_date" gorm:"type:timestamp;column:end_date;not null"`
-	Status          enum.ContractStatus `json:"status" gorm:"type:varchar(50);column:status;not null"`
-	ContractFileURL string              `json:"contract_file_url" gorm:"type:text;column:contract_file_url;not null"`
-	ProposalFileURL *string             `json:"proposal_file_url" gorm:"type:text;column:proposal_file_url"`
-
-	CompensationAmount *float64 `json:"compensation_amount" gorm:"type:numeric(12,2);column:compensation_amount"`
-	PaymentTerms       *string  `json:"payment_terms" gorm:"type:text;column:payment_terms"`
-
-	// Advertising specific fields (used when Type is Advertising)
-	Deliverables datatypes.JSON `json:"deliverables" gorm:"type:jsonb;column:deliverables"`
-	UsageRights  *string        `json:"usage_rights" gorm:"type:text;column:usage_rights"`
-
-	// Affiliate specific fields (used when Type is Affiliate)
-	CommissionRate     float64 `json:"commission_rate" gorm:"type:numeric(5,2);column:commission_rate"`
-	CookieDurationDays int     `json:"cookie_duration_days" gorm:"type:int;column:cookie_duration_days"`
-	PayoutThreshold    float64 `json:"payout_threshold" gorm:"type:numeric(12,2);column:payout_threshold"`
-
-	// Brand Ambassador specific fields (used when Type is BrandAmbassador)
-	MonthlyRetainer       float64 `json:"monthly_retainer" gorm:"type:numeric(12,2);column:monthly_retainer"`
-	RequiredPostsPerMonth int     `json:"required_posts_per_month" gorm:"type:int;column:required_posts_per_month"`
-
-	// Co-Producing specific fields (used when Type is CoProducing)
-	RevenueSharePercentage float64 `json:"revenue_share_percentage" gorm:"type:numeric(5,2);column:revenue_share_percentage"`
-	IPOwnership            string  `json:"ip_ownership" gorm:"type:text;column:ip_ownership"`
-
+	ID               uuid.UUID  `json:"id" gorm:"type:uuid;column:id;primaryKey;default"`
 	ParentContractID *uuid.UUID `json:"parent_contract_id" gorm:"type:uuid;column:parent_contract_id"`
+	Title            *string    `json:"title" gorm:"type:varchar(255);column:title"`
+	ContractNumber   *string    `json:"contract_number" gorm:"type:varchar(255);column:contract_number;not null;unique"`
 
-	CreatedAt time.Time      `json:"created_at" gorm:"type:timestamp;column:created_at;autoCreateTime"`
-	UpdatedAt time.Time      `json:"updated_at" gorm:"type:timestamp;column:updated_at;autoUpdateTime"`
-	DeletedAt gorm.DeletedAt `json:"deleted_at" gorm:"index;column:deleted_at"`
+	// Brand information
+	BrandID                *uuid.UUID `json:"brand_id" gorm:"type:uuid;column:brand_id"`
+	BrandBankName          *string    `json:"brand_bank_name" gorm:"type:varchar(255);column:brand_bank_name"`
+	BrandBankAccountNumber *string    `json:"brand_account_number" gorm:"type:varchar(255);column:brand_account_number"`
+	BrandBankAccountHolder *string    `json:"brand_account_holder" gorm:"type:varchar(100);column:brand_account_holder"`
 
-	// Relationships (always use struct field names, not column names)
-	ParentContract *Contract  `json:"-" gorm:"foreignKey:ParentContractID"`
-	ChildContracts []Contract `json:"-" gorm:"foreignKey:ParentContractID"`
-	Brand          *Brand     `json:"-" gorm:"foreignKey:BrandID"`
-	Staff          *User      `json:"-" gorm:"foreignKey:StaffID"`
-	Campaign       *Campaign  `json:"-" gorm:"foreignKey:ContractID"`
+	// KOL Representative information
+	RepresentativeName              *string `json:"representative_name" gorm:"type:varchar(255);column:representative_name"`
+	RepresentativeRole              *string `json:"representative_role" gorm:"type:varchar(255);column:representative_role"`
+	RepresentativePhone             *string `json:"representative_phone" gorm:"type:varchar(20);column:representative_phone"`
+	RepresentativeEmail             *string `json:"representative_email" gorm:"type:varchar(255);column:representative_email"`
+	RepresentativeTaxNumber         *string `json:"representative_tax_number" gorm:"type:varchar(100);column:representative_tax_number"`
+	RepresentativeBankName          *string `json:"representative_bank_name" gorm:"type:varchar(255);column:representative_bank_name"`
+	RepresentativeBankAccountNumber *string `json:"representative_bank_account_number" gorm:"type:varchar(255);column:representative_bank_account_number"`
+	RepresentativeBankAccountHolder *string `json:"representative_bank_account_holder" gorm:"type:varchar(255);column:representative_bank_account_holder"`
+
+	// Contract complex details stored as JSONB
+	FinancialTerms datatypes.JSON `json:"financial_terms" gorm:"type:jsonb;column:financial_terms;not null" swaggerignore:"true"`
+	ScopeOfWork    datatypes.JSON `json:"scope_of_work" gorm:"type:jsonb;column:scope_of_work;not null"`
+	LegalTerms     datatypes.JSON `json:"legal_terms" gorm:"type:jsonb;column:legal_terms;not null"`
+
+	// Deposit Information
+	DepositPercent  *int    `json:"deposit_percent" gorm:"type:int;column:deposit_percent;check:deposit_percent >= 0 AND deposit_percent <= 100"`
+	DepositAmount   *int    `json:"deposit_amount" gorm:"type:int;column:deposit_amount;check:deposit_amount >= 0"`
+	IsDepositPaid   *bool   `json:"is_deposit_paid" gorm:"type:boolean;column:is_deposit_paid;default:false"`
+	DepositProofURL *string `json:"deposit_proof_url" gorm:"type:text;column:deposit_proof_url"`
+
+	// Contract Details
+	Type            enum.ContractType   `json:"type" gorm:"type:varchar(50);column:type;not null;check:type IN ('ADVERTISING', 'AFFILIATE', 'BRAND_AMBASSADOR', 'CO_PRODUCING')"`
+	Status          enum.ContractStatus `json:"status" gorm:"type:varchar(50);column:status;not null;check:status IN ('DRAFT','APPROVED','ACTIVE','COMPLETED','INACTIVE','TERMINATED')"`
+	SignedDate      time.Time           `json:"signed_date" gorm:"column:signed_date;not null"`
+	SignedLocation  *string             `json:"signed_location" gorm:"type:varchar(255);column:signed_location"`
+	StartDate       time.Time           `json:"start_date" gorm:"column:start_date;not null"`
+	EndDate         time.Time           `json:"end_date" gorm:"column:end_date;not null"`
+	Currency        *string             `json:"currency" gorm:"type:varchar(3);column:currency;default:'VND'"`
+	ContractFileURL *string             `json:"contract_file_url" gorm:"type:text;column:contract_file_url"`
+	ProposalFileURL *string             `json:"proposal_file_url" gorm:"type:text;column:proposal_file_url"`
+	RejectReason    *string             `json:"reject_reason" gorm:"type:text;column:reject_reason"`
+	CreatedAt       time.Time           `json:"created_at" gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt       time.Time           `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
+	DeletedAt       gorm.DeletedAt      `json:"deleted_at" gorm:"column:deleted_at;index"`
+	CreatedByID     uuid.UUID           `json:"created_by" gorm:"type:uuid;column:created_by;not null"`
+	UpdatedByID     *uuid.UUID          `json:"updated_by" gorm:"type:uuid;column:updated_by"`
+
+	// Relationships
+	ParentContract    *Contract         `json:"parent_contract" gorm:"foreignKey:ParentContractID;references:ID"`
+	ChildrenContracts []Contract        `json:"children_contracts" gorm:"foreignKey:ParentContractID;references:ID"`
+	Brand             *Brand            `json:"brand" gorm:"foreignKey:BrandID;references:ID"`
+	Campaign          *Campaign         `json:"campaigns" gorm:"foreignKey:ContractID;references:ID"`
+	ContractPayments  []ContractPayment `json:"contract_payments" gorm:"foreignKey:ContractID;references:ID"`
 }
 
 func (Contract) TableName() string { return "contracts" }
@@ -60,12 +72,6 @@ func (Contract) TableName() string { return "contracts" }
 func (c *Contract) BeforeCreate(tx *gorm.DB) error {
 	if c.ID == uuid.Nil {
 		c.ID = uuid.New()
-	}
-	if c.CompensationAmount == nil {
-		c.CompensationAmount = new(float64)
-	}
-	if c.PaymentTerms == nil {
-		c.PaymentTerms = new(string)
 	}
 	return nil
 }

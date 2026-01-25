@@ -8,20 +8,24 @@ import (
 type OrderStatus string
 
 const (
-	OrderStatusPending   OrderStatus = "PENDING"
-	OrderStatusPaid      OrderStatus = "PAID"
-	OrderStatusRefunded  OrderStatus = "REFUNDED"
-	OrderStatusConfirmed OrderStatus = "CONFIRMED"
-	OrderStatusCanceled  OrderStatus = "CANCELED"
-	OrderStatusShipped   OrderStatus = "SHIPPED"
-	OrderStatusInTransit OrderStatus = "IN_TRANSIT"
-	OrderStatusDelivered OrderStatus = "DELIVERED"
-	OrderStatusReceived  OrderStatus = "RECEIVED"
+	OrderStatusPending             OrderStatus = "PENDING"
+	OrderStatusPaid                OrderStatus = "PAID"
+	OrderStatusRefundRequested     OrderStatus = "REFUND_REQUEST"
+	OrderStatusRefunded            OrderStatus = "REFUNDED"
+	OrderStatusConfirmed           OrderStatus = "CONFIRMED"
+	OrderStatusCancelled           OrderStatus = "CANCELLED"
+	OrderStatusShipped             OrderStatus = "SHIPPED"
+	OrderStatusInTransit           OrderStatus = "IN_TRANSIT"
+	OrderStatusDelivered           OrderStatus = "DELIVERED"
+	OrderStatusReceived            OrderStatus = "RECEIVED"
+	OrderStatusCompensateRequested OrderStatus = "COMPENSATE_REQUEST"
+	OrderStatusCompensated         OrderStatus = "COMPENSATED"
+	OrderStatusAwaitingPickUp      OrderStatus = "AWAITING_PICKUP"
 )
 
 func (os OrderStatus) IsValid() bool {
 	switch os {
-	case OrderStatusPending, OrderStatusPaid, OrderStatusRefunded, OrderStatusConfirmed, OrderStatusCanceled, OrderStatusShipped, OrderStatusInTransit, OrderStatusDelivered, OrderStatusReceived:
+	case OrderStatusPending, OrderStatusPaid, OrderStatusRefundRequested, OrderStatusRefunded, OrderStatusConfirmed, OrderStatusCancelled, OrderStatusShipped, OrderStatusInTransit, OrderStatusDelivered, OrderStatusReceived, OrderStatusAwaitingPickUp, OrderStatusCompensateRequested, OrderStatusCompensated:
 		return true
 	}
 	return false
@@ -45,4 +49,8 @@ func (os *OrderStatus) Scan(value any) error {
 
 func (os OrderStatus) Value() (driver.Value, error) {
 	return string(os), nil
+}
+
+func (os OrderStatus) String() string {
+	return string(os)
 }

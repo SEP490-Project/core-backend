@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Contract Termination Warning</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      .header {
+        background-color: #f8d7da;
+        color: #721c24;
+        padding: 10px;
+        text-align: center;
+        border-radius: 5px 5px 0 0;
+      }
+      .content {
+        padding: 20px;
+      }
+      .footer {
+        text-align: center;
+        font-size: 12px;
+        color: #777;
+        margin-top: 20px;
+      }
+      .button {
+        display: inline-block;
+        padding: 10px 20px;
+        background-color: #dc3545;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>Contract Termination Notice</h2>
+      </div>
+      <div class="content">
+        <p>Dear {{.BrandName}},</p>
+
+        <p>
+          This is an urgent notice regarding your contract
+          <strong>#{{.ContractNumber}}</strong>.
+        </p>
+
+        <p>
+          Your payment is overdue by <strong>{{.DaysOverdue}} days</strong>,
+          which exceeds our allowed overdue period of {{.AllowedOverdueDays}}
+          days.
+        </p>
+
+        <p>
+          Due to failure to make the required payments, we regret to inform you
+          that your contract has been
+          <strong>terminated effective immediately</strong>.
+        </p>
+
+        <p>
+          Please contact our support team immediately to resolve any outstanding
+          balance.
+        </p>
+
+        <p>
+          <a href="{{.SupportLink}}" class="button">Contact Support</a>
+        </p>
+      </div>
+      <div class="footer">
+        <p>&copy; {{.CurrentYear}} SEP490. All rights reserved.</p>
+      </div>
+    </div>
+  </body>
+</html>
+

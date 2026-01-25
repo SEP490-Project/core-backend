@@ -8,26 +8,27 @@ import (
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/pkg/utils"
 	"fmt"
-	"net/http"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
-type BrandService struct {
-	BrandRepository irepository.GenericRepository[model.Brand]
+type brandService struct {
+	BrandRepository   irepository.GenericRepository[model.Brand]
+	ProductRepository irepository.GenericRepository[model.Product]
 }
 
 // CreateBrand implements iservice.BrandService.
-func (b *BrandService) CreateBrand(ctx context.Context, request *requests.CreateBrandRequest) (*responses.BrandResponse, error) {
+func (b *brandService) CreateBrand(ctx context.Context, request *requests.CreateBrandRequest) (*responses.BrandResponse, error) {
 	zap.L().Info("Creating new brand", zap.Any("request", request))
 
 	conditions := func(db *gorm.DB) *gorm.DB {
 		return db.Where("name = ?", request.Name)
 	}
-	if brand, err := b.BrandRepository.GetByCondition(ctx, conditions, nil, true); err != nil {
+	if brand, err := b.BrandRepository.GetByCondition(ctx, conditions, nil); err != nil {
 		zap.L().Error("Failed to check existing brand", zap.Error(err))
 		return nil, err
 	} else if brand != nil {
@@ -36,9 +37,15 @@ func (b *BrandService) CreateBrand(ctx context.Context, request *requests.Create
 	}
 
 	brandModel := &model.Brand{
-		ID:     uuid.New(),
-		Name:   request.Name,
-		Status: enum.BrandStatusActive,
+		ID:           uuid.New(),
+		Name:         request.Name,
+		Description:  request.Description,
+		ContactEmail: request.ContactEmail,
+		ContactPhone: request.ContactPhone,
+		Address:      request.Address,
+		Website:      request.Website,
+		LogoURL:      request.LogoURL,
+		Status:       enum.BrandStatusActive,
 	}
 	if err := b.BrandRepository.Add(ctx, brandModel); err != nil {
 		zap.L().Error("Failed to create brand", zap.Error(err))
@@ -49,10 +56,45 @@ func (b *BrandService) CreateBrand(ctx context.Context, request *requests.Create
 }
 
 // GetByFilter implements iservice.BrandService.
-func (b *BrandService) GetByFilter(ctx context.Context, request *requests.ListBrandsRequest) (*responses.PaginationResponse[responses.BrandResponse], error) {
+func (b *brandService) GetByFilter(ctx context.Context, request *requests.ListBrandsRequest) ([]responses.BrandResponse, int64, error) {
 	zap.L().Info("Fetching brands with filter", zap.Any("request", request))
 
 	filter := func(db *gorm.DB) *gorm.DB {
+		if request.Keywords != nil && *request.Keywords != "" {
+			likePattern := fmt.Sprintf("%%%s%%", *request.Keywords)
+			db = db.Where("name ILIKE ?", likePattern)
+		}
+		if request.Status != nil && *request.Status != "" {
+			db = db.Where("status = ?", enum.BrandStatus(*request.Status))
+		}
+
+		sortBy := "created_at"
+		sortOrder := "desc"
+
+		if request.SortBy != "" {
+			sortBy = request.SortBy
+		}
+		if request.SortOrder != "" {
+			sortOrder = request.SortOrder
+		}
+
+		switch sortBy {
+		case "number_of_contracts":
+			db = db.
+				Select("brands.*, COUNT(contracts.id) AS number_of_contracts").
+				Joins("LEFT JOIN contracts ON contracts.brand_id = brands.id").
+				Group("brands.id").
+				Order(fmt.Sprintf("COUNT(contracts.id) %s", sortOrder))
+		case "number_of_active_contracts":
+			db = db.
+				Select("brands.*, SUM(CASE WHEN contracts.status = ? THEN 1 ELSE 0 END) AS number_of_active_contracts", enum.ContractStatusActive).
+				Joins("LEFT JOIN contracts ON contracts.brand_id = brands.id").
+				Group("brands.id").
+				Order(fmt.Sprintf("SUM(CASE WHEN contracts.status = '%s' THEN 1 ELSE 0 END) %s", enum.ContractStatusActive, sortOrder))
+		default:
+			db = db.Order(fmt.Sprintf("%s %s", sortBy, sortOrder))
+		}
+
 		return db
 	}
 
@@ -62,25 +104,48 @@ func (b *BrandService) GetByFilter(ctx context.Context, request *requests.ListBr
 	brandResponses := make([]responses.BrandResponse, 0)
 	if brands, totalCount, err = b.BrandRepository.GetAll(ctx, filter, nil, request.Limit, request.Page); err != nil {
 		zap.L().Error("Failed to fetch brands from repository", zap.Error(err))
-		return nil, err
+		return nil, 0, err
 	} else if len(brands) == 0 {
 		zap.L().Debug("No brands found matching the filter criteria")
-		return responses.EmptyPaginationResponse[responses.BrandResponse]("No brands found matching the filter criteria", nil, request.Page, request.Limit), nil
+		return brandResponses, 0, nil
 	}
 
-	totalPages := int((totalCount + int64(request.Limit) - 1) / int64(request.Limit))
-	return responses.PaginatedResponse("Successfully fetched brands", http.StatusOK, brandResponses, responses.Pagination{
-		Page:       request.Page,
-		Limit:      request.Limit,
-		Total:      totalCount,
-		TotalPages: totalPages,
-		HasNext:    request.Page < totalPages,
-		HasPrev:    request.Page > 1,
-	}), nil
+	brandIDs := utils.MapSlice(brands, func(b model.Brand) uuid.UUID { return b.ID })
+
+	type BrandCount struct {
+		ID                      uuid.UUID
+		NumberOfContracts       int
+		NumberOfActiveContracts int
+	}
+
+	brandCounts := make([]BrandCount, 0, len(brandIDs))
+	b.BrandRepository.DB().
+		Model(&model.Brand{}).
+		InnerJoins("INNER JOIN contracts ON contracts.brand_id = brands.id").
+		Where("brands.id IN ?", brandIDs).
+		Select("brands.id, COUNT(contracts.id) AS number_of_contracts, SUM(CASE WHEN contracts.status = ? THEN 1 ELSE 0 END) AS number_of_active_contracts", enum.ContractStatusActive).
+		Group("brands.id").
+		Scan(&brandCounts)
+
+	brandCountsMap := utils.MapKeyFromSlice(brandCounts, func(bc BrandCount) (uuid.UUID, BrandCount) {
+		return bc.ID, bc
+	})
+
+	for _, brand := range brands {
+		response := responses.BrandResponse{}.ToBrandResponse(&brand)
+		count, ok := brandCountsMap[brand.ID]
+		if ok {
+			response.NumberOfContracts = count.NumberOfContracts
+			response.NumberOfActiveContracts = count.NumberOfActiveContracts
+		}
+		brandResponses = append(brandResponses, *response)
+	}
+
+	return brandResponses, totalCount, nil
 }
 
 // GetByID implements iservice.BrandService.
-func (b *BrandService) GetByID(ctx context.Context, brandID uuid.UUID) (*responses.BrandResponse, error) {
+func (b *brandService) GetByID(ctx context.Context, brandID uuid.UUID) (*responses.BrandDetailResponse, error) {
 	zap.L().Info("Fetching brand by ID", zap.String("brand_id", brandID.String()))
 
 	conditions := func(db *gorm.DB) *gorm.DB {
@@ -88,7 +153,7 @@ func (b *BrandService) GetByID(ctx context.Context, brandID uuid.UUID) (*respons
 	}
 	var brand *model.Brand
 	var err error
-	if brand, err = b.BrandRepository.GetByCondition(ctx, conditions, nil, true); err != nil {
+	if brand, err = b.BrandRepository.GetByCondition(ctx, conditions, nil); err != nil {
 		zap.L().Error("Failed to fetch brand from repository", zap.Error(err))
 		return nil, err
 	} else if brand == nil {
@@ -96,11 +161,11 @@ func (b *BrandService) GetByID(ctx context.Context, brandID uuid.UUID) (*respons
 		return nil, fmt.Errorf("brand with ID %s not found", brandID.String())
 	}
 
-	return responses.BrandResponse{}.ToBrandResponse(brand), nil
+	return responses.BrandDetailResponse{}.ToBrandDetailResponse(brand), nil
 }
 
 // UpdateBrand implements iservice.BrandService.
-func (b *BrandService) UpdateBrand(ctx context.Context, brandID uuid.UUID, request *requests.UpdateBrandRequest) (*responses.BrandResponse, error) {
+func (b *brandService) UpdateBrand(ctx context.Context, brandID uuid.UUID, request *requests.UpdateBrandRequest) (*responses.BrandResponse, error) {
 	zap.L().Info("Updating brand", zap.String("brand_id", brandID.String()), zap.Any("request", request))
 
 	conditions := func(db *gorm.DB) *gorm.DB {
@@ -108,7 +173,7 @@ func (b *BrandService) UpdateBrand(ctx context.Context, brandID uuid.UUID, reque
 	}
 	var brand *model.Brand
 	var err error
-	if brand, err = b.BrandRepository.GetByCondition(ctx, conditions, nil, true); err != nil {
+	if brand, err = b.BrandRepository.GetByCondition(ctx, conditions, nil); err != nil {
 		zap.L().Error("Failed to fetch brand from repository", zap.Error(err))
 		return nil, err
 	} else if brand == nil {
@@ -126,7 +191,7 @@ func (b *BrandService) UpdateBrand(ctx context.Context, brandID uuid.UUID, reque
 }
 
 // UpdateBrandStatus implements iservice.BrandService.
-func (b *BrandService) UpdateBrandStatus(ctx context.Context, brandID uuid.UUID, status enum.BrandStatus) (*responses.BrandResponse, error) {
+func (b *brandService) UpdateBrandStatus(ctx context.Context, brandID uuid.UUID, status enum.BrandStatus) (*responses.BrandResponse, error) {
 	zap.L().Info("Updating brand status", zap.String("brand_id", brandID.String()), zap.String("status", string(status)))
 
 	conditions := func(db *gorm.DB) *gorm.DB {
@@ -134,7 +199,7 @@ func (b *BrandService) UpdateBrandStatus(ctx context.Context, brandID uuid.UUID,
 	}
 	var brand *model.Brand
 	var err error
-	if brand, err = b.BrandRepository.GetByCondition(ctx, conditions, nil, true); err != nil {
+	if brand, err = b.BrandRepository.GetByCondition(ctx, conditions, nil); err != nil {
 		zap.L().Error("Failed to fetch brand from repository", zap.Error(err))
 		return nil, err
 	} else if brand == nil {
@@ -151,6 +216,120 @@ func (b *BrandService) UpdateBrandStatus(ctx context.Context, brandID uuid.UUID,
 	return responses.BrandResponse{}.ToBrandResponse(brand), nil
 }
 
-func NewBrandService(brandRepository irepository.GenericRepository[model.Brand]) iservice.BrandService {
-	return &BrandService{BrandRepository: brandRepository}
+// CreateBrandWithInActiveUsers implements iservice.BrandService.
+func (b *brandService) CreateBrandWithInActiveUsers(
+	ctx context.Context,
+	uow *irepository.UnitOfWork,
+	request *requests.CreateBrandWithUserRequest,
+) (*responses.BrandResponse, error) {
+	zap.L().Info("Creating new brand with inactive useer", zap.Any("request.CreateBrandRequest", request))
+	brandRepo := (*uow).Brands()
+	usersRepo := (*uow).Users()
+
+	conditions := func(db *gorm.DB) *gorm.DB {
+		return db.Where("name = ? OR contact_email = ?", request.Name, request.ContactEmail)
+	}
+	if exists, err := brandRepo.Exists(ctx, conditions); err != nil {
+		zap.L().Error("Failed to check existing brand", zap.Error(err))
+		return nil, err
+	} else if exists {
+		zap.L().Warn("Brand with the same name already exists", zap.String("name", request.Name))
+		return nil, fmt.Errorf("brand with name %s already exists", request.Name)
+	}
+
+	// Create an new inactive user with placeholder password
+	// The real password will be auto-generated after the admin verifies the creation of the brand and users
+	usersModel := &model.User{
+		ID:              uuid.New(),
+		Username:        utils.ToUsernameString(*request.RepresentativeName),
+		Email:           *request.RepresentativeEmail,
+		Phone:           *request.RepresentativePhone,
+		PasswordHash:    "<placeholder>",
+		FullName:        "",
+		Role:            enum.UserRoleBrandPartner,
+		IsActive:        false,
+		ShippingAddress: []model.ShippingAddress{},
+		Sessions:        []model.LoggedSession{},
+		DateOfBirth:     nil,
+		AvatarURL:       request.LogoURL,
+	}
+	if err := usersRepo.Add(ctx, usersModel); err != nil {
+		zap.L().Error("Failed to create inactive user for brand", zap.Error(err))
+		return nil, err
+	}
+
+	brandModel := &model.Brand{
+		ID:                      uuid.New(),
+		UserID:                  &usersModel.ID,
+		Name:                    request.Name,
+		Description:             request.Description,
+		ContactEmail:            request.ContactEmail,
+		ContactPhone:            request.ContactPhone,
+		Address:                 request.Address,
+		Website:                 request.Website,
+		LogoURL:                 request.LogoURL,
+		Status:                  enum.BrandStatusInactive,
+		TaxNumber:               request.TaxNumber,
+		RepresentativeName:      request.RepresentativeName,
+		RepresentativeRole:      request.RepresentativeRole,
+		RepresentativeEmail:     request.RepresentativeEmail,
+		RepresentativePhone:     request.RepresentativePhone,
+		RepresentativeCitizenID: request.RepresentativeCitizenID,
+	}
+	if err := brandRepo.Add(ctx, brandModel); err != nil {
+		zap.L().Error("Failed to create brand", zap.Error(err))
+		return nil, err
+	}
+
+	return responses.BrandResponse{}.ToBrandResponse(brandModel), nil
+
+}
+
+func (b *brandService) MyProducts(ctx context.Context, userID uuid.UUID, page int, limit int) ([]responses.ProductResponseV2, int64, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit <= 0 {
+		// default page size
+		limit = 10
+	}
+	offset := (page - 1) * limit
+
+	// Filter products where the product's brand is owned by the given user (brands.user_id = userID)
+	filter := func(db *gorm.DB) *gorm.DB {
+		// join brands and users to allow filtering by brands.user_id (owner user)
+		return db.Joins("JOIN brands ON brands.id = products.brand_id").
+			Joins("JOIN users ON users.id = brands.user_id").
+			Where("users.id = ?", userID).
+			Order("products.created_at DESC")
+	}
+
+	includes := []string{"Brand", "Brand.User", "Category",
+		"Variants",
+		"Variants.Images",
+		"Category",
+		"Category.ParentCategory",
+		"Category.ChildCategories"}
+
+	products, total, err := b.ProductRepository.GetAll(ctx, filter, includes, limit, offset)
+	if err != nil {
+		zap.L().Error("failed to fetch products for brand owner", zap.Error(err), zap.String("owner_user_id", userID.String()))
+		return nil, 0, err
+	}
+
+	resp := make([]responses.ProductResponseV2, 0, len(products))
+	for _, p := range products {
+		v2 := responses.ProductResponseV2{}
+		mapped := *v2.ToProductResponseV2(&p)
+		resp = append(resp, mapped)
+	}
+
+	return resp, total, nil
+}
+
+func NewBrandService(brandRepository irepository.GenericRepository[model.Brand], productRepository irepository.GenericRepository[model.Product]) iservice.BrandService {
+	return &brandService{
+		BrandRepository:   brandRepository,
+		ProductRepository: productRepository,
+	}
 }

@@ -1,28 +1,71 @@
+// Package infrastructure provides the InfrastructureRegistry struct that holds various infrastructure services.
 package infrastructure
 
 import (
 	"context"
+	"core-backend/config"
+	"core-backend/internal/application/interfaces/irepository"
+	iservicethirdparty "core-backend/internal/application/interfaces/iservice_third_party"
+	"core-backend/internal/domain/model"
+	"core-backend/internal/infrastructure/asynq"
+	gormrepository "core-backend/internal/infrastructure/gorm_repository"
+	"core-backend/internal/infrastructure/jobs"
 	"core-backend/internal/infrastructure/persistence"
-	"core-backend/internal/infrastructure/queue"
+	"core-backend/internal/infrastructure/proxies"
 	"core-backend/internal/infrastructure/rabbitmq"
+	"core-backend/internal/infrastructure/scheduler"
+	"core-backend/internal/infrastructure/service"
+	"core-backend/internal/infrastructure/third_party_repository"
+	"fmt"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
 type InfrastructureRegistry struct {
-	DB           *gorm.DB
-	ValkeyCache  *persistence.ValkeyCache
-	RabbitMQ     *rabbitmq.RabbitMQ
-	AsynqClient  *queue.AsynqClient
-	AsynqServer  *queue.AsynqServer
+	Config                    *config.AppConfig
+	DB                        *gorm.DB
+	ThirdPartyStorage         *third_party_repository.ThirdPartyStorageRegistry
+	UnitOfWork                irepository.UnitOfWork
+	ValkeyCache               *persistence.ValkeyCache
+	RabbitMQ                  *rabbitmq.RabbitMQ
+	RabbitMQManagementService *rabbitmq.ManagementService
+	VaultService              iservicethirdparty.VaultService
+	EmailService              iservicethirdparty.EmailService
+	FCMService                iservicethirdparty.FCMService
+	ExpoPushService           iservicethirdparty.ExpoPushService
+	HealthMonitor             iservicethirdparty.HealthMonitor
+	ProxiesRegistry           *proxies.ProxiesRegistry
+
+	// Asynq Task Scheduler
+	AsynqClient *asynq.AsynqClient
+
+	//Automatic Trigger
+	schedulers []scheduler.TaskScheduler
+	//Manual Trigger Schedulers
+	LocationSyncTask scheduler.TaskScheduler
+	CronJobsRegistry *jobs.CronJobRegistry
 }
 
-func NewInfrastructureRegistry(db *gorm.DB) *InfrastructureRegistry {
+func NewInfrastructureRegistry(
+	config *config.AppConfig,
+	db *gorm.DB,
+	dbReg *gormrepository.DatabaseRegistry,
+	s3Bucket *persistence.S3Bucket,
+	s3StreamBucket *persistence.S3StreamingBucket,
+) *InfrastructureRegistry {
 	zap.L().Info("Initializing infrastructure registry")
 
 	registry := &InfrastructureRegistry{
-		DB: db,
+		Config:     config,
+		DB:         db,
+		UnitOfWork: persistence.NewUnitOfWork(db),
+	}
+
+	// Override AdminConfig from Database
+	zap.L().Debug("Overriding AdminConfig from database")
+	if err := registry.OverrideAdminConfig(); err != nil {
+		zap.L().Error("Failed to override admin config", zap.Error(err))
 	}
 
 	// Initialize Valkey cache
@@ -41,61 +84,218 @@ func NewInfrastructureRegistry(db *gorm.DB) *InfrastructureRegistry {
 	} else {
 		registry.RabbitMQ = rabbitMQ
 		zap.L().Info("RabbitMQ initialized successfully")
+
+		// Initialize RabbitMQ Management Service
+		zap.L().Debug("Initializing RabbitMQ Management Service...")
+		registry.RabbitMQManagementService = rabbitmq.NewManagementService(config)
+		if registry.RabbitMQManagementService != nil {
+			zap.L().Info("RabbitMQ Management Service initialized successfully")
+		} else {
+			zap.L().Warn("Failed to initialize RabbitMQ Management Service")
+		}
 	}
 
-	// Initialize Asynq
-	zap.L().Debug("Initializing Asynq client and server")
-	registry.AsynqClient = queue.NewAsynqClient()
-	registry.AsynqServer = queue.NewAsynqServer()
-	zap.L().Info("Asynq client and server initialized successfully")
+	//Initialize Third Party Storage Registry
+	zap.L().Debug("Initializing Third Party Storage Registry...")
+	registry.ThirdPartyStorage = third_party_repository.NewThirdPartyStorageRegistry(
+		config, s3Bucket, s3StreamBucket,
+	)
+
+	//========================EXTERNAL SERVICES========================//
+	//Initialize VaultService (for general-purpose secret management)
+	zap.L().Debug("Initializing VaultService...")
+	if config.JWT.Vault != nil && config.JWT.Vault.Enabled {
+		vaultService, err := service.NewVaultService(config.JWT.Vault)
+		if err != nil {
+			zap.L().Warn("Failed to initialize VaultService, continuing without Vault", zap.Error(err))
+		} else {
+			registry.VaultService = vaultService
+			zap.L().Info("VaultService initialized successfully")
+		}
+	} else {
+		zap.L().Debug("VaultService disabled in configuration")
+	}
+
+	//Initialize EmailService
+	zap.L().Debug("Initializing EmailService...")
+	emailService, err := service.NewEmailService(config)
+	if err != nil {
+		zap.L().Warn("Failed to initialize EmailService, skipping email notifications", zap.Error(err))
+	} else {
+		registry.EmailService = emailService
+		zap.L().Info("EmailService initialized successfully")
+	}
+
+	//Initialize FCMService
+	zap.L().Debug("Initializing FCMService...")
+	fcmService, err := service.NewFCMService(config.FirebaseFCM.ServiceAccountPath, config)
+	if err != nil {
+		zap.L().Warn("Failed to initialize FCMService, skipping FCM notifications", zap.Error(err))
+	} else {
+		registry.FCMService = fcmService
+		zap.L().Info("FCMService initialized successfully")
+	}
+
+	//Initialize ExpoPushService
+	zap.L().Debug("Initializing ExpoPushService...")
+	expoPushService := service.NewExpoPushService(config)
+	registry.ExpoPushService = expoPushService
+	zap.L().Info("ExpoPushService initialized successfully")
+
+	//External Services
+	zap.L().Debug("Initializing GHN Service...")
+
+	//==============================================================
+
+	//Initialize Task Schedulers
+	registry.schedulers = []scheduler.TaskScheduler{
+		//Location Sync Scheduler
+		scheduler.NewLocationSyncScheduler(config, db),
+		// Add more schedulers here as needed
+	}
+	//Initialize Manual Trigger Schedulers
+	registry.LocationSyncTask = scheduler.NewLocationSyncScheduler(config, db)
+
+	// Initialize Cron Scheduler
+	zap.L().Debug("Initializing Cron Jobs Scheduler...")
+	registry.CronJobsRegistry = jobs.NewCronJobRegistry(dbReg, db, &config.AdminConfig)
+	zap.L().Info("Cron Jobs Scheduler initialized successfully")
+
+	// Initialize Asynq Task Scheduler
+	zap.L().Debug("Initializing Asynq Task Scheduler...")
+	if config.Asynq.Enabled {
+		asynqClient, err := asynq.NewAsynqClient(&config.Cache, &config.Asynq)
+		if err != nil {
+			zap.L().Error("Failed to initialize Asynq client", zap.Error(err))
+		} else {
+			registry.AsynqClient = asynqClient
+			zap.L().Info("Asynq Task Scheduler initialized successfully")
+		}
+	} else {
+		zap.L().Debug("Asynq Task Scheduler disabled in configuration")
+	}
+
+	// Initialize Proxies Registry
+	zap.L().Debug("Initializing Proxies Registry...")
+	registry.ProxiesRegistry = proxies.NewProxiesRegistry(config, db, dbReg)
+	zap.L().Info("Proxies Registry initialized successfully")
+
+	// Initialize Health Monitor
+	zap.L().Debug("Initializing Health Monitor...")
+	healthMonitor := service.NewHealthMonitor(
+		emailService,
+		fcmService,
+		db,
+		registry.ValkeyCache,
+		registry.RabbitMQ,
+		registry.AsynqClient,
+	)
+	registry.HealthMonitor = healthMonitor
+	zap.L().Info("Health Monitor initialized successfully")
 
 	zap.L().Info("Infrastructure registry initialization completed")
 	return registry
 }
 
-// StartBackgroundServices starts all background services
-func (r *InfrastructureRegistry) StartBackgroundServices(ctx context.Context) {
-	zap.L().Info("Starting background services")
+// RegisterRabbitMQConsumers registers consumer handlers with RabbitMQ
+// This method should be called after creating the consumer registry in the presentation layer
+func (r *InfrastructureRegistry) RegisterRabbitMQConsumers(
+	ctx context.Context,
+	handlers map[string]func(context.Context, []byte) error,
+) error {
+	if r.RabbitMQ == nil {
+		zap.L().Warn("RabbitMQ not available, skipping consumer registration")
+		return nil
+	}
 
-	// Start Asynq server in a goroutine
-	zap.L().Debug("Starting Asynq server in background")
+	zap.L().Info("Registering RabbitMQ consumer handlers", zap.Int("handler_count", len(handlers)))
+
+	// Register each handler
+	for consumerName, handler := range handlers {
+		if err := r.RabbitMQ.RegisterConsumerHandlerFunc(consumerName, handler); err != nil {
+			zap.L().Error("Failed to register consumer handler",
+				zap.String("consumer", consumerName),
+				zap.Error(err))
+			return fmt.Errorf("failed to register handler for %s: %w", consumerName, err)
+		}
+		zap.L().Info("Registered consumer handler", zap.String("consumer", consumerName))
+	}
+
+	// Start all configured consumers
+	zap.L().Info("Starting RabbitMQ consumers")
 	go func() {
-		if err := r.AsynqServer.Start(); err != nil {
-			zap.L().Error("Asynq server failed", zap.Error(err))
+		if err := r.RabbitMQ.StartConsumers(ctx); err != nil {
+			zap.L().Error("Failed to start RabbitMQ consumers", zap.Error(err))
 		} else {
-			zap.L().Info("Asynq server started successfully")
+			zap.L().Info("RabbitMQ consumers started successfully")
 		}
 	}()
 
-	// Start RabbitMQ consumer if RabbitMQ is available
-	if r.RabbitMQ != nil {
-		zap.L().Debug("Starting RabbitMQ consumer in background")
-		go func() {
-			if err := r.RabbitMQ.Consume(ctx, r.handleRabbitMQMessage); err != nil {
-				zap.L().Error("Failed to start RabbitMQ consumer", zap.Error(err))
-			} else {
-				zap.L().Info("RabbitMQ consumer started successfully")
-			}
-		}()
-	} else {
-		zap.L().Debug("RabbitMQ not available, skipping consumer startup")
+	return nil
+}
+
+// OverrideAdminConfig overrides the AdminConfig with values from the database
+func (r *InfrastructureRegistry) OverrideAdminConfig() error {
+	var adminConfig []model.Config
+	query := r.DB.Model(&model.Config{}).Find(&adminConfig)
+	if err := query.Error; err != nil {
+		zap.L().Error("Failed to load admin config from database", zap.Error(err))
+		return err
+	}
+	err := r.Config.AdminConfig.Override(adminConfig)
+	if err != nil {
+		zap.L().Error("Failed to override admin config from database", zap.Error(err))
+		return err
+	}
+	return nil
+}
+
+// StartSchedulers launches background schedulers controlled by config.
+// It uses the provided context to manage lifecycle and shutdown.
+func (r *InfrastructureRegistry) StartSchedulers(ctx context.Context) {
+	zap.L().Info("=================Starting schedulers=================")
+	for idx, s := range r.schedulers {
+		go func(s scheduler.TaskScheduler) {
+			zap.L().Info(fmt.Sprintf("Task #%d: ", idx+1), zap.String("type", fmt.Sprintf("%T", s)))
+			s.Start(ctx)
+			zap.L().Info("-----------------")
+		}(s)
+	}
+}
+
+// StartAsynqServer starts the Asynq server in the background
+// This should be called after registering task handlers
+func (r *InfrastructureRegistry) StartAsynqServer() error {
+	if r.AsynqClient == nil {
+		zap.L().Warn("Asynq client not initialized, skipping Asynq server start")
+		return nil
 	}
 
-	zap.L().Info("Background services started successfully")
+	zap.L().Info("Starting Asynq server...")
+	go func() {
+		if err := r.AsynqClient.Start(); err != nil {
+			zap.L().Error("Failed to start Asynq server", zap.Error(err))
+		}
+	}()
+
+	return nil
 }
 
 // StopServices gracefully stops all services
 func (r *InfrastructureRegistry) StopServices() {
 	zap.L().Info("Stopping infrastructure services...")
 
-	// Stop Asynq server
-	if r.AsynqServer != nil {
-		r.AsynqServer.Stop()
+	// Stop Asynq client
+	if r.AsynqClient != nil {
+		r.AsynqClient.Shutdown()
+		zap.L().Info("Asynq client stopped successfully")
 	}
 
-	// Close Asynq client
-	if r.AsynqClient != nil {
-		r.AsynqClient.Close()
+	// Stop cron scheduler
+	if r.CronJobsRegistry != nil {
+		ctx := r.CronJobsRegistry.StopCronScheduler()
+		<-ctx.Done()
+		zap.L().Info("Cron scheduler stopped successfully")
 	}
 
 	// Close RabbitMQ connection
@@ -109,69 +309,4 @@ func (r *InfrastructureRegistry) StopServices() {
 	}
 
 	zap.L().Info("Infrastructure services stopped successfully")
-}
-
-// handleRabbitMQMessage handles incoming RabbitMQ messages
-func (r *InfrastructureRegistry) handleRabbitMQMessage(message []byte) error {
-	zap.L().Info("Received RabbitMQ message", zap.ByteString("message", message))
-	
-	// TODO: Implement message processing logic based on your needs
-	// This could involve:
-	// - Parsing the message to determine the type
-	// - Routing to appropriate handlers
-	// - Enqueuing tasks in Asynq for processing
-	
-	return nil
-}
-
-// IsHealthy checks if all critical infrastructure services are healthy
-func (r *InfrastructureRegistry) IsHealthy() map[string]bool {
-	zap.L().Debug("Performing infrastructure health check")
-	health := make(map[string]bool)
-
-	// Check Valkey cache
-	if r.ValkeyCache != nil {
-		valkeyHealthy := r.ValkeyCache.Ping() == nil
-		health["valkey"] = valkeyHealthy
-		zap.L().Debug("Valkey health check completed", zap.Bool("healthy", valkeyHealthy))
-	} else {
-		health["valkey"] = false
-		zap.L().Debug("Valkey not available for health check")
-	}
-
-	// Check RabbitMQ
-	if r.RabbitMQ != nil {
-		rabbitHealthy := r.RabbitMQ.IsConnected()
-		health["rabbitmq"] = rabbitHealthy
-		zap.L().Debug("RabbitMQ health check completed", zap.Bool("healthy", rabbitHealthy))
-	} else {
-		health["rabbitmq"] = false
-		zap.L().Debug("RabbitMQ not available for health check")
-	}
-
-	// Check database
-	if r.DB != nil {
-		sqlDB, err := r.DB.DB()
-		if err == nil {
-			dbHealthy := sqlDB.Ping() == nil
-			health["database"] = dbHealthy
-			zap.L().Debug("Database health check completed", zap.Bool("healthy", dbHealthy))
-		} else {
-			health["database"] = false
-			zap.L().Debug("Database health check failed", zap.Error(err))
-		}
-	} else {
-		health["database"] = false
-		zap.L().Debug("Database not available for health check")
-	}
-
-	health["asynq_client"] = r.AsynqClient != nil
-	health["asynq_server"] = r.AsynqServer != nil
-	
-	zap.L().Debug("Asynq services health check",
-		zap.Bool("client_available", r.AsynqClient != nil),
-		zap.Bool("server_available", r.AsynqServer != nil))
-
-	zap.L().Info("Infrastructure health check completed", zap.Any("health_status", health))
-	return health
 }

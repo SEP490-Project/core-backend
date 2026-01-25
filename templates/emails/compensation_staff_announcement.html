@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>New Compensation Request Announcement</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 650px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f7f7f7;
+        }
+        .email-container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #0d6efd; /* blue */
+            margin-bottom: 25px;
+        }
+        .header h1 {
+            color: #0d6efd;
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            margin: 20px 0;
+        }
+        .details {
+            background-color: #e7f1ff;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+            border: 1px solid #bfd8ff;
+        }
+        .details p {
+            margin: 8px 0;
+        }
+        .details strong {
+            color: #084298;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            font-size: 12px;
+            color: #777;
+        }
+        .btn {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 10px 18px;
+            background-color: #0d6efd;
+            color: #fff !important;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="email-container">
+
+    <div class="header">
+        <h1>📢 New Compensation Request Submitted</h1>
+    </div>
+
+    <div class="content">
+        <p>Hello {{.StaffName}},</p>
+
+        <p>A new compensation request has been submitted by a customer.
+            Please review the details below and proceed with the evaluation process.</p>
+
+        <div class="details">
+            <p><strong>Customer Name:</strong> {{.CustomerName}}</p>
+            <p><strong>{{.RequestTitle}}:</strong> {{.RequestCode}}</p>
+            <p><strong>Reason Provided:</strong> {{.Reason}}</p>
+            <p><strong>Requested Amount:</strong> {{.RequestedAmount}}</p>
+            <p><strong>Submitted At:</strong> {{.CreatedAt}}</p>
+            <p>
+                <strong>Attached Images:</strong>
+                <img src="{{.ImageURL}}" alt="image" style="max-width:300px; max-height:300px; width:auto; height:auto;" />
+            </p>
+        </div>
+
+        <p>
+            Please ensure the evidence is reviewed thoroughly and the customer is notified
+            once the evaluation is completed.
+        </p>
+
+        <a class="btn" href="{{.ReviewURL}}" target="_blank">Review Request</a>
+    </div>
+
+    <div class="footer">
+        <p>&copy; {{.Year}} Your Company. Internal Notification.</p>
+    </div>
+
+</div>
+
+</body>
+</html>

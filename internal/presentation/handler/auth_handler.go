@@ -5,11 +5,14 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/pkg/utils"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 type AuthHandler struct {
@@ -25,16 +28,17 @@ func NewAuthHandler(authService iservice.AuthService) *AuthHandler {
 }
 
 // Login godoc
-// @Summary      User Login
-// @Description  Authenticate user with credentials
-// @Tags         Authentication
-// @Accept       json
-// @Produce      json
-// @Param        request body requests.LoginRequest true "Login credentials"
-// @Success      200 {object} responses.APIResponse{data=responses.LoginResponse} "Login successful"
-// @Failure      400 {object} responses.APIResponse "Invalid request"
-// @Failure      401 {object} responses.APIResponse "Invalid credentials"
-// @Router       /api/v1/auth/login [post]
+//
+//	@Summary		User Login
+//	@Description	Authenticate user with credentials
+//	@Tags			Authentication
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.LoginRequest								true	"Login credentials"
+//	@Success		200		{object}	responses.APIResponse{data=responses.LoginResponse}	"Login successful"
+//	@Failure		400		{object}	responses.APIResponse								"Invalid request"
+//	@Failure		401		{object}	responses.APIResponse								"Invalid credentials"
+//	@Router			/api/v1/auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var loginRequest requests.LoginRequest
 	if err := c.ShouldBindJSON(&loginRequest); err != nil {
@@ -51,28 +55,38 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	// Call auth service
-	loginResponse, err := h.authService.Login(&loginRequest)
+	loginResponse, err := h.authService.Login(c.Request.Context(), &loginRequest, h.buildDeviceFingerprint(c))
 	if err != nil {
 		response := responses.ErrorResponse("Login failed: "+err.Error(), http.StatusUnauthorized)
 		c.JSON(http.StatusUnauthorized, response)
 		return
 	}
 
+	c.SetCookie(
+		"refresh_token",             // name
+		loginResponse.RefreshToken,  // value
+		int(72*time.Hour.Seconds()), // maxAge (72 hours)
+		"/",                         // path
+		"",                          // domain
+		true,                        // secure (HTTPS only)
+		true,                        // httpOnly (no JavaScript access)
+	)
 	response := responses.SuccessResponse("Login successful", nil, loginResponse)
 	c.JSON(http.StatusOK, response)
 }
 
 // SignUp godoc
-// @Summary      User Registration
-// @Description  Register a new user account
-// @Tags         Authentication
-// @Accept       json
-// @Produce      json
-// @Param        request body requests.SignUpRequest true "User registration data"
-// @Success      201 {object} responses.APIResponse{data=responses.SignUpResponse} "User created successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid request"
-// @Failure      409 {object} responses.APIResponse "User already exists"
-// @Router       /api/v1/auth/signup [post]
+//
+//	@Summary		User Registration
+//	@Description	Register a new user account
+//	@Tags			Authentication
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.SignUpRequest									true	"User registration data"
+//	@Success		201		{object}	responses.APIResponse{data=responses.SignUpResponse}	"User created successfully"
+//	@Failure		400		{object}	responses.APIResponse									"Invalid request"
+//	@Failure		409		{object}	responses.APIResponse									"User already exists"
+//	@Router			/api/v1/auth/signup [post]
 func (h *AuthHandler) SignUp(c *gin.Context) {
 	var signUpRequest requests.SignUpRequest
 	if err := c.ShouldBindJSON(&signUpRequest); err != nil {
@@ -96,7 +110,7 @@ func (h *AuthHandler) SignUp(c *gin.Context) {
 	}
 
 	// Call auth service
-	signUpResponse, err := h.authService.SignUp(appSignUpRequest)
+	signUpResponse, err := h.authService.SignUp(c.Request.Context(), appSignUpRequest)
 	if err != nil {
 		response := responses.ErrorResponse("Sign up failed: "+err.Error(), http.StatusConflict)
 		c.JSON(http.StatusConflict, response)
@@ -110,16 +124,17 @@ func (h *AuthHandler) SignUp(c *gin.Context) {
 }
 
 // RefreshToken godoc
-// @Summary      Refresh Access Token
-// @Description  Generate new access token using refresh token
-// @Tags         Authentication
-// @Accept       json
-// @Produce      json
-// @Param        request body requests.RefreshTokenRequest true "Refresh token"
-// @Success      200 {object} responses.APIResponse{data=responses.LoginResponse} "Token refreshed successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid requests"
-// @Failure      401 {object} responses.APIResponse "Invalid or expired refresh token"
-// @Router       /api/v1/auth/refresh [post]
+//
+//	@Summary		Refresh Access Token
+//	@Description	Generate new access token using refresh token
+//	@Tags			Authentication
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.RefreshTokenRequest						true	"Refresh token"
+//	@Success		200		{object}	responses.APIResponse{data=responses.LoginResponse}	"Token refreshed successfully"
+//	@Failure		400		{object}	responses.APIResponse								"Invalid requests"
+//	@Failure		401		{object}	responses.APIResponse								"Invalid or expired refresh token"
+//	@Router			/api/v1/auth/refresh [post]
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	var refreshRequest requests.RefreshTokenRequest
 	if err := c.ShouldBindJSON(&refreshRequest); err != nil {
@@ -141,28 +156,38 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	}
 
 	// Call auth service
-	loginResponse, err := h.authService.RefreshToken(appRefreshRequest)
+	loginResponse, err := h.authService.RefreshToken(c.Request.Context(), appRefreshRequest, h.buildDeviceFingerprint(c))
 	if err != nil {
 		response := responses.ErrorResponse("Token refresh failed: "+err.Error(), http.StatusUnauthorized)
 		c.JSON(http.StatusUnauthorized, response)
 		return
 	}
 
+	c.SetCookie(
+		"refresh_token",             // name
+		loginResponse.RefreshToken,  // value
+		int(72*time.Hour.Seconds()), // maxAge (72 hours)
+		"/",                         // path
+		"",                          // domain
+		true,                        // secure (HTTPS only)
+		true,                        // httpOnly (no JavaScript access)
+	)
 	response := responses.SuccessResponse("Token refreshed successfully", nil, loginResponse)
 	c.JSON(http.StatusOK, response)
 }
 
 // Logout godoc
-// @Summary      User Logout
-// @Description  Logout user and invalidate refresh token
-// @Tags         Authentication
-// @Accept       json
-// @Produce      json
-// @Param        requests body requests.LogoutRequest true "Logout requests"
-// @Success      200 {object} responses.APIResponse{data=responses.LogoutResponse} "Logout successful"
-// @Failure      400 {object} responses.APIResponse "Invalid requests"
-// @Security     BearerAuth
-// @Router       /api/v1/auth/logout [post]
+//
+//	@Summary		User Logout
+//	@Description	Logout user and invalidate refresh token
+//	@Tags			Authentication
+//	@Accept			json
+//	@Produce		json
+//	@Param			requests	body		requests.LogoutRequest									true	"Logout requests"
+//	@Success		200			{object}	responses.APIResponse{data=responses.LogoutResponse}	"Logout successful"
+//	@Failure		400			{object}	responses.APIResponse									"Invalid requests"
+//	@Security		BearerAuth
+//	@Router			/api/v1/auth/logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
 	var requests requests.LogoutRequest
 	if err := c.ShouldBindJSON(&requests); err != nil {
@@ -172,7 +197,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	}
 
 	// Call auth service
-	logoutResponse, err := h.authService.Logout(&requests)
+	logoutResponse, err := h.authService.Logout(c.Request.Context(), &requests)
 	if err != nil {
 		response := responses.ErrorResponse("Logout failed: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
@@ -184,16 +209,17 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 }
 
 // LogoutAll godoc
-// @Summary      Logout All Sessions
-// @Description  Logout user from all active sessions
-// @Tags         Authentication
-// @Accept       json
-// @Produce      json
-// @Success      200 {object} responses.APIResponse{data=responses.LogoutResponse} "All sessions logged out successfully"
-// @Failure      401 {object} responses.APIResponse "Unauthorized"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/auth/logout-all [post]
+//
+//	@Summary		Logout All Sessions
+//	@Description	Logout user from all active sessions
+//	@Tags			Authentication
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	responses.APIResponse{data=responses.LogoutResponse}	"All sessions logged out successfully"
+//	@Failure		401	{object}	responses.APIResponse									"Unauthorized"
+//	@Failure		500	{object}	responses.APIResponse									"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/auth/logout-all [post]
 func (h *AuthHandler) LogoutAll(c *gin.Context) {
 	userIDStr, exists := c.Get("user_id")
 	if !exists {
@@ -210,7 +236,7 @@ func (h *AuthHandler) LogoutAll(c *gin.Context) {
 	}
 
 	// Call auth service
-	logoutResponse, err := h.authService.LogoutAll(userID)
+	logoutResponse, err := h.authService.LogoutAll(c.Request.Context(), userID)
 	if err != nil {
 		response := responses.ErrorResponse("Logout all failed: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
@@ -222,16 +248,17 @@ func (h *AuthHandler) LogoutAll(c *gin.Context) {
 }
 
 // GetActiveSessions godoc
-// @Summary      Get Active Sessions
-// @Description  Retrieve user's active sessions
-// @Tags         Authentication
-// @Accept       json
-// @Produce      json
-// @Success      200 {object} responses.APIResponse{data=[]responses.SessionInfo} "Active sessions retrieved successfully"
-// @Failure      401 {object} responses.APIResponse "Unauthorized"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/auth/sessions [get]
+//
+//	@Summary		Get Active Sessions
+//	@Description	Retrieve user's active sessions
+//	@Tags			Authentication
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	responses.APIResponse{data=[]responses.SessionInfo}	"Active sessions retrieved successfully"
+//	@Failure		401	{object}	responses.APIResponse								"Unauthorized"
+//	@Failure		500	{object}	responses.APIResponse								"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/auth/sessions [get]
 func (h *AuthHandler) GetActiveSessions(c *gin.Context) {
 	userIDStr, exists := c.Get("user_id")
 	if !exists {
@@ -248,7 +275,7 @@ func (h *AuthHandler) GetActiveSessions(c *gin.Context) {
 	}
 
 	// Call auth service
-	sessions, err := h.authService.GetActiveSessions(userID)
+	sessions, err := h.authService.GetActiveSessions(c.Request.Context(), userID)
 	if err != nil {
 		response := responses.ErrorResponse("Failed to get sessions: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
@@ -260,17 +287,18 @@ func (h *AuthHandler) GetActiveSessions(c *gin.Context) {
 }
 
 // RevokeSession godoc
-// @Summary      Revoke Session
-// @Description  Revoke a specific user session
-// @Tags         Authentication
-// @Accept       json
-// @Produce      json
-// @Param        sessionId path string true "Session ID"
-// @Success      200 {object} responses.APIResponse{data=responses.LogoutResponse} "Session revoked successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid session ID"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/auth/sessions/{sessionId} [delete]
+//
+//	@Summary		Revoke Session
+//	@Description	Revoke a specific user session
+//	@Tags			Authentication
+//	@Accept			json
+//	@Produce		json
+//	@Param			sessionId	path		string													true	"Session ID"
+//	@Success		200			{object}	responses.APIResponse{data=responses.LogoutResponse}	"Session revoked successfully"
+//	@Failure		400			{object}	responses.APIResponse									"Invalid session ID"
+//	@Failure		500			{object}	responses.APIResponse									"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/auth/sessions/{sessionId} [delete]
 func (h *AuthHandler) RevokeSession(c *gin.Context) {
 	sessionIDParam := c.Param("sessionId")
 	sessionID, err := uuid.Parse(sessionIDParam)
@@ -281,7 +309,7 @@ func (h *AuthHandler) RevokeSession(c *gin.Context) {
 	}
 
 	// Call auth service
-	logoutResponse, err := h.authService.RevokeSession(sessionID)
+	logoutResponse, err := h.authService.RevokeSession(c.Request.Context(), sessionID)
 	if err != nil {
 		response := responses.ErrorResponse("Failed to revoke session: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
@@ -291,3 +319,127 @@ func (h *AuthHandler) RevokeSession(c *gin.Context) {
 	response := responses.SuccessResponse("Session revoked successfully", nil, logoutResponse)
 	c.JSON(http.StatusOK, response)
 }
+
+func (h *AuthHandler) buildDeviceFingerprint(c *gin.Context) string {
+	userAgent := c.Request.UserAgent()
+	ip := c.ClientIP()
+	acceptLanguage := c.GetHeader("Accept-Language")
+
+	// Combine multiple factors for better device identification
+	return fmt.Sprintf("%s|%s|%s", userAgent, ip, acceptLanguage)
+}
+
+// region: ============== Password Management Handlers Methods ==============
+
+// ForgotPassword godoc
+//
+//	@Summary		Request password reset
+//	@Description	Initiates password reset process by sending reset link to user's email
+//	@Tags			Authentication
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.ForgotPasswordRequest	true	"Email address"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Router			/api/v1/auth/forgot-password [post]
+func (h *AuthHandler) ForgotPassword(c *gin.Context) {
+	var req requests.ForgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		zap.L().Error("Failed to bind forgot password request", zap.Error(err))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request body", http.StatusBadRequest))
+		return
+	}
+	if err := h.validator.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, processValidationError(err))
+		return
+	}
+
+	message, err := h.authService.ForgotPassword(c.Request.Context(), &req)
+	if err != nil {
+		zap.L().Error("Failed to process forgot password request", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse(message, nil, nil))
+}
+
+// ResetPassword godoc
+//
+//	@Summary		Reset password with token
+//	@Description	Completes password reset process using token from email
+//	@Tags			Authentication
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.ResetPasswordRequest	true	"Reset token and new password"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Router			/api/v1/auth/reset-password [post]
+func (h *AuthHandler) ResetPassword(c *gin.Context) {
+	var req requests.ResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		zap.L().Error("Failed to bind reset password request", zap.Error(err))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request body", http.StatusBadRequest))
+		return
+	}
+
+	if err := h.validator.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, processValidationError(err))
+		return
+	}
+
+	message, err := h.authService.ResetPassword(c.Request.Context(), &req)
+	if err != nil {
+		zap.L().Error("Failed to reset password", zap.Error(err))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse(err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse(message, nil, nil))
+}
+
+// ChangePassword godoc
+//
+//	@Summary		Change password (authenticated)
+//	@Description	Allows authenticated users to change their password
+//	@Tags			Authentication
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.ChangePasswordRequest	true	"Current and new password"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/auth/change-password [post]
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized", http.StatusUnauthorized))
+		return
+	}
+	var req requests.ChangePasswordRequest
+	if err = c.ShouldBindJSON(&req); err != nil {
+		zap.L().Error("Failed to bind change password request", zap.Error(err))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request body", http.StatusBadRequest))
+		return
+	}
+	req.UserID = userID
+	if err = h.validator.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, processValidationError(err))
+		return
+	}
+
+	message, err := h.authService.ChangePassword(c.Request.Context(), &req)
+	if err != nil {
+		zap.L().Error("Failed to change password", zap.Error(err))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse(err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse(message, nil, nil))
+}
+
+// endregion

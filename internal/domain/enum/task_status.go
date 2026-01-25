@@ -8,20 +8,15 @@ import (
 type TaskStatus string
 
 const (
-	TaskStatusToDo              TaskStatus = "TODO"
-	TaskStatusInProgress        TaskStatus = "IN_PROGRESS"
-	TaskStatusCancelled         TaskStatus = "CANCELLED"
-	TaskStatusSubmitted         TaskStatus = "SUBMITTED"
-	TaskStatusRevisionRequested TaskStatus = "REVISION_REQUESTED"
-	TaskStatusApproved          TaskStatus = "APPROVED"
-	TaskStatusOnRelease         TaskStatus = "ON_RELEASE"
-	TaskStatusRecap             TaskStatus = "RECAP"
-	TaskStatusDone              TaskStatus = "DONE"
+	TaskStatusToDo       TaskStatus = "TODO"
+	TaskStatusInProgress TaskStatus = "IN_PROGRESS"
+	TaskStatusCancelled  TaskStatus = "CANCELLED"
+	TaskStatusDone       TaskStatus = "DONE"
 )
 
 func (ts TaskStatus) IsValid() bool {
 	switch ts {
-	case TaskStatusToDo, TaskStatusInProgress, TaskStatusCancelled, TaskStatusSubmitted, TaskStatusRevisionRequested, TaskStatusApproved, TaskStatusOnRelease, TaskStatusRecap, TaskStatusDone:
+	case TaskStatusToDo, TaskStatusInProgress, TaskStatusCancelled, TaskStatusDone:
 		return true
 	}
 	return false
@@ -43,6 +38,10 @@ func (ts *TaskStatus) Scan(value any) error {
 	return nil
 }
 
-func (ts TaskStatus) Value() (driver.Value, error) {
-	return string(ts), nil
+func (ts TaskStatus) Value() driver.Value {
+	return string(ts)
+}
+
+func (ts TaskStatus) String() string {
+	return string(ts)
 }

@@ -1,0 +1,580 @@
+package handler
+
+import (
+	"core-backend/internal/application/dto/requests"
+	"core-backend/internal/application/dto/responses"
+	"core-backend/internal/application/interfaces/iservice"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+)
+
+type BrandPartnerAnalyticsHandler struct {
+	analyticsService iservice.BrandPartnerAnalyticsService
+}
+
+func NewBrandPartnerAnalyticsHandler(analyticsService iservice.BrandPartnerAnalyticsService) *BrandPartnerAnalyticsHandler {
+	return &BrandPartnerAnalyticsHandler{
+		analyticsService: analyticsService,
+	}
+}
+
+// GetDashboard returns the complete Brand Partner analytics dashboard
+//
+//	@Summary		Get Brand Partner Dashboard
+//	@Description	Returns comprehensive analytics dashboard for Brand Partner including overview metrics, top products, campaigns, content, revenue trend, affiliate metrics, and contracts
+//	@Tags			Analytics.BrandPartner
+//	@Accept			json
+//	@Produce		json
+//	@Param			year	query		int	false	"Year for filtering (defaults to current year)"
+//	@Param			month	query		int	false	"Month for filtering (defaults to current month)"
+//	@Success		200		{object}	responses.APIResponse{data=responses.BrandPartnerDashboardResponse}
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/brand-partner/dashboard [get]
+func (h *BrandPartnerAnalyticsHandler) GetDashboard(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	brandUserID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	var req requests.BrandPartnerDashboardRequest
+	if err = c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	dashboard, err := h.analyticsService.GetDashboard(ctx, brandUserID, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to fetch dashboard: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Dashboard fetched successfully", nil, dashboard))
+}
+
+// GetTopProducts returns the top products by revenue for the brand
+//
+//	@Summary		Get Brand's Top Products
+//	@Description	Returns top products by revenue for the brand partner
+//	@Tags			Analytics.BrandPartner
+//	@Accept			json
+//	@Produce		json
+//	@Param			start_date	query		string	false	"Start date (ISO 8601 format)"
+//	@Param			end_date	query		string	false	"End date (ISO 8601 format)"
+//	@Param			limit		query		int		false	"Number of products to return (default: 10, max: 50)"
+//	@Success		200			{object}	responses.APIResponse{data=[]responses.BrandProductMetric}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/brand-partner/top-products [get]
+func (h *BrandPartnerAnalyticsHandler) GetTopProducts(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	brandUserID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	var req requests.BrandTopProductsRequest
+	if err = c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	products, err := h.analyticsService.GetTopProducts(ctx, brandUserID, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to fetch top products: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Top products fetched successfully", nil, products))
+}
+
+// GetTopRatingProducts returns the top-rated products for the brand
+//
+//	@Summary		Get Brand's Top Rating Products
+//	@Description	Returns top-rated products for the brand partner
+//	@Tags			Analytics.BrandPartner
+//	@Accept			json
+//	@Produce		json
+//	@Param			start_date	query		string	false	"Start date (ISO 8601 format)"
+//	@Param			end_date	query		string	false	"End date (ISO 8601 format)"
+//	@Param			limit		query		int		false	"Number of products to return (default: 10, max: 50)"
+//	@Success		200			{object}	responses.APIResponse{data=[]responses.BrandProductRating}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/brand-partner/top-rating-products [get]
+func (h *BrandPartnerAnalyticsHandler) GetTopRatingProducts(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	brandUserID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	var req requests.BrandTopRatingProductRequest
+	if err = c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	products, err := h.analyticsService.GetBrandTopRatingProduct(ctx, brandUserID, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to fetch top-rated products: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Top-rated products fetched successfully", nil, products))
+}
+
+// GetCampaignMetrics returns the campaign performance metrics for the brand
+//
+//	@Summary		Get Brand's Campaign Metrics
+//	@Description	Returns campaign performance metrics for the brand partner
+//	@Tags			Analytics.BrandPartner
+//	@Accept			json
+//	@Produce		json
+//	@Param			start_date	query		string	false	"Start date (ISO 8601 format)"
+//	@Param			end_date	query		string	false	"End date (ISO 8601 format)"
+//	@Param			status		query		string	false	"Filter by campaign status (DRAFT, ACTIVE, IN_PROGRESS, PENDING, FINISHED, CANCELLED)"
+//	@Param			limit		query		int		false	"Number of campaigns to return (default: 10, max: 50)"
+//	@Success		200			{object}	responses.APIResponse{data=[]responses.BrandCampaignMetric}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/brand-partner/campaigns [get]
+func (h *BrandPartnerAnalyticsHandler) GetCampaignMetrics(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	brandUserID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	var req requests.BrandCampaignsRequest
+	if err = c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	campaigns, err := h.analyticsService.GetCampaignMetrics(ctx, brandUserID, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to fetch campaign metrics: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Campaign metrics fetched successfully", nil, campaigns))
+}
+
+// GetContentMetrics returns the content performance metrics for the brand
+//
+//	@Summary		Get Brand's Content Metrics
+//	@Description	Returns content performance metrics summary for the brand partner
+//	@Tags			Analytics.BrandPartner
+//	@Accept			json
+//	@Produce		json
+//	@Param			start_date	query		string	false	"Start date (ISO 8601 format)"
+//	@Param			end_date	query		string	false	"End date (ISO 8601 format)"
+//	@Success		200			{object}	responses.APIResponse{data=responses.BrandContentMetric}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/brand-partner/content [get]
+func (h *BrandPartnerAnalyticsHandler) GetContentMetrics(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	brandUserID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	var req requests.BrandContentMetricsRequest
+	if err = c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	content, err := h.analyticsService.GetContentMetrics(ctx, brandUserID, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to fetch content metrics: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Content metrics fetched successfully", nil, content))
+}
+
+// GetRevenueTrend returns the revenue time-series for the brand
+//
+//	@Summary		Get Brand's Revenue Trend
+//	@Description	Returns revenue time-series data for the brand partner
+//	@Tags			Analytics.BrandPartner
+//	@Accept			json
+//	@Produce		json
+//	@Param			start_date	query		string	false	"Start date (ISO 8601 format)"
+//	@Param			end_date	query		string	false	"End date (ISO 8601 format)"
+//	@Param			granularity	query		string	false	"Time granularity (DAY, WEEK, MONTH - default: DAY)"
+//	@Success		200			{object}	responses.APIResponse{data=[]responses.BrandRevenueTrendPoint}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/brand-partner/revenue-trend [get]
+func (h *BrandPartnerAnalyticsHandler) GetRevenueTrend(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	brandUserID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	var req requests.BrandRevenueTrendRequest
+	if err = c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	trend, err := h.analyticsService.GetRevenueTrend(ctx, brandUserID, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to fetch revenue trend: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Revenue trend fetched successfully", nil, trend))
+}
+
+// GetAffiliateMetrics returns the affiliate link performance for the brand
+//
+//	@Summary		Get Brand's Affiliate Metrics
+//	@Description	Returns affiliate link performance metrics for the brand partner
+//	@Tags			Analytics.BrandPartner
+//	@Accept			json
+//	@Produce		json
+//	@Param			start_date	query		string	false	"Start date (ISO 8601 format)"
+//	@Param			end_date	query		string	false	"End date (ISO 8601 format)"
+//	@Success		200			{object}	responses.APIResponse{data=responses.BrandAffiliateMetric}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/brand-partner/affiliates [get]
+func (h *BrandPartnerAnalyticsHandler) GetAffiliateMetrics(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	brandUserID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	var req requests.BrandAffiliateMetricsRequest
+	if err = c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	affiliate, err := h.analyticsService.GetAffiliateMetrics(ctx, brandUserID, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to fetch affiliate metrics: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Affiliate metrics fetched successfully", nil, affiliate))
+}
+
+// GetContractDetails returns the contract details for the brand
+//
+//	@Summary		Get Brand's Contract Details
+//	@Description	Returns contract details for the brand partner
+//	@Tags			Analytics.BrandPartner
+//	@Accept			json
+//	@Produce		json
+//	@Param			status	query		string	false	"Filter by contract status (DRAFT, PENDING, ACTIVE, COMPLETED, CANCELLED)"
+//	@Param			limit	query		int		false	"Number of contracts to return (default: 10, max: 50)"
+//	@Success		200		{object}	responses.APIResponse{data=[]responses.BrandContractDetail}
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/brand-partner/contracts [get]
+func (h *BrandPartnerAnalyticsHandler) GetContractDetails(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	brandUserID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	var req requests.BrandContractsRequest
+	if err = c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	contracts, err := h.analyticsService.GetContractDetails(ctx, brandUserID, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to fetch contract details: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Contract details fetched successfully", nil, contracts))
+}
+
+// GetContractStatusDistribution returns contract status distribution for the brand
+//
+//	@Summary		Get Brand's Contract Status Distribution
+//	@Description	Returns contract status distribution pie chart data for the brand partner
+//	@Tags			Analytics.BrandPartner
+//	@Accept			json
+//	@Produce		json
+//	@Param			period		query		string	false	"Period preset (TODAY, THIS_WEEK, THIS_MONTH, THIS_QUARTER, THIS_YEAR, LAST_7_DAYS, LAST_30_DAYS, LAST_90_DAYS, LAST_YEAR)"	Enums(TODAY, YESTERDAY, THIS_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, THIS_QUARTER, LAST_QUARTER, THIS_YEAR, LAST_YEAR, LAST_7_DAYS, LAST_30_DAYS, CUSTOM)
+//	@Param			start_date	query		string	false	"Custom start date (ISO 8601 format)"
+//	@Param			end_date	query		string	false	"Custom end date (ISO 8601 format)"
+//	@Success		200			{object}	responses.APIResponse{data=responses.ContractStatusDistributionResponse}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/brand-partner/contract-status-distribution [get]
+func (h *BrandPartnerAnalyticsHandler) GetContractStatusDistribution(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	brandUserID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	var req requests.DashboardFilterRequest
+	if err = c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	distribution, err := h.analyticsService.GetBrandContractStatusDistribution(ctx, brandUserID, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to fetch contract status distribution: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Contract status distribution fetched successfully", nil, distribution))
+}
+
+// GetTaskStatusDistribution returns task status distribution for the brand
+//
+//	@Summary		Get Brand's Task Status Distribution
+//	@Description	Returns task status distribution pie chart data for the brand partner
+//	@Tags			Analytics.BrandPartner
+//	@Accept			json
+//	@Produce		json
+//	@Param			period		query		string	false	"Period preset (TODAY, THIS_WEEK, THIS_MONTH, THIS_QUARTER, THIS_YEAR, LAST_7_DAYS, LAST_30_DAYS, LAST_90_DAYS, LAST_YEAR)"	Enums(TODAY, YESTERDAY, THIS_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, THIS_QUARTER, LAST_QUARTER, THIS_YEAR, LAST_YEAR, LAST_7_DAYS, LAST_30_DAYS, CUSTOM)
+//	@Param			start_date	query		string	false	"Custom start date (ISO 8601 format)"
+//	@Param			end_date	query		string	false	"Custom end date (ISO 8601 format)"
+//	@Success		200			{object}	responses.APIResponse{data=responses.TaskStatusDistributionResponse}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/brand-partner/task-status-distribution [get]
+func (h *BrandPartnerAnalyticsHandler) GetTaskStatusDistribution(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	brandUserID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	var req requests.DashboardFilterRequest
+	if err = c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	distribution, err := h.analyticsService.GetBrandTaskStatusDistribution(ctx, brandUserID, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to fetch task status distribution: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Task status distribution fetched successfully", nil, distribution))
+}
+
+// GetRevenueOverTime returns revenue trend over time for the brand
+//
+//	@Summary		Get Brand's Revenue Over Time
+//	@Description	Returns revenue time-series data for the brand partner (Limited Products only)
+//	@Tags			Analytics.BrandPartner
+//	@Accept			json
+//	@Produce		json
+//	@Param			period				query		string	false	"Period preset (TODAY, THIS_WEEK, THIS_MONTH, THIS_QUARTER, THIS_YEAR, LAST_7_DAYS, LAST_30_DAYS, LAST_90_DAYS, LAST_YEAR)"	Enums(TODAY, YESTERDAY, THIS_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, THIS_QUARTER, LAST_QUARTER, THIS_YEAR, LAST_YEAR, LAST_7_DAYS, LAST_30_DAYS, CUSTOM)
+//	@Param			start_date			query		string	false	"Custom start date (ISO 8601 format)"
+//	@Param			end_date			query		string	false	"Custom end date (ISO 8601 format)"
+//	@Param			trend_granularity	query		string	false	"Granularity (HOUR, DAY, WEEK, MONTH)"
+//	@Success		200					{object}	responses.APIResponse{data=responses.BrandRevenueOverTimeResponse}
+//	@Failure		400					{object}	responses.APIResponse
+//	@Failure		401					{object}	responses.APIResponse
+//	@Failure		500					{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/brand-partner/revenue-over-time [get]
+func (h *BrandPartnerAnalyticsHandler) GetRevenueOverTime(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	brandUserID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	var req requests.DashboardFilterRequest
+	if err = c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	granularity := req.GetTrendGranularity()
+
+	revenue, err := h.analyticsService.GetBrandRevenueOverTime(ctx, brandUserID, &req, granularity)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to fetch revenue over time: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Revenue over time fetched successfully", nil, revenue))
+}
+
+// GetRefundViolationStats returns refund and violation stats for the brand
+//
+//	@Summary		Get Brand's Refund & Violation Stats
+//	@Description	Returns refund and contract violation statistics for the brand partner
+//	@Tags			Analytics.BrandPartner
+//	@Accept			json
+//	@Produce		json
+//	@Param			period		query		string	false	"Period preset (TODAY, THIS_WEEK, THIS_MONTH, THIS_QUARTER, THIS_YEAR, LAST_7_DAYS, LAST_30_DAYS, LAST_90_DAYS, LAST_YEAR)"	Enums(TODAY, YESTERDAY, THIS_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, THIS_QUARTER, LAST_QUARTER, THIS_YEAR, LAST_YEAR, LAST_7_DAYS, LAST_30_DAYS, CUSTOM)
+//	@Param			start_date	query		string	false	"Custom start date (ISO 8601 format)"
+//	@Param			end_date	query		string	false	"Custom end date (ISO 8601 format)"
+//	@Success		200			{object}	responses.APIResponse{data=responses.RefundViolationStatsResponse}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/brand-partner/refund-violation-stats [get]
+func (h *BrandPartnerAnalyticsHandler) GetRefundViolationStats(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	brandUserID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	var req requests.DashboardFilterRequest
+	if err = c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	stats, err := h.analyticsService.GetBrandRefundViolationStats(ctx, brandUserID, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to fetch refund violation stats: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Refund violation stats fetched successfully", nil, stats))
+}
+
+// GetGrossIncome returns the brand's gross income (limited product revenue × brand share)
+//
+//	@Summary		Get Brand's Gross Income
+//	@Description	Returns gross income calculated from limited product revenue multiplied by brand share percentage
+//	@Tags			Analytics.BrandPartner
+//	@Accept			json
+//	@Produce		json
+//	@Param			period		query		string	false	"Period preset (TODAY, THIS_WEEK, THIS_MONTH, THIS_QUARTER, THIS_YEAR, LAST_7_DAYS, LAST_30_DAYS, LAST_90_DAYS, LAST_YEAR)"	Enums(TODAY, YESTERDAY, THIS_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, THIS_QUARTER, LAST_QUARTER, THIS_YEAR, LAST_YEAR, LAST_7_DAYS, LAST_30_DAYS, CUSTOM)
+//	@Param			start_date	query		string	false	"Custom start date (ISO 8601 format)"
+//	@Param			end_date	query		string	false	"Custom end date (ISO 8601 format)"
+//	@Success		200			{object}	responses.APIResponse{data=responses.BrandIncomeResponse}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/brand-partner/gross-income [get]
+func (h *BrandPartnerAnalyticsHandler) GetGrossIncome(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	brandUserID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	var req requests.DashboardFilterRequest
+	if err = c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	income, err := h.analyticsService.GetBrandGrossIncome(ctx, brandUserID, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to fetch gross income: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Gross income fetched successfully", nil, income))
+}
+
+// GetNetIncome returns the brand's net income (gross income - paid contract payments)
+//
+//	@Summary		Get Brand's Net Income
+//	@Description	Returns net income calculated as gross income minus paid contract payments (base cost + affiliate fees)
+//	@Tags			Analytics.BrandPartner
+//	@Accept			json
+//	@Produce		json
+//	@Param			period		query		string	false	"Period preset (TODAY, THIS_WEEK, THIS_MONTH, THIS_QUARTER, THIS_YEAR, LAST_7_DAYS, LAST_30_DAYS, LAST_90_DAYS, LAST_YEAR)"	Enums(TODAY, YESTERDAY, THIS_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, THIS_QUARTER, LAST_QUARTER, THIS_YEAR, LAST_YEAR, LAST_7_DAYS, LAST_30_DAYS, CUSTOM)
+//	@Param			start_date	query		string	false	"Custom start date (ISO 8601 format)"
+//	@Param			end_date	query		string	false	"Custom end date (ISO 8601 format)"
+//	@Success		200			{object}	responses.APIResponse{data=responses.BrandNetIncomeResponse}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/brand-partner/net-income [get]
+func (h *BrandPartnerAnalyticsHandler) GetNetIncome(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	brandUserID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	var req requests.DashboardFilterRequest
+	if err = c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	income, err := h.analyticsService.GetBrandNetIncome(ctx, brandUserID, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to fetch net income: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Net income fetched successfully", nil, income))
+}

@@ -1,0 +1,17 @@
+Refund Request Received
+=======================
+
+Hello {{.CustomerName}},
+
+We have received your refund request. Our team is currently reviewing it and will respond shortly.
+
+Refund Details:
+---------------
+Refund Request Code: {{.RefundCode}}
+Request Date: {{.RequestDate}}
+Requested Amount: {{.RefundAmount}}
+Reason: {{.Reason}}
+
+---
+© {{.Year}} Your Company. All rights reserved.
+This is an automated message. Please do not reply to this email.

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Compensation Approved</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .email-container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #28a745; /* green for success */
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #28a745;
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            margin: 20px 0;
+        }
+        .details {
+            background-color: #d4edda;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            border: 1px dashed #c3e6cb;
+        }
+        .details p {
+            margin: 8px 0;
+        }
+        .details strong {
+            color: #155724;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+<div class="email-container">
+    <div class="header">
+        <h1>✅ Compensation Approved</h1>
+    </div>
+
+    <div class="content">
+        <p>Hello {{.CustomerName}},</p>
+        <p>
+            Good news! Your compensation request for your order has been reviewed and approved.
+        </p>
+
+        <div class="details">
+            <p><strong>Order Number:</strong> {{.OrderCode}}</p>
+            <p><strong>Bank Account Transferred:</strong>{{.BankAccount}} - {{.BankName}} - {{.BankAccountHolder}}</p>
+            <p><strong>Approved Amount:</strong> {{.ApprovedAmount}}</p>
+            <p><strong>Reason:</strong> {{.Reason}}</p>
+            <p>
+                <strong>Attached Images:</strong>
+                <img src="{{.ImageURL}}" alt="image" style="max-width:300px; max-height:300px; width:auto; height:auto;" />
+            </p>
+        </div>
+
+        <p>
+            The payment bill should be attached above. If there are any issues or if you have further questions, please do not hesitate to contact our support team.
+        </p>
+
+        <p>
+            Thank you for your patience and cooperation.
+        </p>
+    </div>
+
+    <div class="footer">
+        <p>&copy; {{.Year}} Your Company. All rights reserved.</p>
+        <p>This is an automated message. Please do not reply to this email.</p>
+    </div>
+</div>
+</body>
+</html>

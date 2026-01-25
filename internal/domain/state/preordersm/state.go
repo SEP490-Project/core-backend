@@ -1,0 +1,46 @@
+package preordersm
+
+import (
+	"core-backend/internal/domain/enum"
+)
+
+// PreOrderState interface defines behavior for pre-order states
+type PreOrderState interface {
+	Name() enum.PreOrderStatus
+	Next(ctx *PreOrderContext, next PreOrderState) error
+	AllowedTransitions() map[enum.PreOrderStatus]bool
+}
+
+// NewPreOrderState factory method to create state instances
+func NewPreOrderState(status enum.PreOrderStatus) PreOrderState {
+	switch status {
+	case enum.PreOrderStatusPending:
+		return &PendingState{}
+	case enum.PreOrderStatusPaid:
+		return &PaidState{}
+	case enum.PreOrderStatusPreOrdered:
+		return &PreOrderedState{}
+	case enum.PreOrderStatusCancelled:
+		return &CancelledState{}
+	case enum.PreOrderStatusShipped:
+		return &ShippedState{}
+	case enum.PreOrderStatusAwaitingPickup:
+		return &AwaitingPickupState{}
+	case enum.PreOrderStatusInTransit:
+		return &InTransitState{}
+	case enum.PreOrderStatusDelivered:
+		return &DeliveredState{}
+	case enum.PreOrderStatusCompensateRequest:
+		return &CompensateRequestStated{}
+	case enum.PreOrderStatusCompensated:
+		return &Compensated{}
+	case enum.PreOrderStatusReceived:
+		return &ReceivedState{}
+	case enum.PreOrderStatusRefunded:
+		return &Refunded{}
+	case enum.PreOrderStatusRefundRequest:
+		return &RefundRequest{}
+	default:
+		return nil
+	}
+}

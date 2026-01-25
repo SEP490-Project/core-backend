@@ -25,6 +25,14 @@ func (us UserRole) IsValid() bool {
 	return false
 }
 
+func (us UserRole) IsStaff() bool {
+	switch us {
+	case UserRoleAdmin, UserRoleMarketingStaff, UserRoleContentStaff, UserRoleSalesStaff:
+		return true
+	}
+	return false
+}
+
 func (us *UserRole) Scan(value any) error {
 	s, ok := value.([]byte)
 	if !ok {
@@ -43,4 +51,8 @@ func (us *UserRole) Scan(value any) error {
 
 func (us UserRole) Value() (driver.Value, error) {
 	return string(us), nil
+}
+
+func (us UserRole) String() string {
+	return string(us)
 }

@@ -1,0 +1,926 @@
+package service
+
+import (
+	"context"
+	"core-backend/config"
+	"core-backend/internal/application/dto/dtos"
+	"core-backend/internal/application/dto/requests"
+	"core-backend/internal/application/dto/responses"
+	"core-backend/internal/application/interfaces/irepository"
+	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/application/service/helper"
+	"core-backend/internal/domain/enum"
+	"core-backend/internal/domain/model"
+	gormrepository "core-backend/internal/infrastructure/gorm_repository"
+	"core-backend/pkg/utils"
+	"encoding/json"
+	"fmt"
+	"sort"
+	"sync"
+	"time"
+
+	"github.com/google/uuid"
+	"go.uber.org/zap"
+	"gorm.io/gorm"
+)
+
+type contractPaymentService struct {
+	contractPaymentRepo    irepository.GenericRepository[model.ContractPayment]
+	contractRepo           irepository.GenericRepository[model.Contract]
+	paymentCalculationRepo irepository.ContractPaymentCalculationRepository
+	unitOfWork             irepository.UnitOfWork
+	config                 *config.AdminConfig
+}
+
+// GetContractPaymentByID implements iservice.ContractPaymentService.
+// For AFFILIATE and CO_PRODUCING contracts, this method automatically
+// recalculates the payment amount if the payment is for the current period.
+func (c *contractPaymentService) GetContractPaymentByID(ctx context.Context, contractPaymentID uuid.UUID) (*responses.ContractPaymentResponse, error) {
+	zap.L().Info("ContractPaymentService - GetContractPaymentByID called",
+		zap.String("contractPaymentID", contractPaymentID.String()))
+
+	contractPayment, err := c.contractPaymentRepo.GetByID(ctx, contractPaymentID, []string{"Contract", "Contract.Brand"})
+	if err != nil {
+		zap.L().Error("Failed to get contract payment by ID", zap.Error(err))
+		return nil, err
+	}
+
+	// Trigger recalculation if applicable (AFFILIATE or CO_PRODUCING, current period, not paid)
+	if err := c.recalculateIfNeeded(ctx, contractPayment); err != nil {
+		zap.L().Warn("Failed to recalculate payment",
+			zap.Error(err),
+			zap.String("payment_id", contractPaymentID.String()))
+		// Don't fail the request, just log and return current data
+	}
+
+	return responses.ContractPaymentResponse{}.ToResponse(contractPayment), nil
+}
+
+// CreatePaymentLinkFromContractPayment implements iservice.ContractPaymentService.
+func (c *contractPaymentService) CreatePaymentLinkFromContractPayment(
+	ctx context.Context,
+	uow irepository.UnitOfWork,
+	request *requests.GenerateContractPaymentLinkRequest,
+	paymentTransactionService iservice.PaymentTransactionService,
+) (*responses.PayOSLinkResponse, error) {
+	zap.L().Info("Creating payment link from contract payment",
+		zap.Any("request", request))
+
+	// 1. Fetch contract payment with contract and brand details
+	contractPayment, err := uow.ContractPayments().GetByID(ctx, request.ContractPaymentID, []string{"Contract", "Contract.Brand"})
+	if err != nil {
+		zap.L().Error("Failed to get contract payment", zap.Error(err))
+		return nil, fmt.Errorf("failed to get contract payment: %w", err)
+	}
+
+	if contractPayment == nil {
+		return nil, fmt.Errorf("contract payment not found")
+	}
+
+	// 2. Validate payment status - only PENDING payments can generate links
+	if contractPayment.Status != enum.ContractPaymentStatusPending {
+		return nil, fmt.Errorf("payment link can only be generated for pending payments, current status: %s", contractPayment.Status)
+	}
+
+	// // 3. Validate due date - payment link can only be generated after the due date
+	// now := time.Now()
+	// if now.After(contractPayment.DueDate) {
+	// 	return nil, fmt.Errorf("payment link can only be generated after the due date (%s)", contractPayment.DueDate.Format("2006-01-02"))
+	// }
+
+	// 4. For AFFILIATE/CO_PRODUCING contracts, lock the calculated amount
+	//    This ensures new clicks/revenue go to the next payment period
+	if contractPayment.Contract.Type == enum.ContractTypeAffiliate ||
+		contractPayment.Contract.Type == enum.ContractTypeCoProduce {
+		if err = c.LockPaymentAmount(ctx, contractPayment); err != nil {
+			zap.L().Error("Failed to lock payment amount", zap.Error(err))
+			return nil, fmt.Errorf("failed to lock payment amount: %w", err)
+		}
+	}
+
+	// 5. Build payment request using the (potentially locked) amount
+	contractNumber := "Unknown"
+	if contractPayment.Contract.ContractNumber != nil {
+		contractNumber = *contractPayment.Contract.ContractNumber
+	}
+
+	// Use locked amount if available, otherwise use the regular amount
+	paymentAmount := contractPayment.Amount
+	if contractPayment.LockedAmount != nil {
+		paymentAmount = *contractPayment.LockedAmount
+	}
+
+	paymentReq := &requests.PaymentRequest{
+		ReferenceID:   contractPayment.ID,
+		ReferenceType: enum.PaymentTransactionReferenceTypeContractPayment,
+		PayerID:       contractPayment.Contract.Brand.UserID,
+		Amount:        int64(paymentAmount),
+		Description:   fmt.Sprintf("Payment for Contract %s - Installment %.0f%%", contractNumber, contractPayment.InstallmentPercentage),
+		ReturnURL:     request.ReturnURL,
+		CancelURL:     request.CancelURL,
+	}
+
+	// Add buyer information from contract brand if available
+	if contractPayment.Contract != nil && contractPayment.Contract.Brand != nil {
+		brand := contractPayment.Contract.Brand
+		paymentReq.BuyerName = brand.Name
+		paymentReq.BuyerEmail = brand.ContactEmail
+		paymentReq.BuyerPhone = brand.ContactPhone
+	}
+
+	// Add payment item
+	paymentReq.Items = []requests.PaymentItemRequest{
+		{
+			Name:     fmt.Sprintf("Contract Payment - %s", contractNumber),
+			Quantity: 1,
+			Price:    int64(contractPayment.Amount),
+		},
+	}
+
+	// 6. Generate payment link using PaymentTransactionService
+	payosResp, err := paymentTransactionService.GeneratePaymentLink(ctx, uow, paymentReq)
+	if err != nil {
+		zap.L().Error("Failed to generate payment link", zap.Error(err))
+		return nil, fmt.Errorf("failed to generate payment link: %w", err)
+	}
+
+	zap.L().Info("Payment link created successfully for contract payment",
+		zap.String("checkout_url", payosResp.CheckoutURL))
+
+	return payosResp, nil
+}
+
+// GetContractPaymentsByFilter implements iservice.ContractPaymentService.
+// For AFFILIATE and CO_PRODUCING contracts, this method automatically
+// recalculates payment amounts for current period payments using parallel processing.
+func (c *contractPaymentService) GetContractPaymentsByFilter(ctx context.Context, filter *requests.ContractPaymentFilterRequest) (*[]responses.ContractPaymentResponse, int64, error) {
+	zap.L().Info("ContractPaymentService - GetContractPaymentsByFilter called", zap.Any("filter", filter))
+
+	filterQuery := func(db *gorm.DB) *gorm.DB {
+		if filter.BrandID != nil {
+			db = db.Joins("JOIN contracts c ON c.id = contract_payments.contract_id").
+				Where("c.brand_id = ?", *filter.BrandID)
+		}
+		if filter.BrandUserID != nil {
+			db = db.Joins("JOIN contracts c ON c.id = contract_payments.contract_id").
+				Joins("JOIN brands b ON b.id = c.brand_id").
+				Where("b.user_id = ?", *filter.BrandUserID)
+		}
+		if filter.ContractID != nil {
+			db = db.Where("contract_payments.contract_id = ?", *filter.ContractID)
+		}
+		if filter.Status != nil {
+			db = db.Where("contract_payments.status = ?", *filter.Status)
+		}
+		if filter.DueDateFrom != nil {
+			db = db.Where("contract_payments.due_date >= ?", *filter.DueDateFrom)
+		}
+		if filter.DueDateTo != nil {
+			db = db.Where("contract_payments.due_date <= ?", *filter.DueDateTo)
+		}
+
+		db = db.Order(helper.ConvertToSortString(filter.PaginationRequest))
+		return db
+	}
+	payments, total, err := c.contractPaymentRepo.GetAll(ctx, filterQuery, []string{"Contract", "Contract.Brand"}, filter.Limit, filter.Page)
+	if err != nil {
+		zap.L().Error("Failed to get contract payments by filter", zap.Error(err))
+		return nil, 0, err
+	}
+
+	// Build list of recalculation tasks for applicable payments only
+	var tasks []func(ctx context.Context) error
+	var mu sync.Mutex
+
+	for i := range payments {
+		payment := &payments[i] // Capture pointer for closure
+
+		// Pre-filter: only add task if payment might need recalculation
+		if c.shouldRecalculate(payment) {
+			zap.L().Info("Recalculating payment for contract payment",
+				zap.String("payment_id", payment.ID.String()))
+			tasks = append(tasks, func(ctx context.Context) error {
+				if err := c.recalculateIfNeeded(ctx, payment); err != nil {
+					mu.Lock()
+					zap.L().Warn("Failed to recalculate payment",
+						zap.Error(err),
+						zap.String("payment_id", payment.ID.String()))
+					mu.Unlock()
+				}
+				return nil // Don't fail the entire request for individual calculation errors
+			})
+		}
+	}
+
+	// Execute recalculations in parallel with concurrency limit (max 5 workers)
+	if len(tasks) > 0 {
+		if err := utils.RunParallel(ctx, 5, tasks...); err != nil {
+			zap.L().Warn("Some payment recalculations failed", zap.Error(err))
+			// Don't fail the request, continue with whatever data we have
+		}
+	}
+
+	responsesList := responses.ContractPaymentResponse{}.ToResponseList(payments, &filter.PaginationRequest)
+	// responsesList := responses.ContractPaymentResponse{}.ToSimpleResponseList(payments)
+	return &responsesList, total, nil
+}
+
+// CreateContractPaymentsFromContract implements iservice.ContractPaymentService.
+func (c *contractPaymentService) CreateContractPaymentsFromContract(
+	ctx context.Context, userID uuid.UUID, contractID uuid.UUID, uow irepository.UnitOfWork,
+) error {
+	zap.L().Info("Creating contract payments from contract",
+		zap.String("contract_id", contractID.String()))
+
+	contractRepo := uow.Contracts()
+	contractPaymentRepo := uow.ContractPayments()
+	// minimumDayBeforeDueDate := c.config.MinimumDayBeforeContractPaymentDue
+
+	contract, err := contractRepo.GetByID(ctx, contractID, []string{"Brand"})
+	if err != nil {
+		zap.L().Error("Failed to fetch contract", zap.Error(err))
+		return err
+	} else if contract == nil {
+		zap.L().Warn("Contract not found", zap.String("contract_id", contractID.String()))
+		return fmt.Errorf("contract with ID %s not found", contractID)
+	}
+
+	contractPaymentsSlice, err := c.processPaymentDateFromContract(0, userID, contract)
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected, err := contractPaymentRepo.BulkAdd(ctx, contractPaymentsSlice, 100); err != nil {
+		zap.L().Error("Failed to create contract payments from contract", zap.Error(err))
+		return err
+	} else if rowsAffected != int64(len(contractPaymentsSlice)) {
+		zap.L().Warn("Not all contract payments were created",
+			zap.Int("expected", len(contractPaymentsSlice)),
+			zap.Int64("actual", rowsAffected))
+		return fmt.Errorf("only %d out of %d contract payments were created", rowsAffected, len(contractPaymentsSlice))
+	}
+
+	return nil
+}
+
+func NewContractPaymentService(
+	databaseRegistry *gormrepository.DatabaseRegistry,
+	unitOfWork irepository.UnitOfWork,
+	config *config.AdminConfig,
+) iservice.ContractPaymentService {
+	return &contractPaymentService{
+		contractPaymentRepo:    databaseRegistry.ContractPaymentRepository,
+		contractRepo:           databaseRegistry.ContractRepository,
+		paymentCalculationRepo: databaseRegistry.ContractPaymentCalculationRepository,
+		config:                 config,
+		unitOfWork:             unitOfWork,
+	}
+
+}
+
+// region: ================ Helper functions ================
+
+func (c *contractPaymentService) processPaymentDateFromContract(
+	_ int,
+	userID uuid.UUID,
+	contract *model.Contract,
+) (contractPaymentsSlice []*model.ContractPayment, err error) {
+	// Default ContractPayment entry for deposit
+	depositNote := fmt.Sprintf("Deposit payment before starting the contract number %s for brand %s", *contract.ContractNumber, contract.Brand.Name)
+	var tempDepositPercent float64
+	if contract.DepositPercent != nil {
+		tempDepositPercent = float64(*contract.DepositPercent)
+	} else if contract.DepositAmount != nil && *contract.DepositAmount == 0 {
+		var financialTerm dtos.FinancialTerms
+		if err = json.Unmarshal(contract.FinancialTerms, &financialTerm); err == nil {
+			tempDepositPercent = (float64(*contract.DepositAmount) / float64(*financialTerm.TotalCost)) * 100
+		}
+	}
+	now := time.Now()
+	depositContractPayment := &model.ContractPayment{
+		ContractID:            contract.ID,
+		InstallmentPercentage: tempDepositPercent,
+		Amount:                float64(*contract.DepositAmount),
+		BaseAmount:            float64(*contract.DepositAmount),
+		DueDate:               contract.StartDate,
+		PaymentMethod:         enum.ContractPaymentMethodBankTransfer,
+		Note:                  &depositNote,
+		IsDeposit:             true,
+		CreatedBy:             &userID,
+		UpdatedBy:             &userID,
+		CreatedAt:             now,
+		UpdatedAt:             now,
+	}
+	if contract.IsDepositPaid != nil && *contract.IsDepositPaid {
+		depositContractPayment.Status = enum.ContractPaymentStatusPaid
+	}
+	contractPaymentsSlice = append(contractPaymentsSlice, depositContractPayment)
+
+	// Add contract payments entries based on contract type and schedules
+	switch contract.Type {
+	case enum.ContractTypeAdvertising, enum.ContractTypeAmbassador:
+		var advertisingFinancialTerms dtos.AdvertisingFinancialTerms
+		if err = json.Unmarshal(contract.FinancialTerms, &advertisingFinancialTerms); err != nil {
+			zap.L().Error("Failed to unmarshal advertising financial terms", zap.Error(err))
+			return
+		}
+
+		// Determine if we should use internal Schedule IDs or just index-based IDs
+		shouldUseInternalScheduleID := true
+		if advertisingFinancialTerms.Schedules[0].ID == nil {
+			shouldUseInternalScheduleID = false
+		}
+		schedulesMap := make(map[int8]dtos.Schedule)
+		for _, schedule := range advertisingFinancialTerms.Schedules {
+			if shouldUseInternalScheduleID {
+				schedulesMap[*schedule.ID] = schedule
+			} else {
+				schedulesMap[int8(len(schedulesMap)+1)] = schedule
+			}
+		}
+
+		var paymentResults []helper.PaymentDateResult
+		paymentResults, err = helper.CalculateScheduleBasedPaymentDates(
+			contract.StartDate,
+			contract.EndDate,
+			advertisingFinancialTerms.Schedules,
+		)
+		if err != nil {
+			zap.L().Error("Failed to calculate advertising payment dates", zap.Error(err))
+			return nil, err
+		}
+
+		// Process each schedule to create payments
+		for _, res := range paymentResults {
+			amount := 0.0
+			percent := 0.0
+			note := res.Note
+
+			// Find matching schedule by ID (if available) or index
+			for _, s := range advertisingFinancialTerms.Schedules {
+				if s.ID != nil && res.ID != nil && *s.ID == *res.ID {
+					amount = float64(s.Amount)
+					percent = float64(s.Percent)
+					break
+				}
+			}
+
+			pStart, pEnd := res.PeriodStart, res.PeriodEnd
+			now = now.Add(time.Duration(1) * time.Second)
+			contractPaymentsSlice = append(contractPaymentsSlice, &model.ContractPayment{
+				ContractID:            contract.ID,
+				InstallmentPercentage: float64(percent),
+				Amount:                float64(amount),
+				BaseAmount:            float64(amount),
+				DueDate:               res.DueDate,
+				PeriodStart:           &pStart,
+				PeriodEnd:             &pEnd,
+				PaymentMethod:         enum.ContractPaymentMethodBankTransfer,
+				Note:                  &note,
+				CreatedBy:             &userID,
+				UpdatedBy:             &userID,
+				CreatedAt:             now,
+				UpdatedAt:             now,
+			})
+		}
+
+	case enum.ContractTypeAffiliate:
+		var affiliateFinancialTerms dtos.AffiliateFinancialTerms
+		if err = json.Unmarshal(contract.FinancialTerms, &affiliateFinancialTerms); err != nil {
+			zap.L().Error("Failed to unmarshal affiliate financial terms", zap.Error(err))
+			return
+		}
+
+		paymentCycle := enum.PaymentCycle(affiliateFinancialTerms.PaymentCycle)
+		if !paymentCycle.IsValid() {
+			zap.L().Error("Invalid payment cycle", zap.String("payment_cycle", string(affiliateFinancialTerms.PaymentCycle)))
+			err = fmt.Errorf("invalid payment cycle: %s", affiliateFinancialTerms.PaymentCycle)
+			return
+		}
+
+		// Use shared payment cycle calculator
+		var paymentResults []helper.PaymentDateResult
+		paymentResults, err = helper.CalculatePaymentDatesForCycle(
+			paymentCycle,
+			contract.StartDate,
+			contract.EndDate,
+			affiliateFinancialTerms.PaymentDate,
+			0,
+		)
+		if err != nil {
+			zap.L().Error("Failed to calculate affiliate payment dates", zap.Error(err))
+			return nil, err
+		}
+
+		depositPercent := float64(0)
+		if contract.DepositPercent != nil {
+			depositPercent = float64(*contract.DepositPercent)
+		}
+
+		basePayment, percent := helper.CalculateBasePaymentPerPeriod(float64(affiliateFinancialTerms.TotalCost), depositPercent, contract.DepositAmount, len(paymentResults))
+
+		// Devided equally the payment amount per period based on the total cost
+		// The performance cost will be calculated later during the payment link creation phase
+		for _, paymentResult := range paymentResults {
+			now = now.Add(time.Duration(1) * time.Second)
+			paymentResult.Note = fmt.Sprintf(`%s
+Base Payment: %.2f VND for contract number %s.
+Further performance cost will be calculated during the payment link creation phase`,
+				paymentResult.Note, basePayment, *contract.ContractNumber)
+			contractPayment := &model.ContractPayment{
+				ContractID:            contract.ID,
+				InstallmentPercentage: percent,
+				Amount:                basePayment,
+				BaseAmount:            basePayment,
+				DueDate:               paymentResult.DueDate,
+				PeriodStart:           utils.PtrOrNil(paymentResult.PeriodStart),
+				PeriodEnd:             utils.PtrOrNil(paymentResult.PeriodEnd),
+				PaymentMethod:         enum.ContractPaymentMethodBankTransfer,
+				Note:                  &paymentResult.Note,
+				CreatedBy:             &userID,
+				UpdatedBy:             &userID,
+				CreatedAt:             now,
+				UpdatedAt:             now,
+			}
+			contractPaymentsSlice = append(contractPaymentsSlice, contractPayment)
+		}
+
+	case enum.ContractTypeCoProduce:
+		var coProducingFinancialTerms dtos.CoProducingFinancialTerms
+		if err = json.Unmarshal(contract.FinancialTerms, &coProducingFinancialTerms); err != nil {
+			zap.L().Error("Failed to unmarshal co-producing financial terms", zap.Error(err))
+			return
+		}
+
+		paymentCycle := enum.PaymentCycle(coProducingFinancialTerms.ProfitDistributionCycle)
+		if !paymentCycle.IsValid() {
+			zap.L().Error("Invalid profit distribution cycle", zap.String("profit_distribution_cycle", string(coProducingFinancialTerms.ProfitDistributionCycle)))
+			err = fmt.Errorf("invalid profit distribution cycle: %s", coProducingFinancialTerms.ProfitDistributionCycle)
+			return
+		}
+
+		// Use shared payment cycle calculator
+		paymentResults, err := helper.CalculatePaymentDatesForCycle(
+			paymentCycle,
+			contract.StartDate,
+			contract.EndDate,
+			coProducingFinancialTerms.ProfitDistributionDate,
+			0,
+		)
+		if err != nil {
+			zap.L().Error("Failed to calculate co-producing payment dates", zap.Error(err))
+			return nil, err
+		}
+
+		depositPercent := float64(0)
+		if contract.DepositPercent != nil {
+			depositPercent = float64(*contract.DepositPercent)
+		}
+
+		basePayment, percent := helper.CalculateBasePaymentPerPeriod(float64(coProducingFinancialTerms.TotalCost), depositPercent, contract.DepositAmount, len(paymentResults))
+
+		// Devided equally the payment amount per period based on the total cost
+		// The revenue distribution will be calculated later during the payment link creation phase
+		for _, paymentResult := range paymentResults {
+			now = now.Add(time.Duration(1) * time.Second)
+			periodStart := paymentResult.PeriodStart
+			periodEnd := paymentResult.PeriodEnd
+			paymentResult.Note = fmt.Sprintf(`%s
+Base Payment: %.2f VND for contract number %s.
+Further revenue distribution will be calculated during the payment link creation phase.`,
+				paymentResult.Note, basePayment, *contract.ContractNumber)
+			contractPayment := &model.ContractPayment{
+				ContractID:            contract.ID,
+				InstallmentPercentage: percent,
+				Amount:                basePayment,
+				BaseAmount:            basePayment,
+				DueDate:               paymentResult.DueDate,
+				PeriodStart:           &periodStart,
+				PeriodEnd:             &periodEnd,
+				PaymentMethod:         enum.ContractPaymentMethodBankTransfer,
+				Note:                  &paymentResult.Note,
+				CreatedBy:             &userID,
+				UpdatedBy:             &userID,
+				CreatedAt:             now,
+				UpdatedAt:             now,
+			}
+			contractPaymentsSlice = append(contractPaymentsSlice, contractPayment)
+		}
+	}
+
+	return
+}
+
+// endregion
+
+// region: ================ Payment Calculation Methods ================
+
+// shouldRecalculate is a fast pre-filter check (no DB calls) to determine
+// if a payment needs recalculation based on contract type and payment status.
+func (c *contractPaymentService) shouldRecalculate(payment *model.ContractPayment) bool {
+	// Check 1: Contract must be loaded
+	if payment.Contract == nil {
+		return false
+	}
+
+	// Check 2: Contract type must be AFFILIATE or CO_PRODUCING
+	if payment.Contract.Type != enum.ContractTypeAffiliate &&
+		payment.Contract.Type != enum.ContractTypeCoProduce {
+		return false
+	}
+
+	// Check 3: Payment must not be paid yet
+	if payment.Status == enum.ContractPaymentStatusPaid {
+		return false
+	}
+
+	// Check 4: Payment must not be locked (pending payment link)
+	if payment.LockedAt != nil {
+		return false
+	}
+
+	// Check 5: Must be the CURRENT payment period
+	// if !c.isCurrentPeriod(payment) {
+	// 	return false
+	// }
+
+	return true
+}
+
+// isCurrentPeriod checks if the payment period is the current active period.
+// Returns true if now is between PeriodStart (inclusive) and PeriodEnd (exclusive).
+func (c *contractPaymentService) isCurrentPeriod(payment *model.ContractPayment) bool {
+	now := time.Now()
+
+	// Payment period must be defined
+	if payment.PeriodStart == nil || payment.PeriodEnd == nil {
+		return false
+	}
+
+	// Check: PeriodStart <= now < PeriodEnd
+	return !now.Before(*payment.PeriodStart) && now.Before(*payment.PeriodEnd)
+}
+
+// recalculateIfNeeded performs recalculation for AFFILIATE or CO_PRODUCING payments
+// if conditions are met. Updates the payment in the database if amount changed.
+// For CO_PRODUCING: handles negative/zero net amounts (refund flow).
+func (c *contractPaymentService) recalculateIfNeeded(ctx context.Context, payment *model.ContractPayment) error {
+	// Double-check conditions (for thread safety)
+	if !c.shouldRecalculate(payment) {
+		return nil
+	}
+
+	var performanceAmount float64
+	var newTotalAmount float64
+	var breakdownJSON []byte
+	var refundAmount *float64
+	var newStatus *enum.ContractPaymentStatus
+	var err error
+
+	switch payment.Contract.Type {
+	case enum.ContractTypeAffiliate:
+		calculation, calcErr := c.calculateAffiliatePayment(ctx, payment)
+		if calcErr != nil {
+			return fmt.Errorf("failed to calculate affiliate payment: %w", calcErr)
+		}
+		performanceAmount = calculation.NetPayment
+		newTotalAmount = payment.BaseAmount + performanceAmount
+		breakdownJSON, err = json.Marshal(calculation)
+		if err != nil {
+			return fmt.Errorf("failed to marshal affiliate calculation breakdown: %w", err)
+		}
+
+	case enum.ContractTypeCoProduce:
+		calculation, calcErr := c.calculateCoProducingPayment(ctx, payment)
+		if calcErr != nil {
+			return fmt.Errorf("failed to calculate co-producing payment: %w", calcErr)
+		}
+		performanceAmount = calculation.CompanyShare // Use CompanyShare for CO_PRODUCING
+		newTotalAmount = calculation.NetAmount       // Use NetAmount directly (can be 0 or negative)
+		breakdownJSON, err = json.Marshal(calculation)
+		if err != nil {
+			return fmt.Errorf("failed to marshal co-producing calculation breakdown: %w", err)
+		}
+
+		// Handle negative/zero net amount cases
+		if calculation.IsRefundRequired {
+			// NetAmount < 0: System owes brand → transition to KOL_PENDING
+			refundAmt := calculation.RefundAmount
+			refundAmount = &refundAmt
+			kolPending := enum.ContractPaymentStatusKOLPending
+			newStatus = &kolPending
+			zap.L().Info("CO_PRODUCING payment requires refund",
+				zap.String("payment_id", payment.ID.String()),
+				zap.Float64("refund_amount", refundAmt))
+		} else if calculation.NetAmount == 0 {
+			// NetAmount = 0: No payment needed, stays PENDING
+			// Daily job will mark as PAID after due date
+			zap.L().Info("CO_PRODUCING payment has zero net amount",
+				zap.String("payment_id", payment.ID.String()))
+		}
+		// NetAmount > 0: Normal payment flow, status stays PENDING
+
+	default:
+		return nil
+	}
+
+	// Only update if amount changed (avoid unnecessary DB writes)
+	if payment.Amount == newTotalAmount && payment.CalculatedAt != nil {
+		return nil
+	}
+
+	current := time.Now()
+
+	// Build update map
+	updateMap := map[string]any{
+		"amount":                newTotalAmount,
+		"performance_amount":    performanceAmount,
+		"calculated_at":         &current,
+		"calculation_breakdown": breakdownJSON,
+	}
+	if refundAmount != nil {
+		updateMap["refund_amount"] = refundAmount
+	}
+	if newStatus != nil {
+		updateMap["status"] = *newStatus
+	}
+
+	// Perform DB update in a separate goroutine with retry to avoid blocking
+	go func() {
+		if err := utils.RunWithRetry(context.Background(), utils.DefaultRetryOptions, func(ctx context.Context) error {
+			return helper.WithTransaction(ctx, c.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+				return uow.ContractPayments().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+					return db.Where("id = ?", payment.ID)
+				}, updateMap)
+			})
+		}); err != nil {
+			zap.L().Error("Failed to update payment after retries",
+				zap.Error(err),
+				zap.String("payment_id", payment.ID.String()))
+		}
+	}()
+
+	// Update in-memory object as well
+	payment.Amount = newTotalAmount
+	payment.PerformanceAmount = performanceAmount
+	payment.CalculatedAt = &current
+	payment.CalculationBreakdown = breakdownJSON
+	if refundAmount != nil {
+		payment.RefundAmount = *refundAmount
+	}
+	if newStatus != nil {
+		payment.Status = *newStatus
+	}
+
+	zap.L().Info("Payment amount recalculated",
+		zap.String("payment_id", payment.ID.String()),
+		zap.Float64("new_amount", newTotalAmount),
+		zap.Float64("performance_amount", performanceAmount),
+		zap.String("contract_type", payment.Contract.Type.String()))
+
+	return nil
+}
+
+// calculateAffiliatePayment calculates the payment for an AFFILIATE contract
+// using tiered/level-based pricing (similar to electricity billing).
+func (c *contractPaymentService) calculateAffiliatePayment(
+	ctx context.Context,
+	payment *model.ContractPayment,
+) (*dtos.AffiliatePaymentCalculation, error) {
+	// Parse financial terms from contract
+	var terms dtos.AffiliateFinancialTerms
+	if err := json.Unmarshal(payment.Contract.FinancialTerms, &terms); err != nil {
+		return nil, fmt.Errorf("failed to parse affiliate financial terms: %w", err)
+	}
+
+	// Get total clicks for the period
+	totalClicks, err := c.paymentCalculationRepo.GetTotalClicksForContract(
+		ctx,
+		payment.ContractID,
+		*payment.PeriodStart,
+		*payment.PeriodEnd,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total clicks: %w", err)
+	}
+
+	// Calculate tiered payment
+	grossPayment, breakdown := c.calculateTieredPayment(totalClicks, terms.BasePerClick, terms.Levels)
+
+	// Apply tax withholding if applicable
+	var taxAmount float64
+	if grossPayment > float64(terms.TaxWithholding.Threshold) {
+		taxableAmount := grossPayment - float64(terms.TaxWithholding.Threshold)
+		taxAmount = taxableAmount * float64(terms.TaxWithholding.RatePercent) / float64(100)
+	}
+
+	return &dtos.AffiliatePaymentCalculation{
+		ContractID:   payment.ContractID,
+		PeriodStart:  *payment.PeriodStart,
+		PeriodEnd:    *payment.PeriodEnd,
+		TotalClicks:  totalClicks,
+		BaseAmount:   payment.BaseAmount,
+		GrossPayment: grossPayment,
+		TaxAmount:    taxAmount,
+		NetPayment:   grossPayment - taxAmount,
+		Breakdown:    breakdown,
+		CalculatedAt: time.Now(),
+	}, nil
+}
+
+// calculateTieredPayment implements electricity-style tiered billing.
+// Returns gross payment and detailed breakdown per level.
+func (c *contractPaymentService) calculateTieredPayment(
+	totalClicks int64,
+	basePerClick int,
+	levels []dtos.Level,
+) (totalAmount float64, breakdown []dtos.LevelPaymentBreakdown) {
+	// Sort levels by Level number
+	sortedLevels := make([]dtos.Level, len(levels))
+	copy(sortedLevels, levels)
+	sort.Slice(sortedLevels, func(i, j int) bool {
+		return sortedLevels[i].Level < sortedLevels[j].Level
+	})
+
+	remainingClicks := totalClicks
+	var previousMax int64 = 0
+
+	breakdown = make([]dtos.LevelPaymentBreakdown, len(sortedLevels))
+	for i, level := range sortedLevels {
+		// Calculate clicks in this tier
+		tierCapacity := level.MaxClicks - previousMax
+		clicksInTier := max(min(remainingClicks, tierCapacity), 0)
+
+		// Calculate payment for this tier
+		ratePerClick := float64(basePerClick) * float64(level.Multiplier)
+		tierPayment := float64(clicksInTier) * ratePerClick
+		totalAmount += tierPayment
+
+		breakdown[i] = dtos.LevelPaymentBreakdown{
+			Level:        level.Level,
+			MaxClicks:    level.MaxClicks,
+			ClicksInTier: clicksInTier,
+			Multiplier:   level.Multiplier,
+			RatePerClick: ratePerClick,
+			TierPayment:  tierPayment,
+		}
+
+		remainingClicks -= clicksInTier
+		previousMax = level.MaxClicks
+	}
+
+	// If clicks exceed highest level, charge at highest multiplier
+	if remainingClicks > 0 && len(sortedLevels) > 0 {
+		highestLevel := sortedLevels[len(sortedLevels)-1]
+		ratePerClick := float64(basePerClick) * float64(highestLevel.Multiplier)
+		tierPayment := float64(remainingClicks) * ratePerClick
+		totalAmount += tierPayment
+
+		breakdown[len(breakdown)-1].ClicksInTier += remainingClicks
+		breakdown[len(breakdown)-1].RatePerClick = ratePerClick
+		breakdown[len(breakdown)-1].TierPayment += tierPayment
+	}
+
+	return totalAmount, breakdown
+}
+
+// calculateCoProducingPayment calculates the revenue distribution for a CO_PRODUCING contract.
+// For CO_PRODUCING: Net Amount = Base Amount - Company Share
+// - If NetAmount > 0: Brand owes system → normal payment flow
+// - If NetAmount = 0: No payment needed → stays PENDING, daily job marks PAID after due date
+// - If NetAmount < 0: System owes brand → refund proof flow (KOL_PENDING status)
+func (c *contractPaymentService) calculateCoProducingPayment(
+	ctx context.Context,
+	payment *model.ContractPayment,
+) (*dtos.CoProducingPaymentCalculation, error) {
+	// Parse financial terms from contract
+	var terms dtos.CoProducingFinancialTerms
+	if err := json.Unmarshal(payment.Contract.FinancialTerms, &terms); err != nil {
+		return nil, fmt.Errorf("failed to parse co-producing financial terms: %w", err)
+	}
+
+	// Get limited product revenue for the period
+	revenueResult, err := c.paymentCalculationRepo.GetLimitedProductRevenue(
+		ctx,
+		payment.ContractID,
+		*payment.PeriodStart,
+		*payment.PeriodEnd,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get limited product revenue: %w", err)
+	}
+
+	// Calculate revenue distribution
+	companyShare := revenueResult.TotalRevenue * float64(terms.CompanyPercent) / 100
+	brandShare := revenueResult.TotalRevenue * float64(terms.KolPercent) / 100
+
+	// Calculate net amount: what brand owes after offsetting company's earnings
+	// Net Amount = Base Amount - Company Share
+	netAmount := payment.BaseAmount - companyShare
+	isRefundRequired := netAmount < 0
+	refundAmount := 0.0
+	if isRefundRequired {
+		refundAmount = -netAmount // Absolute value
+	}
+
+	return &dtos.CoProducingPaymentCalculation{
+		ContractID:       payment.ContractID,
+		PeriodStart:      *payment.PeriodStart,
+		PeriodEnd:        *payment.PeriodEnd,
+		BaseAmount:       payment.BaseAmount,
+		TotalRevenue:     revenueResult.TotalRevenue,
+		CompanyPercent:   terms.CompanyPercent,
+		BrandPercent:     terms.KolPercent,
+		CompanyShare:     companyShare,
+		BrandShare:       brandShare,
+		NetAmount:        netAmount,
+		IsRefundRequired: isRefundRequired,
+		RefundAmount:     refundAmount,
+		RevenueBreakdown: &dtos.LimitedProductRevenueBreakdown{
+			PreOrderRevenue: revenueResult.PreOrderRevenue,
+			OrderRevenue:    revenueResult.OrderRevenue,
+			TotalRevenue:    revenueResult.TotalRevenue,
+		},
+		CalculatedAt: time.Now(),
+	}, nil
+}
+
+// endregion
+
+// region: ================ Payment Locking Methods ================
+
+// LockPaymentAmount locks the current calculated amount when creating a payment link.
+// This prevents the amount from changing while payment is in progress.
+// New clicks/revenue after locking will be attributed to the next payment period.
+func (c *contractPaymentService) LockPaymentAmount(
+	ctx context.Context,
+	payment *model.ContractPayment,
+) error {
+	// Validate contract type
+	if payment.Contract == nil {
+		return fmt.Errorf("contract must be loaded")
+	}
+
+	if payment.Contract.Type != enum.ContractTypeAffiliate &&
+		payment.Contract.Type != enum.ContractTypeCoProduce {
+		// Nothing to lock for non-variable payment contracts
+		return nil
+	}
+
+	// Calculate current amount
+	if err := c.recalculateIfNeeded(ctx, payment); err != nil {
+		return fmt.Errorf("failed to calculate before locking: %w", err)
+	}
+
+	now := time.Now()
+	payment.LockedAmount = &payment.Amount
+	payment.LockedAt = &now
+
+	// Store type-specific locked values
+	switch payment.Contract.Type {
+	case enum.ContractTypeAffiliate:
+		clicks, _ := c.paymentCalculationRepo.GetTotalClicksForContract(
+			ctx, payment.ContractID, *payment.PeriodStart, *payment.PeriodEnd)
+		payment.LockedClicks = &clicks
+
+	case enum.ContractTypeCoProduce:
+		revenue, _ := c.paymentCalculationRepo.GetLimitedProductRevenue(
+			ctx, payment.ContractID, *payment.PeriodStart, *payment.PeriodEnd)
+		if revenue != nil {
+			payment.LockedRevenue = &revenue.TotalRevenue
+		}
+	}
+
+	if err := c.contractPaymentRepo.Update(ctx, payment); err != nil {
+		return fmt.Errorf("failed to lock payment amount: %w", err)
+	}
+
+	zap.L().Info("Payment amount locked",
+		zap.String("payment_id", payment.ID.String()),
+		zap.Float64("locked_amount", payment.Amount))
+
+	return nil
+}
+
+// UnlockPaymentOnFailure clears the locked state when payment fails.
+// This allows the amount to be recalculated on the next GET request.
+func (c *contractPaymentService) UnlockPaymentOnFailure(
+	ctx context.Context,
+	payment *model.ContractPayment,
+) error {
+	payment.LockedAmount = nil
+	payment.LockedAt = nil
+	payment.LockedClicks = nil
+	payment.LockedRevenue = nil
+
+	if err := c.contractPaymentRepo.Update(ctx, payment); err != nil {
+		return fmt.Errorf("failed to unlock payment: %w", err)
+	}
+
+	zap.L().Info("Payment unlocked after failure",
+		zap.String("payment_id", payment.ID.String()))
+
+	return nil
+}
+
+// endregion

@@ -1,5 +1,10 @@
 package enum
 
+// Deprecated: AttributeUnit is deprecated and will be removed in a future version.
+// Use the product_options table with type='ATTRIBUTE_UNIT' instead.
+// Values are now stored as strings and managed via ProductOptionService.
+// See: internal/application/service/product_option_service.go
+
 import (
 	"database/sql/driver"
 	"fmt"
@@ -44,4 +49,8 @@ func (au *AttributeUnit) Scan(value any) error {
 
 func (au AttributeUnit) Value() (driver.Value, error) {
 	return string(au), nil
+}
+
+func (au AttributeUnit) String() string {
+	return string(au)
 }

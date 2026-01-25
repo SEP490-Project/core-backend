@@ -1,0 +1,98 @@
+def gvFile
+def savedCommitSHA
+def branchName
+
+pipeline {
+    agent any
+
+    triggers {
+        githubPush()
+    }
+
+    tools {
+        go 'Go_1.24.0'
+    }
+
+    environment {
+        //get from app.yaml
+        DOCKER_BUILDKIT = '1' 
+        APP_NAME = sh( script: "awk '/^server:/ {found=1} found && /service_name:/ {print \$2; exit}' ./config/config.yaml", returnStdout: true).trim()
+        GIT_CREDENTIALS_ID = "ssh-github-key"
+        GIT_URL = "git@github.com:SEP490-Project/core-backend.git"
+    }
+
+    parameters {
+        choice(name: 'ENVIRONMENT', choices: ['STAG', 'PROD'], description: 'Select environment for deployment')
+        booleanParam(name: 'RUN_TESTS', defaultValue: false, description: 'Run tests after build')
+    }
+
+    stages {
+        stage('Initialize') {
+            steps {
+                script {
+                    gvFile = load 'script.groovy'
+                    def commitSHA = GIT_COMMIT.take(7)
+
+                    branchName = env.BRANCH_NAME ?: env.GIT_BRANCH?.replaceAll('origin/', '')
+                    currentBuild.displayName = "${branchName}-${commitSHA}"
+
+                    //Assign SHA
+                    savedCommitSHA = "${commitSHA}"
+                    gvFile.setupBuildx()
+                }
+                sshagent (credentials: ["${GIT_CREDENTIALS_ID}"]) {
+                    sh 'ssh -o StrictHostKeyChecking=no -T git@github.com || true'
+                }
+            }
+        }
+
+        stage('Checkout') {
+            steps {
+                script {
+                    def branchToCheckout = (params.ENVIRONMENT == 'STAG') ? '*/staging' : '*/master'
+                    echo "Checking out branch: ${branchToCheckout}"
+                    gvFile.checkoutSSH(GIT_URL, branchToCheckout)
+                }
+            }
+        }
+
+        stage('Build & Verify') {
+            parallel {
+                stage('Unit Tests') {
+                    when { expression { params.RUN_TESTS } }
+                    steps {
+                        script { gvFile.runTests() }
+                    }
+                }
+
+                stage('Docker Build') {
+                    steps {
+                        script { gvFile.buildDockerfile(env.APP_NAME, savedCommitSHA) }
+                    }
+                }
+            }
+        }
+
+        stage('Archive Artifact') {
+            steps {
+                script {
+                    gvFile.archiveArtifacts(env.APP_NAME, savedCommitSHA, branchName)
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            script {
+                gvFile.sendSuccessNotification()
+            }
+        }
+
+        failure {
+            script {
+                gvFile.sendFailureNotification()
+            }
+        }
+    }
+}

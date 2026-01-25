@@ -1,16 +1,24 @@
 log/
 logs/
 build/
+crypto_cli
 bin/
 .github/
 .vscode/
 .idea/
+**/docs/*
+tmp/
+.specify/
+specs/
+test-reports/
 
 *.exe
 *.out
 .env
+*.env*
 *.log
 *.pem
+*__debug*
 
 .*_dev.*
 .*.dev.*
@@ -18,6 +26,13 @@ bin/
 # Test coverage profiles
 coverage.*
 
+# Notification system secrets
+firebase-service-account*.json
+*gmail*.env
+**/*config*.yaml
+
 # OS-generated files
 .DS_Store
 Thumbs.db
+
+!docs

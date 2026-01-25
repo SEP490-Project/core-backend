@@ -1,0 +1,10 @@
+Hi {{.CustomerName}},
+
+We have received your pre-order ({{.PreOrderCode}}) for "{{.ProductName}}" (x{{.Quantity}}) at {{.CreatedAt}}.
+
+You can view and track your pre-order here: {{.PreOrderLink}}
+
+Thanks,
+Your Company
+© {{.Year}}
+

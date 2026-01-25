@@ -1,22 +1,16 @@
 package irepository
 
 import (
+	"context"
 	"core-backend/internal/domain/model"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type UserRepository interface {
-	Create(user *model.User) error
-	GetByID(id uuid.UUID) (*model.User, error)
-	GetByUsername(username string) (*model.User, error)
-	GetByEmail(email string) (*model.User, error)
-	GetByUsernameOrEmail(identifier string) (*model.User, error)
-	GetByFilters(limit, offset int, search, role string, isActive *bool) ([]*model.User, int, error)
-	Update(user *model.User) error
-	Delete(id uuid.UUID) error
-	List(limit, offset int) ([]*model.User, error)
-	Count() (int64, error)
-	IsUsernameExists(username string) (bool, error)
-	IsEmailExists(email string) (bool, error)
+	GenericRepository[model.User]
+	GetUserIDsByFilter(ctx context.Context, filter func(*gorm.DB) *gorm.DB) ([]uuid.UUID, error)
+	GetContractIDsByUserBrandID(ctx context.Context, userbrandID uuid.UUID) ([]uuid.UUID, error)
+	GetUserFullnameByID(ctx context.Context, userID uuid.UUID) (string, error)
 }

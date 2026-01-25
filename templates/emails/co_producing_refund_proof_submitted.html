@@ -1,0 +1,115 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Refund Proof Submitted - Review Required</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      .header {
+        background-color: #d1ecf1;
+        color: #0c5460;
+        padding: 10px;
+        text-align: center;
+        border-radius: 5px 5px 0 0;
+      }
+      .content {
+        padding: 20px;
+      }
+      .footer {
+        text-align: center;
+        font-size: 12px;
+        color: #777;
+        margin-top: 20px;
+      }
+      .button {
+        display: inline-block;
+        padding: 10px 20px;
+        background-color: #17a2b8;
+        color: #ffffff;
+        text-decoration: none;
+        border-radius: 5px;
+        margin-top: 10px;
+      }
+      .info-box {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 15px 0;
+      }
+      .amount {
+        font-size: 24px;
+        font-weight: bold;
+        color: #0c5460;
+      }
+      .warning-box {
+        background-color: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 15px;
+        margin: 15px 0;
+      }
+      .proof-link {
+        word-break: break-all;
+        color: #007bff;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>Refund Proof Submitted - Review Required</h2>
+      </div>
+      <div class="content">
+        <p>Dear {{.BrandName}},</p>
+
+        <p>
+          A refund proof has been submitted for your CO_PRODUCING contract
+          <strong>#{{.ContractNumber}}</strong>.
+        </p>
+
+        <div class="info-box">
+          <p><strong>Refund Details:</strong></p>
+          <p class="amount">{{.Currency}} {{.RefundAmount}}</p>
+          <p>Submitted: {{.SubmissionDate}}</p>
+          <p>Attempt: #{{.AttemptNumber}}</p>
+        </div>
+
+        {{if .ProofNote}}
+        <div class="info-box">
+          <p><strong>Note from Staff:</strong></p>
+          <p>{{.ProofNote}}</p>
+        </div>
+        {{end}}
+
+        <div class="warning-box">
+          <p><strong>⚠️ Action Required</strong></p>
+          <p>
+            Please review the refund proof within <strong>{{.ReviewDeadlineDays}} days</strong>.
+            If no action is taken, the proof will be <strong>automatically approved</strong>.
+          </p>
+        </div>
+
+        <p>
+          <a href="{{.ProofURL}}" class="proof-link" target="_blank">View Refund Proof</a>
+        </p>
+
+        <p style="text-align: center; margin-top: 20px;">
+          <a href="{{.ReviewLink}}" class="button">Review Refund Proof</a>
+        </p>
+      </div>
+      <div class="footer">
+        <p>&copy; {{.CurrentYear}} SEP490. All rights reserved.</p>
+      </div>
+    </div>
+  </body>
+</html>

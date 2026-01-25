@@ -8,20 +8,25 @@ import (
 type PreOrderStatus string
 
 const (
-	PreOrderStatusPending         PreOrderStatus = "PENDING"
-	PreOrderStatusPreOrdered      PreOrderStatus = "PRE_ORDERED"
-	PreOrderStatusAwaitingRelease PreOrderStatus = "AWAITING_RELEASE"
-	PreOrderStatusAwaitingPickup  PreOrderStatus = "AWAITING_PICKUP"
-	PreOrderStatusConfirmed       PreOrderStatus = "CONFIRMED"
-	PreOrderStatusCancelled       PreOrderStatus = "CANCELLED"
-	PreOrderStatusInTransit       PreOrderStatus = "IN_TRANSIT"
-	PreOrderStatusDelivered       PreOrderStatus = "DELIVERED"
-	PreOrderStatusReceived        PreOrderStatus = "RECEIVED"
+	PreOrderStatusPending       PreOrderStatus = "PENDING"
+	PreOrderStatusPaid          PreOrderStatus = "PAID"
+	PreOrderStatusPreOrdered    PreOrderStatus = "PRE_ORDERED"
+	PreOrderStatusCancelled     PreOrderStatus = "CANCELLED"
+	PreOrderStatusRefundRequest PreOrderStatus = "REFUND_REQUEST"
+	PreOrderStatusRefunded      PreOrderStatus = "REFUNDED"
+
+	PreOrderStatusShipped           PreOrderStatus = "SHIPPED"
+	PreOrderStatusAwaitingPickup    PreOrderStatus = "AWAITING_PICKUP"
+	PreOrderStatusInTransit         PreOrderStatus = "IN_TRANSIT"
+	PreOrderStatusDelivered         PreOrderStatus = "DELIVERED"
+	PreOrderStatusCompensateRequest PreOrderStatus = "COMPENSATE_REQUEST"
+	PreOrderStatusCompensated       PreOrderStatus = "COMPENSATED"
+	PreOrderStatusReceived          PreOrderStatus = "RECEIVED"
 )
 
 func (pos PreOrderStatus) IsValid() bool {
 	switch pos {
-	case PreOrderStatusPending, PreOrderStatusPreOrdered, PreOrderStatusAwaitingRelease, PreOrderStatusAwaitingPickup, PreOrderStatusConfirmed, PreOrderStatusCancelled, PreOrderStatusInTransit, PreOrderStatusDelivered, PreOrderStatusReceived:
+	case PreOrderStatusPending, PreOrderStatusPaid, PreOrderStatusPreOrdered, PreOrderStatusCancelled, PreOrderStatusAwaitingPickup, PreOrderStatusInTransit, PreOrderStatusDelivered, PreOrderStatusReceived, PreOrderStatusCompensateRequest, PreOrderStatusCompensated, PreOrderStatusRefundRequest, PreOrderStatusRefunded, PreOrderStatusShipped:
 		return true
 	}
 	return false
@@ -45,4 +50,8 @@ func (pos *PreOrderStatus) Scan(value any) error {
 
 func (pos PreOrderStatus) Value() (driver.Value, error) {
 	return string(pos), nil
+}
+
+func (pos PreOrderStatus) String() string {
+	return string(pos)
 }

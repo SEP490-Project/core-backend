@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Order Confirmation</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333333;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f4f4f4;
+      }
+      .email-container {
+        background-color: #ffffff;
+        border-radius: 8px;
+        padding: 28px 24px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        text-align: center;
+        padding-bottom: 18px;
+        border-bottom: 2px solid #ff9fb2;
+        margin-bottom: 24px;
+      }
+      .header h1 {
+        color: #ff9fb2;
+        margin: 0;
+        font-size: 22px;
+        font-weight: 600;
+      }
+      .content {
+        margin: 16px 0;
+        font-size: 14px;
+        color: #4b5563;
+      }
+      .content p {
+        margin: 8px 0 10px 0;
+      }
+      .order-details {
+        background-color: #f9fafb;
+        padding: 14px 16px;
+        border-radius: 6px;
+        margin: 16px 0 18px 0;
+        border-left: 4px solid #ff9fb2;
+        font-size: 13px;
+      }
+      .order-details p {
+        margin: 4px 0;
+      }
+      .order-details strong {
+        color: #111827;
+      }
+      .order-summary {
+        list-style: none;
+        padding: 0;
+        margin: 14px 0 18px 0;
+        font-size: 13px;
+      }
+      .order-summary li {
+        padding: 8px 0;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        justify-content: space-between;
+        color: #4b5563;
+      }
+      .order-summary li:last-child {
+        border-bottom: none;
+        font-weight: 600;
+        color: #111827;
+        padding-top: 12px;
+      }
+      .button {
+        display: inline-block;
+        padding: 10px 22px;
+        background-color: #ff9fb2;
+        color: #ffffff;
+        text-decoration: none;
+        border-radius: 6px;
+        margin: 18px 0 4px 0;
+        text-align: center;
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .button:hover {
+        background-color: #ff7f97;
+      }
+      .footer {
+        margin-top: 26px;
+        padding-top: 16px;
+        border-top: 1px solid #e5e7eb;
+        text-align: center;
+        font-size: 12px;
+        color: #6b7280;
+      }
+      .footer p {
+        margin: 3px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="email-container">
+      <div class="header">
+        <h1>🎉 Thank You For Your Order!</h1>
+      </div>
+
+      <div class="content">
+        <p>Hello {{.CustomerName}},</p>
+        <p>
+          We have successfully received your order and are currently processing
+          it. Below are your order details:
+        </p>
+
+        <div class="order-details">
+          <p><strong>Order Number:</strong> {{.OrderCode}}</p>
+          <p><strong>Order Date:</strong> {{.OrderDate}}</p>
+          <p><strong>Total Amount:</strong> {{.TotalAmount}}</p>
+          <p><strong>Shipping Address:</strong> {{.ShippingAddress}}</p>
+        </div>
+
+        <h3 style="font-size: 15px; color: #111827; margin: 6px 0 10px 0">
+          Order Summary
+        </h3>
+
+        <ul class="order-summary">
+          {{range .Items}}
+          <li>
+            <span>{{.Quantity}} x {{.ProductName}}</span>
+            <span>{{.ItemTotal}}</span>
+          </li>
+          {{end}}
+          <li>
+            <span>Shipping Fee</span>
+            <span>{{.ShippingFee}}</span>
+          </li>
+          <li>
+            <span>Grand Total</span>
+            <span>{{.TotalAmount}}</span>
+          </li>
+        </ul>
+
+        <p>
+          You can track the status of your order by clicking the button below.
+          We will notify you once your order has shipped.
+        </p>
+
+        <div style="text-align: center">
+          <a href="{{.OrderLink}}" class="button">View Order Status</a>
+        </div>
+      </div>
+
+      <div class="footer">
+        <p>&copy; {{.Year}} Your Company. All rights reserved.</p>
+        <p>This is an automated message. Please do not reply to this email.</p>
+      </div>
+    </div>
+  </body>
+</html>

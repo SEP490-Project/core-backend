@@ -1,5 +1,10 @@
 package enum
 
+// Deprecated: CapacityUnit is deprecated and will be removed in a future version.
+// Use the product_options table with type='CAPACITY_UNIT' instead.
+// Values are now stored as strings and managed via ProductOptionService.
+// See: internal/application/service/product_option_service.go
+
 import (
 	"database/sql/driver"
 	"fmt"
@@ -41,4 +46,8 @@ func (cu *CapacityUnit) Scan(value any) error {
 
 func (cu CapacityUnit) Value() (driver.Value, error) {
 	return string(cu), nil
+}
+
+func (cu CapacityUnit) String() string {
+	return string(cu)
 }

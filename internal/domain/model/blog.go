@@ -1,31 +1,30 @@
 package model
 
 import (
+	"time"
+
 	"github.com/google/uuid"
-	"gorm.io/datatypes"
-	"gorm.io/gorm"
 )
 
+// Blog is a weak entity extending Content for blog-specific attributes (Type=POST only)
 type Blog struct {
-	ContentID uuid.UUID      `json:"content_id" gorm:"type:uuid;column:content_id;primaryKey"`
-	AuthorID  uuid.UUID      `json:"author_id" gorm:"type:uuid;column:author_id;not null"`
-	Tags      datatypes.JSON `json:"tags" gorm:"type:jsonb;column:tags;default:'[]'::jsonb"`
-	Excerpt   *string        `json:"excerpt" gorm:"type:text;column:excerpt;default:''"`
-	ReadTime  int            `json:"read_time" gorm:"type:int;column:read_time;default:0"`
+	ContentID   uuid.UUID  `json:"content_id" gorm:"type:uuid;primaryKey"`
+	AuthorID    uuid.UUID  `json:"author_id" gorm:"type:uuid;not null"`
+	Excerpt     *string    `json:"excerpt,omitempty" gorm:"type:text"`
+	ReadTime    *int       `json:"read_time,omitempty" gorm:"type:integer"`
+	CreatedAt   *time.Time `json:"created_at" gorm:"autoCreateTime;column:created_at"`
+	CreatedByID *uuid.UUID `json:"created_by" gorm:"type:uuid;column:created_by"`
+	UpdatedAt   *time.Time `json:"updated_at" gorm:"autoUpdateTime;column:updated_at"`
+	UpdatedBYId *uuid.UUID `json:"updated_by" gorm:"type:uuid;column:updated_by"`
+	// Tags      datatypes.JSON `json:"tags" gorm:"type:jsonb"`
 
 	// Relationships
-	Content *Content `json:"content" gorm:"foreignKey:ContentID"`
-	User    *User    `json:"user" gorm:"foreignKey:AuthorID"`
+	Content *Content `json:"content,omitempty" gorm:"foreignKey:ContentID;constraint:OnDelete:CASCADE"`
+	Author  *User    `json:"author,omitempty" gorm:"foreignKey:AuthorID"`
+	Tags    []Tag    `json:"tag_details,omitempty" gorm:"many2many:blog_tags;joinForeignKey:BlogID;JoinReferences:TagID"`
 }
 
-func (Blog) TableName() string { return "blogs" }
-
-func (b *Blog) BeforeCreate(tx *gorm.DB) error {
-	if b.Tags == nil {
-		b.Tags = datatypes.JSON([]byte("[]"))
-	}
-	if b.ReadTime < 0 {
-		b.ReadTime = 0
-	}
-	return nil
+// TableName specifies the table name for Blog
+func (Blog) TableName() string {
+	return "blogs"
 }

@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Refund Proof Approved</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      .header {
+        background-color: #d4edda;
+        color: #155724;
+        padding: 10px;
+        text-align: center;
+        border-radius: 5px 5px 0 0;
+      }
+      .content {
+        padding: 20px;
+      }
+      .footer {
+        text-align: center;
+        font-size: 12px;
+        color: #777;
+        margin-top: 20px;
+      }
+      .info-box {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 15px 0;
+      }
+      .success-box {
+        background-color: #d4edda;
+        border-left: 4px solid #28a745;
+        padding: 15px;
+        margin: 15px 0;
+      }
+      .amount {
+        font-size: 24px;
+        font-weight: bold;
+        color: #155724;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>✓ Refund Proof Approved</h2>
+      </div>
+      <div class="content">
+        <p>Dear Marketing Staff,</p>
+
+        <div class="success-box">
+          <p>
+            The refund proof for contract <strong>#{{.ContractNumber}}</strong> has been
+            <strong>approved</strong> by the brand.
+          </p>
+        </div>
+
+        <div class="info-box">
+          <p><strong>Refund Details:</strong></p>
+          <p>Brand: {{.BrandName}}</p>
+          <p>Refund Amount: <span class="amount">{{.Currency}} {{.RefundAmount}}</span></p>
+          <p>Approved At: {{.ApprovedDate}}</p>
+          {{if .ReviewedBy}}
+          <p>Reviewed By: {{.ReviewedBy}}</p>
+          {{else}}
+          <p>Reviewed By: <em>Auto-approved (review deadline exceeded)</em></p>
+          {{end}}
+        </div>
+
+        <p>
+          The refund workflow for this payment period is now complete.
+        </p>
+      </div>
+      <div class="footer">
+        <p>&copy; {{.CurrentYear}} SEP490. All rights reserved.</p>
+      </div>
+    </div>
+  </body>
+</html>

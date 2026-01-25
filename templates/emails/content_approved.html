@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Content Approved</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333333;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f4f4f4;
+      }
+      .email-container {
+        background-color: #ffffff;
+        border-radius: 8px;
+        padding: 28px 24px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        text-align: center;
+        padding-bottom: 18px;
+        border-bottom: 2px solid #ff9fb2;
+        margin-bottom: 24px;
+      }
+      .header h1 {
+        color: #ff9fb2;
+        margin: 0;
+        font-size: 22px;
+        font-weight: 600;
+      }
+      .content {
+        margin: 16px 0;
+        font-size: 14px;
+        color: #4b5563;
+      }
+      .content p {
+        margin: 8px 0 10px 0;
+      }
+      .success-badge {
+        display: inline-block;
+        background-color: #ecfdf5;
+        color: #059669;
+        padding: 6px 14px;
+        border-radius: 16px;
+        font-size: 12px;
+        margin: 10px 0 14px 0;
+        font-weight: 600;
+        border: 1px solid #6ee7b7;
+      }
+      .content-details {
+        background-color: #f9fafb;
+        padding: 14px 16px;
+        border-radius: 6px;
+        margin: 16px 0 18px 0;
+        border-left: 4px solid #ff9fb2;
+        font-size: 13px;
+      }
+      .content-details p {
+        margin: 4px 0;
+      }
+      .content-details strong {
+        color: #111827;
+      }
+      .button {
+        display: inline-block;
+        padding: 10px 22px;
+        background-color: #ff9fb2;
+        color: #ffffff;
+        text-decoration: none;
+        border-radius: 6px;
+        margin: 18px 0 4px 0;
+        text-align: center;
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .button:hover {
+        background-color: #ff7f97;
+      }
+      .footer {
+        margin-top: 26px;
+        padding-top: 16px;
+        border-top: 1px solid #e5e7eb;
+        text-align: center;
+        font-size: 12px;
+        color: #6b7280;
+      }
+      .footer p {
+        margin: 3px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="email-container">
+      <div class="header">
+        <h1>🎉 Content Approved</h1>
+      </div>
+
+      <div class="content">
+        <p>Hello {{.CreatorName}},</p>
+        <p>
+          Great news! Your content has been approved and is now ready for
+          publishing. Please review the details below:
+        </p>
+
+        <div style="text-align: center">
+          <div class="success-badge">✓ APPROVED</div>
+        </div>
+
+        <div class="content-details">
+          <p><strong>Content Title:</strong> {{.ContentTitle}}</p>
+          <p><strong>Content Type:</strong> {{.ContentType}}</p>
+          <p><strong>Approval Date:</strong> {{.ApprovalDate}}</p>
+        </div>
+
+        <p>
+          Your content is now in the publishing queue. You will be notified once
+          it goes live on the platform.
+        </p>
+
+        <div style="text-align: center">
+          <a href="{{.ContentLink}}" class="button">View Content</a>
+        </div>
+      </div>
+
+      <div class="footer">
+        <p>&copy; {{.CurrentYear}} Your Company. All rights reserved.</p>
+        <p>This is an automated message. Please do not reply to this email.</p>
+      </div>
+    </div>
+  </body>
+</html>

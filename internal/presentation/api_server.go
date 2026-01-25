@@ -6,8 +6,10 @@ import (
 	"core-backend/config"
 	"core-backend/internal/application"
 	"core-backend/internal/infrastructure"
-	"core-backend/internal/infrastructure/gorm_repository"
+	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/internal/infrastructure/persistence"
+	asynqhandler "core-backend/internal/presentation/asynq_handler"
+	"core-backend/internal/presentation/consumer"
 	"core-backend/internal/presentation/handler"
 	"core-backend/internal/presentation/middleware"
 	"fmt"
@@ -26,6 +28,8 @@ type APIServer struct {
 	handlerRegistry        *handler.HandlerRegistry
 	middlewareRegistry     *middleware.MiddlewareRegistry
 	serviceRegistry        *application.ApplicationRegistry
+	consumerRegistry       *consumer.ConsumerRegistry
+	asynqHandlerRegistry   *asynqhandler.AsynqHandlerRegistry
 	databaseRegistry       *gormrepository.DatabaseRegistry
 	infrastructureRegistry *infrastructure.InfrastructureRegistry
 	wsServer               *WebSocketServer
@@ -36,13 +40,57 @@ type APIServer struct {
 
 func NewAPIServer() *APIServer {
 	db := persistence.InitDB()
+	s3Bucket := persistence.InitS3()
+	s3StreamBucket := persistence.InitS3StreamingBucket()
 
-	// Create registries
+	// Create registries in order
 	databaseRegistry := gormrepository.NewDatabaseRegistry(db)
-	infrastructureRegistry := infrastructure.NewInfrastructureRegistry(db)
-	serviceRegistry := application.NewApplicationRegistry(databaseRegistry, infrastructureRegistry)
-	handlerRegistry := handler.NewHandlerRegistry(serviceRegistry)
+	infrastructureRegistry := infrastructure.NewInfrastructureRegistry(config.GetAppConfig(), db, databaseRegistry, s3Bucket, s3StreamBucket)
+
+	// Initialize RSA keys in Vault if enabled and not already present
+	if infrastructureRegistry.VaultService != nil {
+		ctx := context.Background()
+		jwtConfig := &config.GetAppConfig().JWT
+		if err := infrastructureRegistry.VaultService.InitializeRSAKeys(ctx, jwtConfig); err == nil {
+			zap.L().Info("RSA keys initialization in Vault completed successfully")
+		} else {
+			zap.L().Error("Failed to initialize RSA keys in Vault, fallback to local files", zap.Error(err))
+			if err = jwtConfig.LoadRSAKeysLocally(); err != nil {
+				zap.L().Fatal("Failed to load RSA keys locally after Vault initialization failure", zap.Error(err))
+			}
+			zap.L().Info("Loaded RSA keys from local files after Vault initialization failure")
+		}
+	}
+
+	serviceRegistry := application.NewApplicationRegistry(config.GetAppConfig(), databaseRegistry, infrastructureRegistry)
+	handlerRegistry := handler.NewHandlerRegistry(serviceRegistry, config.GetAppConfig())
 	middlewareRegistry := middleware.NewMiddlewareRegistry(serviceRegistry)
+	consumerRegistry := consumer.NewConsumerRegistry(serviceRegistry, infrastructureRegistry, databaseRegistry)
+	asynqHandlerRegistry := asynqhandler.NewAsynqHandlerRegistry(config.GetAppConfig(), infrastructureRegistry.AsynqClient, serviceRegistry)
+	asynqHandlerRegistry.RegisterHandlers()
+
+	// Register application-layer cron jobs (jobs that depend on application services)
+	serviceRegistry.RegisterApplicationLayerJobs()
+
+	// Register listener for AdminConfig changes to restart cron jobs
+	serviceRegistry.AdminConfigService.RegisterListener(func() {
+		if infrastructureRegistry.CronJobsRegistry != nil {
+			zap.L().Info("Admin config changed, restarting cron jobs...")
+			if err := infrastructureRegistry.CronJobsRegistry.RestartAllJobs(&config.GetAppConfig().AdminConfig); err != nil {
+				zap.L().Error("Failed to restart cron jobs", zap.Error(err))
+			}
+		}
+	})
+
+	// Initialize and start cron jobs
+	if infrastructureRegistry.CronJobsRegistry != nil {
+		if err := infrastructureRegistry.CronJobsRegistry.InitializeAllJobs(); err != nil {
+			zap.L().Error("Failed to initialize cron jobs", zap.Error(err))
+		} else {
+			infrastructureRegistry.CronJobsRegistry.StartCronScheduler()
+			zap.L().Info("Cron scheduler started successfully")
+		}
+	}
 
 	// Create WebSocket server
 	wsServer := NewWebSocketServer()
@@ -56,8 +104,10 @@ func NewAPIServer() *APIServer {
 		serviceRegistry:        serviceRegistry,
 		handlerRegistry:        handlerRegistry,
 		middlewareRegistry:     middlewareRegistry,
+		consumerRegistry:       consumerRegistry,
+		asynqHandlerRegistry:   asynqHandlerRegistry,
 		wsServer:               wsServer,
-		router:                 NewRouter(handlerRegistry, middlewareRegistry),
+		router:                 NewRouter(config.GetAppConfig(), handlerRegistry, middlewareRegistry),
 		ctx:                    ctx,
 		cancel:                 cancel,
 	}
@@ -76,9 +126,11 @@ func (s *APIServer) Start() error {
 		panic("Invalid server environment, valid options are 'production' or 'development'")
 	}
 
-	// Start background services
-	zap.L().Info("Starting background services...")
-	//s.infrastructureRegistry.StartBackgroundServices(s.ctx)
+	// Register RabbitMQ consumer handlers
+	if err := s.registerRabbitMQConsumers(); err != nil {
+		zap.L().Error("Failed to register RabbitMQ consumers", zap.Error(err))
+		// Don't fail startup - RabbitMQ is optional
+	}
 
 	// Start WebSocket server if enabled
 	if wsConfig.Enabled {
@@ -90,7 +142,7 @@ func (s *APIServer) Start() error {
 
 	// Setup routes
 	s.router.SetupRoutes(engine)
-	s.router.SetupV1Routes(engine)
+	s.router.SetupSSERoutes(engine)
 
 	// Setup WebSocket routes if enabled
 	if wsConfig.Enabled {
@@ -100,16 +152,23 @@ func (s *APIServer) Start() error {
 	// Create HTTP server
 	addr := fmt.Sprintf(":%d", serverConfig.Port)
 	s.server = &http.Server{
-		Addr:         addr,
-		Handler:      engine,
-		ReadTimeout:  time.Duration(serverConfig.Timeout) * time.Second,
-		WriteTimeout: time.Duration(serverConfig.Timeout) * time.Second,
+		Addr:        addr,
+		Handler:     engine,
+		ReadTimeout: time.Duration(serverConfig.Timeout) * time.Second,
+		// Disable write timeout to prevent timeouts on SSE and Websocket connections
+		WriteTimeout: 0,
 		IdleTimeout:  120 * time.Second,
 	}
 
 	// Channel to listen for interrupt signal to terminate server
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	// Start background schedulers (location sync, etc.)
+	s.infrastructureRegistry.StartSchedulers(s.ctx)
+
+	// Start Asynq server for background task processing
+	s.infrastructureRegistry.StartAsynqServer()
 
 	// Start server in a goroutine
 	go func() {
@@ -158,10 +217,35 @@ func (s *APIServer) Stop() error {
 	// Stop infrastructure services
 	s.infrastructureRegistry.StopServices()
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	return s.server.Shutdown(shutdownCtx)
+}
+
+// registerRabbitMQConsumers registers all consumer handlers with RabbitMQ
+func (s *APIServer) registerRabbitMQConsumers() error {
+	zap.L().Info("Registering RabbitMQ consumer handlers")
+
+	// Map consumer names (from rabbitmq-config.yaml) to handler functions
+	handlers := map[string]func(context.Context, []byte) error{
+		"contract-create-consumer":         s.consumerRegistry.ContractCreateConsumer.Handle,
+		"contract-create-payment-consumer": s.consumerRegistry.ContractCreatePaymentConsumer.Handle,
+		"excel-import-products-consumer":   s.consumerRegistry.ExcelImportProductsConsumer.Handle,
+		"notification-email-consumer":      s.consumerRegistry.NotificationEmailConsumer.Handle,
+		"notification-push-consumer":       s.consumerRegistry.NotificationPushConsumer.Handle,
+		"notification-in-app-consumer":     s.consumerRegistry.NotificationInAppConsumer.Handle,
+		"video-upload-consumer":            s.consumerRegistry.VideoUploadConsumer.Handle,
+		"affiliate-link-click-consumer":    s.consumerRegistry.ClickEventConsumer.Handle,
+		"content-publish-consumer":         s.consumerRegistry.ContentPublishConsumer.Handle,
+		"content-publish-all-consumer":     s.consumerRegistry.ContentPublishAllConsumer.Handle,
+		"campaign-create-consumer":         s.consumerRegistry.CampaignCreateConsumer.Handle,
+		"content-schedule-consumer":        s.consumerRegistry.ContentScheduleConsumer.Handle,
+		"content-view-consumer":            s.consumerRegistry.ContentViewConsumer.Handle,
+	}
+
+	// Register handlers with RabbitMQ
+	return s.infrastructureRegistry.RegisterRabbitMQConsumers(s.ctx, handlers)
 }
 
 func (s *APIServer) GetServer() *http.Server {

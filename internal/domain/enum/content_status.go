@@ -14,11 +14,14 @@ const (
 	ContentStatusRejected   ContentStatus = "REJECTED"
 	ContentStatusApproved   ContentStatus = "APPROVED"
 	ContentStatusPosted     ContentStatus = "POSTED"
+	ContentStatusScheduled  ContentStatus = "SCHEDULED"
+	ContentStatusCancelled  ContentStatus = "CANCELLED"
 )
 
 func (cs ContentStatus) IsValid() bool {
 	switch cs {
-	case ContentStatusDraft, ContentStatusAwaitStaff, ContentStatusAwaitBrand, ContentStatusRejected, ContentStatusApproved, ContentStatusPosted:
+	case ContentStatusDraft, ContentStatusAwaitStaff, ContentStatusAwaitBrand, ContentStatusRejected,
+		ContentStatusApproved, ContentStatusScheduled, ContentStatusPosted, ContentStatusCancelled:
 		return true
 	}
 	return false
@@ -43,3 +46,5 @@ func (cs *ContentStatus) Scan(value any) error {
 func (cs ContentStatus) Value() (driver.Value, error) {
 	return string(cs), nil
 }
+
+func (cs ContentStatus) String() string { return string(cs) }

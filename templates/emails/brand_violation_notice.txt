@@ -1,0 +1,21 @@
+Brand Violation Notice
+
+Dear {{.BrandName}},
+
+We regret to inform you that a violation has been recorded against your contract #{{.ContractNumber}}.
+
+VIOLATION REASON:
+{{.ViolationReason}}
+
+PENALTY AMOUNT DUE: {{.Currency}} {{.PenaltyAmount}}
+Calculation: {{.CalculationFormula}}
+
+To resolve this violation, please pay the penalty amount within {{.PaymentDeadlineDays}} days.
+
+Pay Penalty: {{.PaymentLink}}
+
+If you believe this violation was issued in error, please contact our support team immediately.
+
+Support: {{.SupportLink}}
+
+© {{.CurrentYear}} SEP490. All rights reserved.

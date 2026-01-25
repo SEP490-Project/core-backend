@@ -1,18 +1,72 @@
 package irepository
 
 import (
+	"context"
 	"core-backend/internal/domain/model"
+
 	"gorm.io/gorm"
 )
 
 type UnitOfWork interface {
-	Begin() UnitOfWork
+	Begin(ctx context.Context) UnitOfWork
 	Commit() error
 	Rollback() error
+	InTransaction() bool
 
 	// Expose repos trong transaction
 	Products() GenericRepository[model.Product]
-	Users() GenericRepository[model.User]
+	Users() UserRepository
+	ShippingAddresses() GenericRepository[model.ShippingAddress]
+	Brands() GenericRepository[model.Brand]
+	LoggedSessions() GenericRepository[model.LoggedSession]
+	Contracts() ContractRepository
+	ContractPayments() ContractPaymentRepository
+	ContractViolations() ContractViolationRepository
+	Campaigns() GenericRepository[model.Campaign]
+	Milestones() GenericRepository[model.Milestone]
+	Tasks() TaskRepository
+	Channels() GenericRepository[model.Channel]
+	Contents() ContentRepository
+	ContentChannels() ContentChannelsRepository
+	Schedules() ScheduleRepository
+	Blogs() GenericRepository[model.Blog]
+	Tags() TagRepository
+	WebhookData() GenericRepository[model.WebhookData]
 
+	//Product flow
+	ProductStory() GenericRepository[model.ProductStory]
+	ProductVariant() GenericRepository[model.ProductVariant]
+	VariantAttributes() GenericRepository[model.VariantAttribute]
+	VariantImage() GenericRepository[model.VariantImage]
+	VariantAttributeValue() GenericRepository[model.VariantAttributeValue]
+	ModifiedHistories() GenericRepository[model.ModifiedHistory]
+	AdminConfigs() GenericRepository[model.Config]
+
+	// Product Category
+	ProductCategory() GenericRepository[model.ProductCategory]
+
+	//Concepts
+	Concepts() GenericRepository[model.Concept]
+	LimitedProducts() GenericRepository[model.LimitedProduct]
+
+	//Orders & Payment
+	Order() OrderRepository
+	OrderItem() GenericRepository[model.OrderItem]
+	PaymentTransaction() PaymentTransactionRepository
+
+	//PreOrders
+	PreOrder() PreOrderRepository
+	ProductReview() GenericRepository[model.ProductReview]
+
+	//Notifications
+	Notifications() NotificationRepository
+	DeviceTokens() DeviceTokenRepository
+
+	//Affiliate Link Tracking
+	AffiliateLinks() AffiliateLinkRepository
+	ClickEvents() ClickEventRepository
+	KPIMetrics() GenericRepository[model.KPIMetrics]
+
+	// DB Get raw gorm instance
 	DB() *gorm.DB
 }

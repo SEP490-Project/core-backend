@@ -11,13 +11,16 @@ import (
 type ProductStory struct {
 	ID        uuid.UUID      `json:"id" gorm:"type:uuid;column:id;primaryKey;default"`
 	VariantID uuid.UUID      `json:"variant_id" gorm:"type:uuid;column:variant_id;not null"`
-	Content   datatypes.JSON `json:"content" gorm:"column:content;type:jsonb"`
+	Content   datatypes.JSON `json:"content" gorm:"column:content;type:jsonb" swaggerignore:"true"`
 	CreatedAt time.Time      `json:"created_at" gorm:"column:created_at"`
 	UpdatedAt time.Time      `json:"updated_at" gorm:"column:updated_at"`
-	DeletedAt gorm.DeletedAt `json:"deleted_at" gorm:"column:deleted_at;index"`
+	DeletedAt gorm.DeletedAt `json:"deleted_at" gorm:"column:deleted_at;index" swaggerignore:"true"`
+
+	// Relationships
+	Variant *ProductVariant `gorm:"foreignKey:VariantID"`
 }
 
-func (ProductStory) TableName() string { return "product_story" }
+func (ProductStory) TableName() string { return "product_stories" }
 
 func (ps *ProductStory) BeforeCreate(tx *gorm.DB) (err error) {
 	if ps.ID == uuid.Nil {

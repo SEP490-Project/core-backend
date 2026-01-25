@@ -1,0 +1,782 @@
+package service
+
+import (
+	"context"
+	"core-backend/config"
+	asynqtask "core-backend/internal/application/dto/asynq_tasks"
+	"core-backend/internal/application/dto/dtos"
+	"core-backend/internal/application/dto/requests"
+	"core-backend/internal/application/dto/responses"
+	"core-backend/internal/application/interfaces/iproxies"
+	"core-backend/internal/application/interfaces/irepository"
+	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/application/service/helper"
+	"core-backend/internal/domain/constant"
+	"core-backend/internal/domain/enum"
+	"core-backend/internal/domain/model"
+	asynq2 "core-backend/internal/infrastructure/asynq"
+	gormrepository "core-backend/internal/infrastructure/gorm_repository"
+	"core-backend/internal/infrastructure/persistence"
+	"core-backend/pkg/utils"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"strconv"
+	"time"
+
+	"github.com/hibiken/asynq"
+
+	"github.com/google/uuid"
+	"go.uber.org/zap"
+	"gorm.io/gorm"
+)
+
+type paymentTransactionService struct {
+	stateTransferService   iservice.StateTransferService
+	paymentTransactionRepo irepository.PaymentTransactionRepository
+	contractPaymentRepo    irepository.GenericRepository[model.ContractPayment]
+	orderRepo              irepository.GenericRepository[model.Order]
+	preorderRepo           irepository.GenericRepository[model.PreOrder]
+	userRepo               irepository.GenericRepository[model.User]
+	payosProxy             iproxies.PayOSProxy
+	config                 *config.AppConfig
+	db                     *gorm.DB
+	taskScheduler          *asynq2.AsynqClient
+	asynqConfig            *config.AsynqConfig
+	scheduleRepo           irepository.ScheduleRepository
+}
+
+// GetPaymentTransactionByFilter implements iservice.PaymentTransactionService.
+func (s *paymentTransactionService) GetPaymentTransactionByFilter(ctx context.Context, filter *requests.PaymentTransactionFilterRequest) ([]responses.PaymentTransactionResponse, int64, error) {
+	zap.L().Info("PaymentTransactionService - GetPaymentTransactionByFilter called",
+		zap.Any("request", filter))
+
+	return s.paymentTransactionRepo.GetPaymentTransactionByFilter(ctx, filter)
+}
+
+// GetPaymentTransactionByID implements iservice.PaymentTransactionService.
+func (s *paymentTransactionService) GetPaymentTransactionByID(ctx context.Context, transactionID uuid.UUID) (*responses.PaymentTransactionResponse, error) {
+	zap.L().Info("PaymentTransactionService - GetPaymentTransactionByID called",
+		zap.String("id", transactionID.String()))
+
+	return s.paymentTransactionRepo.GetPaymentTransactionByID(ctx, transactionID)
+}
+
+// GetPaymentTransactionByOrderCode implements iservice.PaymentTransactionService.
+func (s *paymentTransactionService) GetPaymentTransactionByOrderCode(ctx context.Context, orderCode string) (*responses.PaymentTransactionResponse, error) {
+	zap.L().Info("PaymentTransactionService - GetPaymentTransactionByOrderCode called",
+		zap.String("order_code", orderCode))
+
+	orderCodeInt, _ := strconv.ParseInt(orderCode, 10, 64)
+	filterQuery := func(db *gorm.DB) *gorm.DB {
+		return db.Where("payos_metadata->>'order_code' = ?", strconv.FormatInt(orderCodeInt, 10))
+	}
+	transaction, err := s.paymentTransactionRepo.GetByCondition(ctx, filterQuery, nil)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			zap.L().Warn("Payment transaction not found", zap.String("order_code", orderCode))
+			return nil, errors.New("payment transaction not found")
+		}
+		zap.L().Error("Failed to fetch payment transaction", zap.Error(err))
+		return nil, fmt.Errorf("failed to fetch transaction: %w", err)
+	} else if transaction == nil {
+		zap.L().Warn("Payment transaction not found", zap.String("order_code", orderCode))
+		return nil, errors.New("payment transaction not found")
+	}
+
+	return responses.PaymentTransactionResponse{}.ToResponse(transaction, nil), nil
+}
+
+// GeneratePaymentLink implements iservice.PaymentTransactionService
+func (s *paymentTransactionService) GeneratePaymentLink(ctx context.Context, uow irepository.UnitOfWork, req *requests.PaymentRequest) (*responses.PayOSLinkResponse, error) {
+	zap.L().Info("Generating PayOS payment link",
+		zap.Int64("amount", req.Amount),
+		zap.String("reference_id", req.ReferenceID.String()),
+		zap.String("reference_type", req.ReferenceType.String()))
+
+	// 0. Validate reference id and payer user id
+	if err := s.validateReferenceIDAndPayerID(ctx, uow, req); err != nil {
+		return nil, err
+	}
+
+	// 1. Create PaymentTransaction record first (to get ID for description)
+	paymentTransaction := &model.PaymentTransaction{
+		ID:              uuid.New(), // Generate ID before insert
+		ReferenceID:     req.ReferenceID,
+		ReferenceType:   req.ReferenceType,
+		PayerID:         req.PayerID,
+		Amount:          utils.PtrOrNil(float64(req.Amount)),
+		Method:          "PAYOS",
+		Status:          enum.PaymentTransactionStatusPending,
+		TransactionDate: time.Now(),
+	}
+
+	// 2. Generate order code and description
+	orderCode := s.generateOrderCode()
+	description := helper.GeneratePayOSDescription(paymentTransaction.ReferenceType.String(), paymentTransaction.ID)
+
+	// 3. Calculate expiry time
+	expirySeconds := s.config.AdminConfig.PayOSLinkExpiry
+	if expirySeconds == 0 {
+		expirySeconds = 300 // Default 5 minutes
+	}
+	expiredAt := time.Now().Add(time.Duration(expirySeconds) * time.Second).Unix()
+
+	// 4. Generate signature
+	cancelURL := s.config.PayOS.CancelURL
+	returnURL := s.config.PayOS.ReturnURL
+	if req.CancelURL != nil && *req.CancelURL != "" {
+		tempURL, err := utils.AddQueryParam(s.config.PayOS.CancelURL, "returnUrl", *req.CancelURL)
+		if err != nil {
+			zap.L().Error("Failed to add cancel URL query param", zap.Error(err))
+			return nil, fmt.Errorf("failed to add cancel URL query param: %w", err)
+		}
+		cancelURL = tempURL
+	}
+	if req.ReturnURL != nil {
+		returnURL = *req.ReturnURL
+	}
+	signature, err := s.generateSignature(req.Amount, cancelURL, description, orderCode, returnURL)
+	if err != nil {
+		zap.L().Error("Failed to generate signature", zap.Error(err))
+		return nil, fmt.Errorf("failed to generate signature: %w", err)
+	}
+
+	// 5. Build PayOS request
+	payosReq := &dtos.PayOSCreateLinkRequest{
+		OrderCode:   orderCode,
+		Amount:      req.Amount,
+		Description: description,
+		BuyerName:   utils.PtrOrNil(req.BuyerName),
+		BuyerEmail:  utils.PtrOrNil(req.BuyerEmail),
+		BuyerPhone:  utils.PtrOrNil(req.BuyerPhone),
+		Items:       s.mapPaymentItems(req.Items),
+		ExpiredAt:   expiredAt,
+		Signature:   signature,
+		CancelURL:   cancelURL,
+		ReturnURL:   returnURL,
+	}
+
+	// 6. Call PayOS API via proxy
+	zap.L().Debug("Creating PayOS payment link", zap.Any("payos_request", payosReq))
+	payosResp, err := s.payosProxy.CreatePaymentLink(ctx, payosReq)
+	if err != nil {
+		zap.L().Error("Failed to create PayOS payment link", zap.Error(err))
+		return nil, fmt.Errorf("failed to create payment link: %w", err)
+	}
+
+	// 7. Store PayOS metadata
+	paymentTransaction.PayOSMetadata = &model.PayOSMetadata{
+		PaymentLinkID: payosResp.PaymentLinkID,
+		OrderCode:     orderCode,
+		CheckoutURL:   payosResp.CheckoutURL,
+		QRCode:        payosResp.QRCode,
+		Bin:           payosResp.Bin,
+		AccountNumber: payosResp.AccountNumber,
+		AccountName:   payosResp.AccountName,
+		ExpiredAt:     expiredAt,
+		Amount:        payosResp.Amount,
+		Description:   payosResp.Description,
+		Currency:      payosResp.Currency,
+	}
+	paymentTransaction.GatewayRef = payosResp.CheckoutURL
+	paymentTransaction.GatewayID = payosResp.PaymentLinkID
+
+	// 8. Persist to database using UnitOfWork
+	if err = uow.PaymentTransaction().Add(ctx, paymentTransaction); err != nil {
+		zap.L().Error("Failed to save payment transaction", zap.Error(err))
+		// Attempt to cancel the PayOS link since we couldn't save it
+		go func() {
+			cancelCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			// Note: This cancellation happens outside transaction scope
+			_ = s.CancelPaymentLink(cancelCtx, nil, strconv.FormatInt(orderCode, 10), "Failed to save transaction")
+		}()
+		return nil, fmt.Errorf("failed to save payment transaction: %w", err)
+	}
+
+	scheduledAt := time.Now().Add(time.Duration(expirySeconds) * time.Second)
+
+	// Check if there's already a pending schedule for this payment transaction
+	existingSchedule, err := s.scheduleRepo.GetByReferenceID(ctx, paymentTransaction.ID)
+	if err != nil {
+		zap.L().Error("Failed to get existing schedule", zap.Error(err), zap.String("payment_transaction_id", paymentTransaction.ID.String()))
+		return nil, fmt.Errorf("failed to get existing schedule: %w", err)
+	}
+	if existingSchedule != nil && existingSchedule.Status == enum.ScheduleStatusPending {
+		zap.L().Info("Payment transaction already has a pending cancel schedule",
+			zap.String("schedule_id", existingSchedule.ID.String()),
+			zap.String("payment_transaction_id", paymentTransaction.ID.String()))
+		return payosResp, nil
+	}
+
+	// Create a new schedule record (or reuse non-pending schedule by creating a new one).
+	cancelSchedule := &model.Schedule{
+		ReferenceID:   &paymentTransaction.ID,
+		Type:          enum.ScheduleTypeOther,
+		ReferenceType: utils.PtrOrNil(enum.ReferenceTypePaymentTransaction),
+		ScheduledAt:   scheduledAt,
+		Status:        enum.ScheduleStatusPending,
+		RetryCount:    0,
+		CreatedBy:     utils.DerefPtr(req.PayerID, uuid.Nil),
+	}
+
+	if err := uow.Schedules().Add(ctx, cancelSchedule); err != nil {
+		zap.L().Error("Failed to create cancel payment schedule", zap.Error(err), zap.String("payment_transaction_id", paymentTransaction.ID.String()))
+		return nil, fmt.Errorf("failed to create cancel schedule: %w", err)
+	}
+
+	if err := s.publishCancelPaymentDelayMessage(ctx, cancelSchedule, uow); err != nil {
+		zap.L().Error("Failed to schedule cancel payment task", zap.Error(err), zap.String("schedule_id", cancelSchedule.ID.String()))
+		return nil, fmt.Errorf("failed to schedule cancel payment task: %w", err)
+	}
+
+	zap.L().Info("Cancel payment scheduled",
+		zap.String("schedule_id", cancelSchedule.ID.String()),
+		zap.String("payment_transaction_id", paymentTransaction.ID.String()),
+		zap.Time("scheduled_at", scheduledAt))
+
+	zap.L().Info("PayOS payment link created successfully",
+		zap.String("payment_link_id", payosResp.PaymentLinkID),
+		zap.Int64("order_code", orderCode),
+		zap.String("transaction_id", paymentTransaction.ID.String()))
+
+	return payosResp, nil
+}
+
+// GetPaymentStatus implements iservice.PaymentTransactionService
+func (s *paymentTransactionService) GetPaymentStatus(ctx context.Context, orderCode string) (*responses.PayOSOrderInfoResponse, error) {
+	zap.L().Info("Fetching PayOS payment status", zap.String("order_code", orderCode))
+
+	payosResp, err := s.payosProxy.GetPaymentInfo(ctx, orderCode)
+	if err != nil {
+		zap.L().Error("Failed to get PayOS payment info", zap.Error(err), zap.String("order_code", orderCode))
+		return nil, fmt.Errorf("failed to get payment info: %w", err)
+	}
+
+	return payosResp, nil
+}
+
+// CancelPaymentLink implements iservice.PaymentTransactionService
+func (s *paymentTransactionService) CancelPaymentLink(ctx context.Context, uow irepository.UnitOfWork, orderCode string, reason string) error {
+	zap.L().Info("Cancelling PayOS payment link", zap.String("order_code", orderCode), zap.String("reason", reason))
+
+	var paymentTransactionRepo irepository.GenericRepository[model.PaymentTransaction]
+	if uow != nil {
+		paymentTransactionRepo = uow.PaymentTransaction()
+	} else {
+		paymentTransactionRepo = s.paymentTransactionRepo
+	}
+
+	// 1. Cancel via PayOS API
+	payosResp, err := s.payosProxy.CancelPaymentLink(ctx, orderCode, reason)
+	if err != nil {
+		if payosResp != nil &&
+			(payosResp.Status == enum.PayOSStatusCancelled.String() || payosResp.Status == enum.PayOSStatusPaid.String()) {
+			zap.L().Info("Payment link already cancelled or paid in PayOS, continueing to update local record",
+				zap.String("order_code", orderCode),
+				zap.String("status", payosResp.Status))
+		} else {
+			zap.L().Error("Failed to cancel PayOS payment link", zap.Error(err), zap.String("order_code", orderCode))
+			return fmt.Errorf("failed to cancel payment link: %w", err)
+		}
+	}
+
+	// 2. Find and update local payment transaction (using UnitOfWork if provided, else use repo directly)
+	orderCodeInt, _ := strconv.ParseInt(orderCode, 10, 64)
+	filterQuery := func(db *gorm.DB) *gorm.DB {
+		return db.Where("payos_metadata->>'order_code' = ?", strconv.FormatInt(orderCodeInt, 10))
+	}
+
+	var transaction *model.PaymentTransaction
+	transaction, err = paymentTransactionRepo.GetByCondition(ctx, filterQuery, nil)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			zap.L().Warn("Payment transaction not found for order code", zap.String("order_code", orderCode))
+			return nil // PayOS link cancelled but no local record found
+		}
+		zap.L().Error("Failed to find payment transaction", zap.Error(err))
+		return fmt.Errorf("failed to find payment transaction: %w", err)
+	} else if transaction == nil {
+		zap.L().Warn("Payment transaction not found for order code", zap.String("order_code", orderCode))
+		return nil // PayOS link cancelled but no local record found
+	}
+
+	// 3. Update status via State Transfer Service to handle Side Effect
+	err = s.stateTransferService.MovePaymentTransactionToState(ctx, uow, transaction.ID, enum.PaymentTransactionStatusCancelled, uuid.UUID{})
+	if err != nil {
+		zap.L().Error("Failed to update payment transaction status via state transfer", zap.Error(err))
+		return fmt.Errorf("failed to update transaction status: %w", err)
+	}
+
+	// 4. Update status and metadata
+	transaction, err = paymentTransactionRepo.GetByID(ctx, transaction.ID, nil)
+	if err != nil {
+		zap.L().Error("Failed to load payment transaction", zap.Error(err))
+		return fmt.Errorf("failed to load transaction: %w", err)
+	}
+
+	if transaction.PayOSMetadata != nil {
+		now := time.Now()
+		transaction.PayOSMetadata.CancelledAt = &now
+		transaction.PayOSMetadata.CancellationReason = &reason
+
+		// Update transactions from PayOS response
+		if len(payosResp.Transactions) > 0 {
+			transaction.PayOSMetadata.Transactions = s.mapPayOSTransactions(payosResp.Transactions)
+		}
+	}
+
+	if err = paymentTransactionRepo.Update(ctx, transaction); err != nil {
+		zap.L().Error("Failed to update payment transaction status", zap.Error(err))
+		return fmt.Errorf("failed to update transaction status: %w", err)
+	}
+
+	zap.L().Info("Payment link cancelled successfully", zap.String("order_code", orderCode))
+	return nil
+}
+
+// ProcessWebhook implements iservice.PaymentTransactionService
+func (s *paymentTransactionService) ProcessWebhook(ctx context.Context, uow irepository.UnitOfWork, webhookPayload *dtos.PayOSWebhookPayload) error {
+	zap.L().Info("Processing PayOS webhook",
+		zap.Int64("order_code", webhookPayload.Data.OrderCode),
+		zap.String("code", webhookPayload.Code))
+
+	// If the paylod is from webhook confirm test, log and skip the the logic
+	if webhookPayload.Data.OrderCode == 123 &&
+		webhookPayload.Data.Amount == 3000 &&
+		webhookPayload.Data.Description == "VQRIO123" &&
+		webhookPayload.Data.AccountNumber == "12345678" &&
+		webhookPayload.Data.PaymentLinkID == "124c33293c43417ab7879e14c8d9eb18" {
+		zap.L().Info("PayOS webhook confirm test, skip processing", zap.Any("payload.data", webhookPayload.Data))
+		return nil
+	}
+
+	// 1. Find payment transaction by order code using UnitOfWork
+	filterQuery := func(db *gorm.DB) *gorm.DB {
+		return db.Where("payos_metadata->>'order_code' = ?", strconv.FormatInt(webhookPayload.Data.OrderCode, 10))
+	}
+
+	transaction, err := uow.PaymentTransaction().GetByCondition(ctx, filterQuery, nil)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			zap.L().Warn("Payment transaction not found for webhook", zap.Int64("order_code", webhookPayload.Data.OrderCode))
+			return fmt.Errorf("payment transaction not found for order code: %d", webhookPayload.Data.OrderCode)
+		}
+		zap.L().Error("Failed to find payment transaction", zap.Error(err))
+		return fmt.Errorf("failed to find payment transaction: %w", err)
+	} else if transaction == nil {
+		zap.L().Warn("Payment transaction not found for webhook", zap.Int64("order_code", webhookPayload.Data.OrderCode))
+		return fmt.Errorf("payment transaction not found for order code: %d", webhookPayload.Data.OrderCode)
+	}
+
+	if transaction.PayOSMetadata != nil {
+		// Parse transaction datetime
+		transactionTime, _ := time.Parse("2006-01-02 15:04:05", webhookPayload.Data.TransactionDateTime)
+
+		// Add transaction detail to metadata
+		payosTransaction := model.PayOSTransaction{
+			Amount:                 int(webhookPayload.Data.Amount),
+			Description:            webhookPayload.Data.Description,
+			AccountNumber:          webhookPayload.Data.AccountNumber,
+			Reference:              webhookPayload.Data.Reference,
+			TransactionDateTime:    transactionTime,
+			CounterAccountBankID:   webhookPayload.Data.CounterAccountBankID,
+			CounterAccountBankName: webhookPayload.Data.CounterAccountBankName,
+			CounterAccountName:     webhookPayload.Data.CounterAccountName,
+			CounterAccountNumber:   webhookPayload.Data.CounterAccountNumber,
+			VirtualAccountName:     webhookPayload.Data.VirtualAccountName,
+			VirtualAccountNumber:   webhookPayload.Data.VirtualAccountNumber,
+		}
+
+		transaction.PayOSMetadata.Transactions = append(transaction.PayOSMetadata.Transactions, payosTransaction)
+	}
+
+	// 4. Persist changes using UnitOfWork
+	if err := uow.PaymentTransaction().Update(ctx, transaction); err != nil {
+		zap.L().Error("Failed to update payment transaction from webhook", zap.Error(err))
+		return fmt.Errorf("failed to update transaction: %w", err)
+	}
+
+	zap.L().Info("Webhook processed successfully",
+		zap.String("transaction_id", transaction.ID.String()))
+
+	return nil
+}
+
+// ConfirmWebhookURL implements iservice.PaymentTransactionService
+func (s *paymentTransactionService) ConfirmWebhookURL(ctx context.Context, webhookURL string) (*dtos.PayOSConfirmWebhookResponse, error) {
+	zap.L().Info("Confirming PayOS webhook URL", zap.String("webhook_url", webhookURL))
+
+	response, err := s.payosProxy.ConfirmWebhookURL(ctx, webhookURL)
+	if err != nil {
+		zap.L().Error("Failed to confirm PayOS webhook URL", zap.Error(err))
+		return nil, fmt.Errorf("failed to confirm webhook URL: %w", err)
+	}
+
+	zap.L().Info("PayOS webhook URL confirmed successfully", zap.String("webhook_url", webhookURL))
+	return response, nil
+}
+
+// CancelExpiredLinks implements iservice.PaymentTransactionService
+func (s *paymentTransactionService) CancelExpiredLinks(ctx context.Context) (int, error) {
+	zap.L().Info("Starting expired payment links cancellation job")
+
+	// Find expired pending PayOS payments
+	// Only process records not updated in last 15 minutes to avoid race with webhooks
+	cutoffTime := time.Now().Add(-15 * time.Minute)
+	now := time.Now().Unix()
+
+	filterQuery := func(db *gorm.DB) *gorm.DB {
+		return db.Where("status = ?", string(enum.PaymentTransactionStatusPending)).
+			Where("method = ?", "PAYOS").
+			Where("updated_at < ?", cutoffTime).
+			Where("payos_metadata->>'expired_at' < ?", strconv.FormatInt(now, 10))
+	}
+
+	expiredTransactions, _, err := s.paymentTransactionRepo.GetAll(ctx, filterQuery, nil, 100, 1)
+	if err != nil {
+		zap.L().Error("Failed to fetch expired payment transactions", zap.Error(err))
+		return 0, fmt.Errorf("failed to fetch expired transactions: %w", err)
+	}
+
+	if len(expiredTransactions) == 0 {
+		zap.L().Info("No expired payment links found")
+		return 0, nil
+	}
+
+	zap.L().Info("Found expired payment links", zap.Int("count", len(expiredTransactions)))
+
+	cancelledCount := 0
+	for _, transaction := range expiredTransactions {
+		//Create rollback point
+		uow := persistence.NewUnitOfWork(s.db).Begin(ctx)
+
+		if transaction.PayOSMetadata == nil {
+			continue
+		}
+		orderCode := strconv.FormatInt(transaction.PayOSMetadata.OrderCode, 10)
+
+		if err = s.CancelPaymentLink(ctx, uow, orderCode, "Expired payment link"); err != nil {
+			zap.L().Warn("Failed to cancel expired payment link",
+				zap.String("order_code", orderCode),
+				zap.Error(err))
+			_ = uow.Rollback()
+			continue
+		}
+
+		err = uow.Commit()
+		if err != nil {
+			zap.L().Warn("Failed to commit transaction for expired payment link cancellation",
+				zap.String("transaction_id", transaction.ID.String()),
+				zap.Error(err))
+			_ = uow.Rollback()
+			continue
+		}
+
+		cancelledCount++
+	}
+
+	zap.L().Info("Expired payment links cancellation completed",
+		zap.Int("total_found", len(expiredTransactions)),
+		zap.Int("cancelled", cancelledCount))
+
+	return cancelledCount, nil
+}
+
+// SyncPaymentStatus implements iservice.PaymentTransactionService
+func (s *paymentTransactionService) SyncPaymentStatus(ctx context.Context, uow irepository.UnitOfWork, paymentTransactionID uuid.UUID) error {
+	zap.L().Info("Syncing payment status", zap.String("transaction_id", paymentTransactionID.String()))
+
+	// 1. Fetch local transaction using UnitOfWork
+	transaction, err := uow.PaymentTransaction().GetByID(ctx, paymentTransactionID, nil)
+	if err != nil {
+		zap.L().Error("Failed to fetch payment transaction", zap.Error(err))
+		return fmt.Errorf("failed to fetch transaction: %w", err)
+	}
+
+	if transaction == nil {
+		return fmt.Errorf("payment transaction not found: %s", paymentTransactionID)
+	}
+
+	if transaction.PayOSMetadata == nil {
+		return fmt.Errorf("payment transaction has no PayOS metadata")
+	}
+
+	// 2. Fetch latest status from PayOS
+	orderCode := strconv.FormatInt(transaction.PayOSMetadata.OrderCode, 10)
+	payosResp, err := s.payosProxy.GetPaymentInfo(ctx, orderCode)
+	if err != nil {
+		zap.L().Error("Failed to get PayOS payment info", zap.Error(err))
+		return fmt.Errorf("failed to get payment info: %w", err)
+	}
+
+	// 3. Map and update status
+	newStatus := dtos.MapPayOSStatusString(payosResp.Status)
+	transaction.Status = newStatus
+
+	// 4. Update metadata with latest info
+	if transaction.PayOSMetadata != nil {
+		transaction.PayOSMetadata.Transactions = s.mapPayOSTransactions(payosResp.Transactions)
+
+		if payosResp.CanceledAt.Unix() > 0 {
+			transaction.PayOSMetadata.CancelledAt = &payosResp.CanceledAt
+			transaction.PayOSMetadata.CancellationReason = &payosResp.CancellationReason
+		}
+	}
+
+	// 5. Persist changes using UnitOfWork
+	if err := uow.PaymentTransaction().Update(ctx, transaction); err != nil {
+		zap.L().Error("Failed to update payment transaction", zap.Error(err))
+		return fmt.Errorf("failed to update transaction: %w", err)
+	}
+
+	zap.L().Info("Payment status synced successfully",
+		zap.String("transaction_id", paymentTransactionID.String()),
+		zap.String("new_status", string(newStatus)))
+
+	return nil
+}
+
+// region: =========== Helper Methods ===========
+
+func (s *paymentTransactionService) generateOrderCode() int64 {
+	now := time.Now().Unix()
+	randPart := time.Now().UnixNano() % 1e3
+	return now*1000 + randPart
+}
+
+func (s *paymentTransactionService) generateSignature(amount int64, cancelURL, description string, orderCode int64, returnURL string) (string, error) {
+	data := fmt.Sprintf(
+		"amount=%d&cancelUrl=%s&description=%s&orderCode=%d&returnUrl=%s",
+		amount, cancelURL, description, orderCode, returnURL,
+	)
+	mac := hmac.New(sha256.New, []byte(s.config.PayOS.ChecksumKey))
+	mac.Write([]byte(data))
+	return hex.EncodeToString(mac.Sum(nil)), nil
+}
+
+func (s *paymentTransactionService) mapPaymentItems(items []requests.PaymentItemRequest) []dtos.PayOSItem {
+	payosItems := make([]dtos.PayOSItem, 0, len(items))
+	for _, item := range items {
+		payosItems = append(payosItems, dtos.PayOSItem{
+			Name:     item.Name,
+			Quantity: item.Quantity,
+			Price:    float64(item.Price),
+		})
+	}
+	return payosItems
+}
+
+func (s *paymentTransactionService) mapPayOSTransactions(transactions []struct {
+	Amount                 int       `json:"amount"`
+	Description            string    `json:"description"`
+	AccountNumber          string    `json:"accountNumber"`
+	Reference              string    `json:"reference"`
+	TransactionDateTime    time.Time `json:"transactionDateTime"`
+	CounterAccountBankID   string    `json:"counterAccountBankId"`
+	CounterAccountBankName string    `json:"counterAccountBankName"`
+	CounterAccountName     string    `json:"counterAccountName"`
+	CounterAccountNumber   string    `json:"counterAccountNumber"`
+	VirtualAccountName     string    `json:"virtualAccountName"`
+	VirtualAccountNumber   string    `json:"virtualAccountNumber"`
+}) []model.PayOSTransaction {
+	result := make([]model.PayOSTransaction, 0, len(transactions))
+	for _, tx := range transactions {
+		result = append(result, model.PayOSTransaction{
+			Amount:                 tx.Amount,
+			Description:            tx.Description,
+			AccountNumber:          tx.AccountNumber,
+			Reference:              tx.Reference,
+			TransactionDateTime:    tx.TransactionDateTime,
+			CounterAccountBankID:   tx.CounterAccountBankID,
+			CounterAccountBankName: tx.CounterAccountBankName,
+			CounterAccountName:     tx.CounterAccountName,
+			CounterAccountNumber:   tx.CounterAccountNumber,
+			VirtualAccountName:     tx.VirtualAccountName,
+			VirtualAccountNumber:   tx.VirtualAccountNumber,
+		})
+	}
+	return result
+}
+
+func (s *paymentTransactionService) validateReferenceIDAndPayerID(ctx context.Context, uow irepository.UnitOfWork, req *requests.PaymentRequest) error {
+	// Validate reference ID based on reference type
+	switch req.ReferenceType {
+	case enum.PaymentTransactionReferenceTypeContractPayment:
+		if exists, err := uow.ContractPayments().ExistsByID(ctx, req.ReferenceID); err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				zap.L().Warn("Contract payment not found", zap.String("reference_id", req.ReferenceID.String()))
+				return errors.New("contract payment not found")
+			}
+			zap.L().Error("Failed to validate contract payment reference ID", zap.Error(err))
+		} else if !exists {
+			zap.L().Warn("Contract payment not found", zap.String("reference_id", req.ReferenceID.String()))
+			return errors.New("contract payment not found")
+		}
+	case enum.PaymentTransactionReferenceTypeOrder:
+		if exists, err := uow.Order().ExistsByID(ctx, req.ReferenceID); err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				zap.L().Warn("Order not found", zap.String("reference_id", req.ReferenceID.String()))
+				return errors.New("order not found")
+			}
+			zap.L().Error("Failed to validate order reference ID", zap.Error(err))
+		} else if !exists {
+			zap.L().Warn("Order not found", zap.String("reference_id", req.ReferenceID.String()))
+			return errors.New("order not found")
+		}
+	case enum.PaymentTransactionReferenceTypePreOrder:
+		if exists, err := uow.PreOrder().ExistsByID(ctx, req.ReferenceID); err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				zap.L().Warn("Pre-order not found", zap.String("reference_id", req.ReferenceID.String()))
+				return errors.New("pre-order not found")
+			}
+			zap.L().Error("Failed to validate pre-order reference ID", zap.Error(err))
+		} else if !exists {
+			zap.L().Warn("Pre-order not found", zap.String("reference_id", req.ReferenceID.String()))
+			return errors.New("pre-order not found")
+		}
+	case enum.PaymentTransactionReferenceTypeContractViolation:
+		if exists, err := uow.ContractViolations().ExistsByID(ctx, req.ReferenceID); err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				zap.L().Warn("Contract violation not found", zap.String("reference_id", req.ReferenceID.String()))
+				return errors.New("contract violation not found")
+			}
+			zap.L().Error("Failed to validate contract violation reference ID", zap.Error(err))
+		} else if !exists {
+			zap.L().Warn("Contract violation not found", zap.String("reference_id", req.ReferenceID.String()))
+			return errors.New("contract violation not found")
+		}
+
+	default:
+		zap.L().Error("Invalid reference type", zap.String("reference_type", req.ReferenceType.String()))
+		return errors.New("invalid reference type")
+	}
+
+	// Validate payer ID
+	if req.PayerID != nil {
+		if exists, err := uow.Users().ExistsByID(ctx, *req.PayerID); err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				zap.L().Warn("User not found", zap.String("payer_id", req.PayerID.String()))
+				return errors.New("user not found")
+			}
+			zap.L().Error("Failed to validate user ID", zap.Error(err))
+		} else if !exists {
+			zap.L().Warn("User not found", zap.String("payer_id", req.PayerID.String()))
+			return errors.New("user not found")
+		}
+	} else {
+		return errors.New("payer ID is required")
+	}
+
+	return nil
+}
+
+// endregion
+
+// NewPaymentTransactionService creates a new PaymentTransactionService instance
+func NewPaymentTransactionService(
+	stateTransferService iservice.StateTransferService,
+	databaseRegistry *gormrepository.DatabaseRegistry,
+	payosProxy iproxies.PayOSProxy,
+	db *gorm.DB,
+	taskScheduler *asynq2.AsynqClient,
+	asynqConfig *config.AsynqConfig,
+) iservice.PaymentTransactionService {
+	return &paymentTransactionService{
+		stateTransferService:   stateTransferService,
+		paymentTransactionRepo: databaseRegistry.PaymentTransactionRepository,
+		contractPaymentRepo:    databaseRegistry.ContractPaymentRepository,
+		orderRepo:              databaseRegistry.OrderRepository,
+		preorderRepo:           databaseRegistry.PreOrderRepository,
+		userRepo:               databaseRegistry.UserRepository,
+		payosProxy:             payosProxy,
+		config:                 config.GetAppConfig(),
+		db:                     db,
+		taskScheduler:          taskScheduler,
+		asynqConfig:            asynqConfig,
+		scheduleRepo:           databaseRegistry.ScheduleRepository,
+	}
+}
+
+func (s *paymentTransactionService) publishCancelPaymentDelayMessage(ctx context.Context, schedule *model.Schedule, uow irepository.UnitOfWork) error {
+	if s.taskScheduler == nil {
+		return errors.New("task scheduler not initialized")
+	}
+	if s.asynqConfig == nil {
+		return errors.New("asynq config not initialized")
+	}
+	if schedule == nil {
+		return errors.New("schedule is nil")
+	}
+	if schedule.ReferenceID == nil || *schedule.ReferenceID == uuid.Nil {
+		return errors.New("schedule reference id is required")
+	}
+
+	// This schedule is expected to reference a PaymentTransaction.
+	paymentTransaction, err := uow.PaymentTransaction().GetByID(ctx, *schedule.ReferenceID, nil)
+	if err != nil {
+		return fmt.Errorf("failed to get payment transaction: %w", err)
+	}
+	if paymentTransaction == nil {
+		return errors.New("payment transaction not found")
+	}
+
+	// Create task payload (consumer will cancel the payment based on PaymentID).
+	payload := asynqtask.CancelPaymentTaskPayload{
+		PaymentID: paymentTransaction.ID.String(),
+	}
+
+	// Task type from config (fallback default)
+	taskType := s.asynqConfig.TaskTypes.CancelPaymentSchedule
+	if taskType == "" {
+		taskType = "task:payment:cancel"
+	}
+
+	// Unique key prevents duplicates for the same schedule.
+	uniqueKey := fmt.Sprintf("schedule:%s", schedule.ID.String())
+
+	taskInfo, err := s.taskScheduler.ScheduleTaskWithUniqueKey(
+		ctx,
+		taskType,
+		payload,
+		schedule.ScheduledAt,
+		uniqueKey,
+		asynq.Queue("default"),
+		asynq.MaxRetry(constant.DefaultMaxScheduleRetries),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to schedule cancel payment task: %w", err)
+	}
+
+	s.updateScheduleMetadataAsync(schedule, taskInfo)
+	zap.L().Info("Cancel payment schedule task created",
+		zap.String("schedule_id", schedule.ID.String()),
+		zap.String("payment_transaction_id", paymentTransaction.ID.String()),
+		zap.String("unique_key", uniqueKey),
+		zap.Time("scheduled_at", schedule.ScheduledAt))
+
+	return nil
+}
+
+func (s *paymentTransactionService) updateScheduleMetadataAsync(schedule *model.Schedule, taskInfo *asynq.TaskInfo) {
+	go func() {
+		if err := utils.RunWithRetry(context.Background(), utils.DefaultRetryOptions, func(ctx context.Context) error {
+			rawTaskInfo, err := json.Marshal(taskInfo)
+			if err != nil {
+				return fmt.Errorf("failed to marshal task info: %w", err)
+			}
+
+			return s.scheduleRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+				return db.Where("id = ?", schedule.ID)
+			}, map[string]any{"metadata": rawTaskInfo})
+		}); err != nil {
+			zap.L().Error("Failed to update schedule metadata asynchronously",
+				zap.String("schedule_id", schedule.ID.String()),
+				zap.Error(err))
+		}
+	}()
+}

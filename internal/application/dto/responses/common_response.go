@@ -4,7 +4,8 @@ package responses
 import "net/http"
 
 const (
-	TimeFormat = "2006-01-02 15:04:05"
+	TimeFormat = "2006-12-30 15:04:05"
+	DateFormat = "2006-12-30"
 )
 
 // APIResponse represents a standard API response structure.
@@ -14,6 +15,21 @@ type APIResponse struct {
 	StatusCode int    `json:"status_code,omitempty"`
 	Message    string `json:"message,omitempty"`
 	Data       any    `json:"data,omitempty"`
+}
+
+type APIValidationErrorResponse struct {
+	Success    bool                    `json:"success"`
+	Status     string                  `json:"status,omitempty"`
+	StatusCode int                     `json:"status_code,omitempty"`
+	Message    string                  `json:"message,omitempty"`
+	Errors     []ValidationErrorDetail `json:"errors"`
+}
+
+type ValidationErrorDetail struct {
+	JSONField   string `json:"field"`
+	StructField string `json:"struct_field,omitempty"`
+	Value       string `json:"value"`
+	Message     string `json:"message,omitempty"`
 }
 
 // PaginationResponse represents a paginated API response structure.
@@ -62,13 +78,33 @@ func ErrorResponse(message string, statusCode int) *APIResponse {
 	}
 }
 
-// PaginatedResponse creates a paginated API response.
-func PaginatedResponse[T any](
+func ValidationErrorResponse(errorCode int, message string, errors ...ValidationErrorDetail) *APIValidationErrorResponse {
+	return &APIValidationErrorResponse{
+		Success:    false,
+		Message:    message,
+		Status:     http.StatusText(errorCode),
+		StatusCode: errorCode,
+		Errors:     errors,
+	}
+}
+
+// NewPaginationResponse creates a paginated API response.
+func NewPaginationResponse[T any](
 	message string,
 	statusCode int,
 	data []T,
 	pagination Pagination,
 ) *PaginationResponse[T] {
+	if pagination.TotalPages == 0 && pagination.Total > 0 && pagination.Limit > 0 {
+		pagination.TotalPages = int((pagination.Total + int64(pagination.Limit) - 1) / int64(pagination.Limit))
+	}
+	if !pagination.HasNext && pagination.Page*pagination.Limit < int(pagination.Total) {
+		pagination.HasNext = true
+	}
+	if !pagination.HasPrev && pagination.Page > 1 {
+		pagination.HasPrev = true
+	}
+
 	return &PaginationResponse[T]{
 		Success:    true,
 		Status:     http.StatusText(statusCode),
