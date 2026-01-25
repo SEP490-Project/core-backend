@@ -72,9 +72,6 @@ func (c *VideoUploadConsumer) Handle(ctx context.Context, body []byte) error {
 		return fmt.Errorf("failed to unmarshal VideoUploadMessage: %w", err)
 	}
 
-	zap.L().Info("📥 Received video upload task",
-		zap.Any("message", msg))
-
 	// Get file record from DB
 	fileRecord, err := c.fileRepository.GetByCondition(ctx, func(db *gorm.DB) *gorm.DB {
 		return db.Where("id = ?", msg.FileID)
@@ -109,14 +106,14 @@ func (c *VideoUploadConsumer) Handle(ctx context.Context, body []byte) error {
 		// Transcode to HLS
 		hlsKey, err := c.transcodeAndUploadHLS(ctx, msg.FilePath, msg.Key, msg.Resolutions, msg.SegmentDuration)
 		if err != nil {
-			zap.L().Error("❌ Failed to transcode/upload HLS", zap.Error(err))
+			zap.L().Error("Failed to transcode/upload HLS", zap.Error(err))
 			return fmt.Errorf("failed to transcode/upload HLS: %w", err)
 		}
 		finalKey = hlsKey
 	} else {
 		// Upload raw MP4 to S3
 		if err := c.s3StreamingStorage.Put(ctx, msg.Key, file, "video/mp4"); err != nil {
-			zap.L().Error("❌ Failed to upload video to S3",
+			zap.L().Error("Failed to upload video to S3",
 				zap.String("key", msg.Key),
 				zap.Error(err),
 			)
@@ -127,12 +124,12 @@ func (c *VideoUploadConsumer) Handle(ctx context.Context, body []byte) error {
 
 	// Delete temp file
 	if err := os.Remove(msg.FilePath); err != nil {
-		zap.L().Warn("⚠️ Failed to remove temp file after upload",
+		zap.L().Warn("Failed to remove temp file after upload",
 			zap.String("path", msg.FilePath),
 			zap.Error(err),
 		)
 	} else {
-		zap.L().Info("🧼 Temp file removed", zap.String("path", msg.FilePath))
+		zap.L().Info("Temp file removed", zap.String("path", msg.FilePath))
 	}
 
 	// cdnVideoURL := c.s3StreamingStorage.BuildUrl(msg.Key)
@@ -140,7 +137,7 @@ func (c *VideoUploadConsumer) Handle(ctx context.Context, body []byte) error {
 	fileRecord.Status = enum.FileStatusUploaded
 	fileRecord.UploadedAt = utils.PtrOrNil(time.Now())
 	if err := c.fileRepository.Update(ctx, fileRecord); err != nil {
-		zap.L().Error("❌ Failed to update file record",
+		zap.L().Error("Failed to update file record",
 			zap.String("fileID", msg.FileID),
 			zap.Error(err),
 		)
@@ -148,11 +145,11 @@ func (c *VideoUploadConsumer) Handle(ctx context.Context, body []byte) error {
 	}
 
 	if err := uow.Commit(); err != nil {
-		zap.L().Error("❌ Failed to commit transaction", zap.Error(err))
+		zap.L().Error("Failed to commit transaction", zap.Error(err))
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	zap.L().Info("✅ Video upload completed successfully",
+	zap.L().Info("Video upload completed successfully",
 		zap.String("key", msg.Key),
 		zap.String("userID", msg.UserID),
 	)
