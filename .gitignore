@@ -36,3 +36,4 @@ firebase-service-account*.json
 Thumbs.db
 
 !docs
+!config/.env.template
