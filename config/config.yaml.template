@@ -1,0 +1,310 @@
+# This is a template file for `config.yaml` file. Please copy this file and rename it to `config.yaml` 
+# and fill in the blanks in the double quote with your own values.
+
+
+# Server configuration
+server:
+  port: 8080
+  service_name: bshowsell
+  environment: "development" # development, production
+  timeout: 600
+  payos_link_expiry: 300 #seconds
+  timezone: "Asia/Ho_Chi_Minh"
+  base_url: "http://localhost:8080"
+  base_frontend_url: "http://localhost:3000"
+
+http_client:
+  timeout: 60 # seconds
+  max_idle_conns: 100
+  max_idle_conns_per_host: 10
+  idle_conn_timeout: 90 # seconds
+  tls_handshake_timeout: 20 # seconds
+  expect_continue_timeout: 20 # seconds
+
+# Database configuration (PostgreSQL)
+database:
+  host: "localhost"
+  port: 5432
+  user: ""
+  password: ""
+  dbname: "sep490_bshowsell_db"
+  sslmode: "disable"
+  pool:
+    max_open_conns: 100
+    max_idle_conns: 50
+    conn_max_lifetime: 1800 # seconds
+    conn_max_idle_time: 300 # seconds
+
+# Cache (Valkey/Redis)
+cache:
+  host: "localhost"
+  port: 6379
+  db: 0
+  password: ""
+
+# Asynq Task Scheduler (uses Valkey/Redis)
+asynq:
+  enabled: true
+  db: 1  # Use separate DB from cache to avoid conflicts
+  concurrency: 10
+  task_types:
+    content_schedule: "task:content:schedule"
+    notification_schedule: "task:notification:schedule"
+    cancel_payment_schedule: "task:payment:cancel"
+    auto_receive_order: "task:order:auto-receive"
+    preorder_opening: "task:order:preorder-opening"
+    preorder_auto_receive: "task:order:preorder-auto-receive"
+    limited_product_announcement: "task:product:limited-announcement"
+    auto_close_milestone: "task:milestone:auto-close"
+
+# JWT configuration
+jwt:
+  algorithm: "RS256"
+  expiry_hours: 72
+  access_expiry_hours: 1
+  refresh_expiry_hours: 72
+  private_key_file: "private.pem"
+  public_key_file: "public.pem"
+  private_key: ""
+  public_key: ""
+  # HashiCorp Vault integration for RSA key storage
+  vault:
+    enabled: false
+    address: "http://localhost:8200"
+    token: ""
+    secret_path: "secret/jwt-keys"
+    private_key_field: "private_key"
+    public_key_field: "public_key"
+
+# Logging configuration
+log:
+  level: "debug" # debug, info, warn, error
+
+# CORS configuration
+cors:
+  allowed_origins:
+    - "*"
+  allowed_methods:
+    - "GET"
+    - "POST"
+    - "PUT"
+    - "DELETE"
+    - "OPTIONS"
+    - "PATCH"
+  allowed_headers:
+    - "Origin"
+    - "Content-Type"
+    - "Accept"
+    - "Authorization"
+  exposed_headers:
+    - "Content-Type"
+    - "Authorization"
+  allow_credentials: true
+
+# OpenTelemetry configuration
+otel:
+  enabled: true
+  endpoint: "localhost:4317"
+  insecure: true
+  service_name: "my_service"
+
+# RabbitMQ configuration
+rabbitmq:
+  host: "localhost"
+  port: 5672
+  username: ""
+  password: ""
+  vhost: "/"
+  management_url: "http://localhost:15672"
+  reconnectDelayMs: 5000
+  connectionTimeoutMs: 10000
+  heartbeat: 30
+
+# WebSocket configuration
+websocket:
+  enabled: true
+  endpoint: "/ws"
+  allowed_origins:
+    - "*"
+
+# AWS
+aws_s3_bucket:
+  bucket_name: 
+  region: ""
+  endpoint: "https://s3.amazonaws.com"
+  access_key: ""
+  secret_key: ""
+
+aws_s3_streaming_bucket:
+  bucket_name: 
+  region: 
+  endpoint: ""
+  cloudfront_domain: "
+  access_key: ""
+  secret_key: ""
+
+#PAYOS
+payos:
+  base_url: "https://api-merchant.payos.vn"
+  client_id: ""
+  api_key: ""
+  checksum_key: ""
+  cancel_url: "http://localhost:8080/api/v1/payos/cancel-callback?returnUrl=https%3A%2F%2Fbshowsell.site%2Fpayments%3Fstatus%3Dcancel"
+  return_url: "https://bshowsell.site/payments?status=success"
+  notify_url: "https://api.bshowsell.site/api/v1/payos/notify"
+  frontend_url_cancel: "https://bshowsell.site/payments?status=cancel"
+  frontend_url_return: "https://bshowsell.site/payments?status=success"
+
+#GHN
+ghn:
+  base_url: "https://dev-online-gateway.ghn.vn/shiip/public-api"
+  fee_base_url: "https://dev-online-gateway.ghn.vn/shiip/public-api/v2/shipping-order"
+  token: ""
+  # Company Info
+  shop_id: "197482"
+  district_id: "3695"
+  #Webhook mocking
+  mock_session_info:
+    mock_url: "https://dev-online-gateway.ghn.vn/sso-v2/public-api/staff/login"
+    user_id: ""
+    password: ""
+    device_id: ""
+    user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:144.0) Gecko/20100101 Firefox/144.0"
+    app_key: ""
+
+# Gmail SMTP configuration
+gmail_smtp:
+  host: "smtp.gmail.com"
+  port: 587
+  username: "" # Set via GMAIL_SMTP_USERNAME env var
+  password: "" # Set via GMAIL_APP_PASSWORD env var (use app password, not regular password)
+  from_name: "BShowSell Notification"
+  from_email: "mrstrinh.work@gmail.com" # Set via GMAIL_SMTP_FROM_EMAIL env var
+
+# Firebase Cloud Messaging configuration
+firebase_fcm:
+  service_account_path: "/home/tgkhanhdev/Desktop/Project/firebase_service_account.json" # Set via FIREBASE_SERVICE_ACCOUNT_PATH env var
+  project_id: "b-showsell" # Set via FIREBASE_PROJECT_ID env var
+
+# Notification settings
+notification:
+  template_dir: "templates/emails"
+  max_retries: 3
+  retry_delays:
+    - 2  # seconds
+    - 4
+    - 8
+  rate_limits:
+    email_per_minute: 30
+    push_per_minute: 500
+  consumer_concurrency:
+    email: 5  # Number of concurrent email consumer workers
+    push: 10  # Number of concurrent push consumer workers
+
+# Scheduler settings
+task_scheduler:
+  location_synchronization:
+    enabled: false
+    sync_hour: 3
+    concurrency: 5
+
+
+social:
+  facebook:
+    base_url: "https://graph.facebook.com"
+    client_id: ""
+    client_secret: ""
+    api_version: "24.0"
+    redirect_url: "http://localhost:8080/api/v1/auth/facebook/callback"
+    frontend_redirect_url: "https://bshowsell.site/social/success"
+    frontend_cancel_url: "https://bshowsell.site/social/error"
+    scopes:
+      - "email"
+      - "read_insights"
+      - "publish_video"
+      - "pages_manage_cta"
+      - "pages_manage_instant_articles"
+      - "pages_show_list"
+      - "read_page_mailboxes"
+      - "pages_messaging"
+      - "pages_messaging_phone_number"
+      - "pages_messaging_subscriptions"
+      - "page_events"
+      - "pages_read_engagement"
+      - "pages_manage_metadata"
+      - "pages_read_user_content"
+      - "pages_manage_ads"
+      - "pages_manage_posts"
+      - "pages_manage_engagement"
+      - "pages_utility_messaging"
+    response_type: "code"
+  tiktok:
+    base_url: "https://open.tiktokapis.com"
+    client_key: ""
+    client_secret: ""
+    api_version: "2"
+    redirect_url: "http://localhost:8080/api/v1/auth/tiktok/callback"
+    frontend_redirect_url: "https://bshowsell.site/social/success"
+    frontend_cancel_url: "https://bshowsell.site/social/error"
+    user_scopes:
+      - "user.info.basic"
+      - "user.info.profile"
+      - "video.list"
+    scopes:
+      - "user.info.basic"
+      - "video.upload"
+      - "video.publish"
+      - "user.info.profile"
+      - "user.info.stats"
+      - "video.list"
+      - "research.data.basic"
+    response_type: "code"
+
+# Token Storage Configuration (OAuth tokens)
+token_storage:
+  # For database backend: 32-byte AES-256 key (hex-encoded = 64 characters)
+  # Generate with: openssl rand -hex 32
+  encryption_key: ""
+  
+  # For vault backend
+  vault_path_prefix: "secret/data/social-tokens"
+  use_vault: false  # Set to true to use Vault instead of database encryption
+
+# AI Configuration
+ai:
+  providers:
+    gemini:
+      type: "gemini"
+      base_url: "https://generativelanguage.googleapis.com/v1beta"
+      api_key: "placeholder"
+    openrouter:
+      type: "openai"
+      base_url: "https://openrouter.ai/api/v1"
+      api_key: "placeholder"
+    moonshot:
+      type: "openai"
+      base_url: "https://api.moonshot.cn/v1"
+      api_key: "placeholder"
+  models:
+    - id: "gemini-2.5-pro"
+      provider: "gemini"
+    - id: "gemini-flash-latest"
+      provider: "gemini"
+    - id: "gemini-2.5-flash"
+      provider: "gemini"
+    - id: "gemini-2.0-flash"
+      provider: "gemini"
+    - id: "gemini-flash-lite-latest"
+      provider: "gemini"
+    - id: "gemini-2.5-flash-lite"
+      provider: "gemini"
+    - id: "gemini-2.0-flash-lite"
+      provider: "gemini"
+    - id: "qwen/qwen-2.5-72b-instruct"
+      provider: "openrouter"
+    - id: "tngtech/tng-r1t-chimera:free"
+      provider: "openrouter"
+    - id: "x-ai/grok-4.1-fast:free"
+      provider: "openrouter"
+    - id: "moonshot-v1-8k"
+      provider: "moonshot"
