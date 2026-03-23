@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 )
 
@@ -339,6 +340,9 @@ var (
 )
 
 func LoadConfig(configPath string) error {
+	// Load .env file and overwrite it with dev.env file if exists
+	loadEnvFiles()
+
 	// Priority 3: Default values
 	setDefaultValues()
 
@@ -348,7 +352,7 @@ func LoadConfig(configPath string) error {
 	viper.SetConfigType("yaml")
 
 	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			fmt.Println("Config file not found, using defaults and environment variables.")
 		} else {
 			return fmt.Errorf("error reading config file: %w", err)
@@ -367,7 +371,6 @@ func LoadConfig(configPath string) error {
 	_ = viper.BindEnv("firebase_fcm.project_id", "FIREBASE_PROJECT_ID")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
-
 	err := viper.Unmarshal(&appConfig)
 	if err != nil {
 		return fmt.Errorf("unable to decode into struct: %w", err)
@@ -405,6 +408,15 @@ func LoadConfig(configPath string) error {
 	return nil
 }
 
+func loadEnvFiles() {
+	if err := godotenv.Load(".env", "./config/.env"); err != nil {
+		fmt.Println("Error loading .env file:", err)
+	}
+	if err := godotenv.Overload(".env.dev", "./config/.env.dev"); err != nil {
+		fmt.Println("Error loading .env.dev file:", err)
+	}
+}
+
 func setDefaultValues() {
 	viper.SetDefault("server.port", 8080)
 	viper.SetDefault("server.service_name", "my_service")
@@ -413,11 +425,11 @@ func setDefaultValues() {
 	viper.SetDefault("server.base_url", "http://localhost:8080")
 	viper.SetDefault("server.base_frontend_url", "https://bshowsell.site")
 
-	viper.SetDefault("database.host", "postgres.trangiangkhanh.online")
+	viper.SetDefault("database.host", "localhost")
 	viper.SetDefault("database.port", 5432)
 	viper.SetDefault("database.user", "postgres")
-	viper.SetDefault("database.password", "170504")
-	viper.SetDefault("database.dbname", "sep490_db_stag")
+	viper.SetDefault("database.password", "")
+	viper.SetDefault("database.dbname", "")
 	viper.SetDefault("database.sslmode", "disable")
 	viper.SetDefault("database.pool.max_open_conns", 25)
 	viper.SetDefault("database.pool.max_idle_conns", 25)
@@ -457,8 +469,8 @@ func setDefaultValues() {
 
 	viper.SetDefault("rabbitmq.url", "amqp://guest:guest@localhost:5672/")
 	viper.SetDefault("rabbitmq.host", "localhost")
-	viper.SetDefault("rabbitmq.username", "guest")
-	viper.SetDefault("rabbitmq.password", "guest")
+	viper.SetDefault("rabbitmq.username", "")
+	viper.SetDefault("rabbitmq.password", "")
 	viper.SetDefault("rabbitmq.port", 5672)
 	viper.SetDefault("rabbitmq.vhost", "/")
 	viper.SetDefault("rabbitmq.reconnect_delay_ms", 5000)
